@@ -748,14 +748,14 @@ const LandingPage = () => {
               <div
                 key={pkg.id}
                 className={`relative bg-white/10 backdrop-blur-sm rounded-3xl border-2 transition-all duration-300 overflow-hidden group hover:scale-105 ${pkg.badge === 'RECOMMENDED'
-                    ? 'border-emerald-500 shadow-2xl shadow-emerald-500/20'
-                    : 'border-white/20 hover:border-emerald-500/50'
+                  ? 'border-emerald-500 shadow-2xl shadow-emerald-500/20'
+                  : 'border-white/20 hover:border-emerald-500/50'
                   }`}
               >
                 {pkg.badge && (
                   <div className={`absolute top-0 right-0 px-6 py-2 text-xs font-bold text-white rounded-bl-2xl ${pkg.badge === 'BEST SELLER' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
-                      pkg.badge === 'RECOMMENDED' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' :
-                        'bg-gradient-to-r from-purple-600 to-pink-600'
+                    pkg.badge === 'RECOMMENDED' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' :
+                      'bg-gradient-to-r from-purple-600 to-pink-600'
                     }`}>
                     {pkg.badge}
                   </div>
@@ -803,8 +803,8 @@ const LandingPage = () => {
                   </details>
 
                   <button className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 shadow-lg hover:shadow-xl ${pkg.badge === 'RECOMMENDED'
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700'
-                      : 'bg-white text-slate-900 hover:bg-emerald-50'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700'
+                    : 'bg-white text-slate-900 hover:bg-emerald-50'
                     }`}>
                     Pesan Paket Ini
                   </button>
@@ -895,8 +895,8 @@ const LandingPage = () => {
               <div
                 key={branch.id}
                 className={`bg-white rounded-2xl border-2 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer ${selectedBranch === index
-                    ? 'border-emerald-500 shadow-lg shadow-emerald-600/10'
-                    : 'border-slate-200 hover:border-emerald-300'
+                  ? 'border-emerald-500 shadow-lg shadow-emerald-600/10'
+                  : 'border-slate-200 hover:border-emerald-300'
                   }`}
                 onClick={() => setSelectedBranch(index)}
               >
@@ -1081,8 +1081,8 @@ const LandingPage = () => {
                   key={index}
                   onClick={() => setActiveTestimonial(index)}
                   className={`transition-all duration-300 rounded-full ${index === activeTestimonial
-                      ? 'bg-emerald-600 w-8 h-3'
-                      : 'bg-slate-300 hover:bg-slate-400 w-3 h-3'
+                    ? 'bg-emerald-600 w-8 h-3'
+                    : 'bg-slate-300 hover:bg-slate-400 w-3 h-3'
                     }`}
                 />
               ))}
