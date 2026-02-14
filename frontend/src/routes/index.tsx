@@ -2,25 +2,15 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import DashboardLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/auth/LoginPage';
-
-// Role-specific Dashboards
+import DashboardRouter from '../pages/dashboard/DashboardRouter';
 import SuperAdminDashboard from '../pages/dashboard/roles/SuperAdminDashboard';
-import AdminPusatDashboard from '../pages/dashboard/roles/AdminPusatDashboard';
-import AdminCabangDashboard from '../pages/dashboard/roles/AdminCabangDashboard';
-import OwnerDashboard from '../pages/dashboard/roles/OwnerDashboard';
-import InvoiceDashboard from '../pages/dashboard/roles/InvoiceDashboard';
-import VisaDashboard from '../pages/dashboard/roles/VisaDashboard';
-import HandlingDashboard from '../pages/dashboard/roles/HandlingDashboard';
-import TicketDashboard from '../pages/dashboard/roles/TicketDashboard';
-import BusDashboard from '../pages/dashboard/roles/BusDashboard';
-import AccountingDashboard from '../pages/dashboard/roles/AccountingDashboard';
 
+// Dashboard index: DashboardRouter shows role-based dashboard; SuperAdminDashboard used by DashboardRouter
 // Shared Dashboard Components
 import HotelsPage from '../pages/dashboard/components/HotelsPage';
 import VisaPage from '../pages/dashboard/components/VisaPage';
 import TicketsPage from '../pages/dashboard/components/TicketsPage';
 import BusPage from '../pages/dashboard/components/BusPage';
-import HandlingPage from '../pages/dashboard/components/HandlingPage';
 import PackagesPage from '../pages/dashboard/components/PackagesPage';
 import OrdersPage from '../pages/dashboard/components/OrdersPage';
 import InvoicesPage from '../pages/dashboard/components/InvoicesPage';
@@ -47,6 +37,11 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
+            element: <DashboardRouter />
+          },
+          // Fallback for direct path (optional): /dashboard/super-admin
+          {
+            path: 'super-admin',
             element: <SuperAdminDashboard />
           },
           {
@@ -64,10 +59,6 @@ const router = createBrowserRouter([
           {
             path: 'bus',
             element: <BusPage />
-          },
-          {
-            path: 'handling',
-            element: <HandlingPage />
           },
           {
             path: 'packages',

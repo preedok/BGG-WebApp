@@ -56,9 +56,9 @@ export const mockUsers: User[] = [
   },
   {
     id: '5',
-    name: 'Staff Handling',
-    email: 'handling@bintangglobal.com',
-    role: 'role_handling',
+    name: 'Staff Hotel',
+    email: 'hotel@bintangglobal.com',
+    role: 'role_hotel',
     phone: '+62 21 8094 5681',
     branch_id: 'branch-1',
     is_active: true,

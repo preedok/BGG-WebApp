@@ -22,8 +22,10 @@ import Button from '../../../components/common/Button';
 import { mockHotels, Hotel } from '../../../data/mockHotels';
 import { TableColumn } from '../../../types';
 import { formatIDR } from '../../../utils';
+import { useToast } from '../../../contexts/ToastContext';
 
 const HotelsPage: React.FC = () => {
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState<'all' | 'makkah' | 'madinah'>('all');
   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
@@ -100,7 +102,7 @@ const HotelsPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Hotels Management</h1>
           <p className="text-slate-600 mt-1">Manage hotel properties in Makkah and Madinah</p>
         </div>
-        <Button variant="primary" className="flex items-center gap-2">
+        <Button variant="primary" className="flex items-center gap-2" onClick={() => showToast('Tambah hotel baru – hanya Admin Pusat/Super Admin (demo)', 'info')}>
           <Plus className="w-5 h-5" />
           Add New Hotel
         </Button>
@@ -222,12 +224,14 @@ const HotelsPage: React.FC = () => {
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => showToast(`Edit harga/ketersediaan: ${hotel.name} (demo)`, 'info')}
                       className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                       title="Edit"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => showToast(`Hapus hotel – hanya Super Admin (demo)`, 'info')}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete"
                     >

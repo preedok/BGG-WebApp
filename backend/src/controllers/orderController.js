@@ -1,0 +1,124 @@
+const asyncHandler = require('express-async-handler');
+const { Order, OrderItem, User, Branch } = require('../models');
+const { BUSINESS_RULES } = require('../constants');
+
+const generateOrderNumber = () => {
+  const y = new Date().getFullYear();
+  const n = Math.floor(Math.random() * 99999) + 1;
+  return `ORD-${y}-${String(n).padStart(5, '0')}`;
+};
+
+/**
+ * GET /api/v1/orders
+ */
+const list = asyncHandler(async (req, res) => {
+  const { status, branch_id, owner_id } = req.query;
+  const where = {};
+  if (status) where.status = status;
+  if (branch_id) where.branch_id = branch_id;
+  if (owner_id) where.owner_id = owner_id;
+  if (req.user.role === 'owner') where.owner_id = req.user.id;
+  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
+    where.branch_id = req.user.branch_id;
+  }
+
+  const orders = await Order.findAll({
+    where,
+    include: [
+      { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
+      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] },
+      { model: OrderItem, as: 'OrderItems' }
+    ],
+    order: [['created_at', 'DESC']]
+  });
+  res.json({ success: true, data: orders });
+});
+
+/**
+ * POST /api/v1/orders
+ * Validasi: visa+hotel, bus min 35 pack, manifest untuk visa/tiket
+ */
+const create = asyncHandler(async (req, res) => {
+  const { items, branch_id, owner_id, notes } = req.body;
+  const effectiveOwnerId = owner_id || req.user.id;
+  const effectiveBranchId = branch_id || req.user.branch_id;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ success: false, message: 'Items order wajib' });
+  }
+
+  const hasVisa = items.some(i => i.type === 'visa');
+  const hasHotel = items.some(i => i.type === 'hotel');
+  if (hasVisa && !hasHotel) {
+    return res.status(400).json({ success: false, message: 'Visa tidak bisa tanpa hotel' });
+  }
+
+  let subtotal = 0;
+  let totalJamaah = 0;
+  let penaltyAmount = 0;
+  const orderItems = [];
+  for (const it of items) {
+    const qty = parseInt(it.quantity, 10) || 1;
+    const unitPrice = parseFloat(it.unit_price) || 0;
+    const st = qty * unitPrice;
+    subtotal += st;
+    if (it.type === 'bus') {
+      totalJamaah += qty;
+      if (qty < BUSINESS_RULES.BUS_MIN_PACK) {
+        penaltyAmount += 500000;
+      }
+    }
+    orderItems.push({
+      type: it.type,
+      product_ref_id: it.product_ref_id,
+      product_ref_type: it.product_ref_type,
+      quantity: qty,
+      unit_price: unitPrice,
+      subtotal: st,
+      manifest_file_url: it.manifest_file_url,
+      meta: it.meta || {}
+    });
+  }
+
+  const order = await Order.create({
+    order_number: generateOrderNumber(),
+    owner_id: effectiveOwnerId,
+    branch_id: effectiveBranchId,
+    total_jamaah: totalJamaah,
+    subtotal,
+    penalty_amount: penaltyAmount,
+    total_amount: subtotal + penaltyAmount,
+    status: 'draft',
+    created_by: req.user.id,
+    notes
+  });
+
+  for (const it of orderItems) {
+    await OrderItem.create({ ...it, order_id: order.id });
+  }
+
+  const full = await Order.findByPk(order.id, {
+    include: [{ model: OrderItem, as: 'OrderItems' }]
+  });
+  res.status(201).json({ success: true, data: full });
+});
+
+/**
+ * GET /api/v1/orders/:id
+ */
+const getById = asyncHandler(async (req, res) => {
+  const order = await Order.findByPk(req.params.id, {
+    include: [
+      { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
+      { model: Branch, as: 'Branch' },
+      { model: OrderItem, as: 'OrderItems' }
+    ]
+  });
+  if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
+  if (req.user.role === 'owner' && order.owner_id !== req.user.id) {
+    return res.status(403).json({ success: false, message: 'Akses ditolak' });
+  }
+  res.json({ success: true, data: order });
+});
+
+module.exports = { list, create, getById };

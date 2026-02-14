@@ -5,6 +5,7 @@ import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import { TableColumn } from '../../../types';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface Ticket {
   id: string;
@@ -53,6 +54,7 @@ const mockTickets: Ticket[] = [
 ];
 
 const TicketsPage: React.FC = () => {
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
   const stats = [
@@ -79,7 +81,7 @@ const TicketsPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Flight Tickets Management</h1>
           <p className="text-slate-600 mt-1">Manage flight schedules and ticket inventory</p>
         </div>
-        <Button variant="primary"><Plus className="w-5 h-5 mr-2" />Add Flight</Button>
+        <Button variant="primary" onClick={() => showToast('Tambah penerbangan baru – role Tiket (demo)', 'info')}><Plus className="w-5 h-5 mr-2" />Add Flight</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -136,9 +138,9 @@ const TicketsPage: React.FC = () => {
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Eye className="w-4 h-4" /></button>
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" onClick={() => showToast(`Lihat detail: ${ticket.airline} ${ticket.flight_number}`, 'info')} title="View"><Eye className="w-4 h-4" /></button>
+                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => showToast(`Edit jadwal/seat: ${ticket.flight_number} (demo)`, 'info')} title="Edit"><Edit className="w-4 h-4" /></button>
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" onClick={() => showToast('Hapus penerbangan – role Tiket (demo)', 'info')} title="Delete"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>

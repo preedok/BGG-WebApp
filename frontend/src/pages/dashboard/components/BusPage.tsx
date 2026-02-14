@@ -5,6 +5,7 @@ import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import { TableColumn } from '../../../types';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface BusType {
   id: string;
@@ -47,6 +48,8 @@ const mockBuses: BusType[] = [
 ];
 
 const BusPage: React.FC = () => {
+  const { showToast } = useToast();
+
   const stats = [
     { label: 'Total Buses', value: mockBuses.length, color: 'from-blue-500 to-cyan-500' },
     { label: 'Available', value: mockBuses.filter(b => b.status === 'available').length, color: 'from-emerald-500 to-teal-500' },
@@ -71,7 +74,7 @@ const BusPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Bus Fleet Management</h1>
           <p className="text-slate-600 mt-1">Manage bus fleet and transportation services</p>
         </div>
-        <Button variant="primary"><Plus className="w-5 h-5 mr-2" />Add Bus</Button>
+        <Button variant="primary" onClick={() => showToast('Tambah bus baru – role Bus / Admin Cabang (demo)', 'info')}><Plus className="w-5 h-5 mr-2" />Add Bus</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -115,9 +118,9 @@ const BusPage: React.FC = () => {
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Settings className="w-4 h-4" /></button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => showToast(`Edit bus / konfigurasi penalty: ${bus.bus_number} (demo)`, 'info')} title="Edit"><Edit className="w-4 h-4" /></button>
+                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" onClick={() => showToast(`Konfigurasi seat & penalty: ${bus.bus_number} (demo)`, 'info')} title="Settings"><Settings className="w-4 h-4" /></button>
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" onClick={() => showToast('Hapus bus – role Bus (demo)', 'info')} title="Delete"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>

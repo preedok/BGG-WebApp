@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Receipt, Search, Eye, Download, DollarSign, Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Receipt, Eye, Download, Calendar, CheckCircle, Clock, AlertCircle, Upload, X } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import { TableColumn } from '../../../types';
+import { useToast } from '../../../contexts/ToastContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Invoice {
   id: string;
@@ -59,17 +61,20 @@ const mockInvoices: Invoice[] = [
 ];
 
 const InvoicesPage: React.FC = () => {
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
 
-  const filteredInvoices = statusFilter === 'all' 
-    ? mockInvoices 
-    : mockInvoices.filter(inv => inv.status === statusFilter);
+  const filteredInvoices = statusFilter === 'all'
+    ? mockInvoices
+    : mockInvoices.filter((inv) => inv.status === statusFilter);
 
   const stats = [
     { label: 'Total Invoices', value: mockInvoices.length, icon: <Receipt className="w-5 h-5" />, color: 'from-blue-500 to-cyan-500' },
-    { label: 'Paid', value: mockInvoices.filter(i => i.status === 'paid').length, icon: <CheckCircle className="w-5 h-5" />, color: 'from-emerald-500 to-teal-500' },
-    { label: 'Partial', value: mockInvoices.filter(i => i.status === 'partial').length, icon: <Clock className="w-5 h-5" />, color: 'from-yellow-500 to-orange-500' },
-    { label: 'Tentative', value: mockInvoices.filter(i => i.status === 'tentative').length, icon: <AlertCircle className="w-5 h-5" />, color: 'from-purple-500 to-pink-500' }
+    { label: 'Paid', value: mockInvoices.filter((i) => i.status === 'paid').length, icon: <CheckCircle className="w-5 h-5" />, color: 'from-emerald-500 to-teal-500' },
+    { label: 'Partial', value: mockInvoices.filter((i) => i.status === 'partial').length, icon: <Clock className="w-5 h-5" />, color: 'from-yellow-500 to-orange-500' },
+    { label: 'Tentative', value: mockInvoices.filter((i) => i.status === 'tentative').length, icon: <AlertCircle className="w-5 h-5" />, color: 'from-purple-500 to-pink-500' }
   ];
 
   const tableColumns: TableColumn[] = [
@@ -85,13 +90,26 @@ const InvoicesPage: React.FC = () => {
   ];
 
   const getStatusBadge = (status: string): 'success' | 'warning' | 'info' | 'error' | 'default' => {
-    return {
-      paid: 'success' as const,
-      partial: 'warning' as const,
-      definite: 'info' as const,
-      tentative: 'default' as const
-    }[status] || 'default';
+    return (
+      {
+        paid: 'success' as const,
+        partial: 'warning' as const,
+        definite: 'info' as const,
+        tentative: 'default' as const
+      }[status] || 'default'
+    );
   };
+
+  const handleDownload = (invoice: Invoice) => {
+    showToast(`Download invoice ${invoice.invoice_number} (PDF)`, 'success');
+  };
+
+  const handleUploadProof = (invoice: Invoice) => {
+    showToast(`Upload bukti bayar untuk ${invoice.invoice_number} – fitur demo`, 'info');
+  };
+
+  const canUploadProof = (invoice: Invoice) =>
+    (user?.role === 'owner' || user?.role === 'role_invoice') && invoice.status !== 'paid';
 
   return (
     <div className="space-y-6">
@@ -118,7 +136,7 @@ const InvoicesPage: React.FC = () => {
 
       <Card>
         <div className="flex gap-2 mb-6">
-          {['all', 'tentative', 'partial', 'paid'].map(status => (
+          {['all', 'tentative', 'partial', 'paid'].map((status) => (
             <Button
               key={status}
               variant={statusFilter === status ? 'primary' : 'outline'}
@@ -133,6 +151,7 @@ const InvoicesPage: React.FC = () => {
         <Table
           columns={tableColumns}
           data={filteredInvoices}
+          emptyMessage="Tidak ada invoice"
           renderRow={(invoice: Invoice) => (
             <tr key={invoice.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4 font-semibold text-slate-900">{invoice.invoice_number}</td>
@@ -150,14 +169,107 @@ const InvoicesPage: React.FC = () => {
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Eye className="w-4 h-4" /></button>
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Download className="w-4 h-4" /></button>
+                  <button
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                    onClick={() => setViewInvoice(invoice)}
+                    title="Lihat detail"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                    onClick={() => handleDownload(invoice)}
+                    title="Download PDF"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  {canUploadProof(invoice) && (
+                    <button
+                      className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg"
+                      onClick={() => handleUploadProof(invoice)}
+                      title="Upload bukti bayar"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>
           )}
         />
       </Card>
+
+      {/* View Invoice Modal */}
+      {viewInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setViewInvoice(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-slate-900">Detail Invoice</h2>
+              <button onClick={() => setViewInvoice(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-slate-500">Invoice #</dt>
+                <dd className="font-semibold">{viewInvoice.invoice_number}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Order #</dt>
+                <dd className="font-semibold">{viewInvoice.order_number}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Owner</dt>
+                <dd className="font-semibold">{viewInvoice.owner_name}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Total Amount</dt>
+                <dd className="font-semibold">{viewInvoice.total_amount}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Paid</dt>
+                <dd className="font-semibold text-emerald-600">{viewInvoice.paid_amount}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Remaining</dt>
+                <dd className="font-semibold text-red-600">{viewInvoice.remaining_amount}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Status</dt>
+                <dd>
+                  <Badge variant={getStatusBadge(viewInvoice.status)}>{viewInvoice.status}</Badge>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Due Date</dt>
+                <dd className="font-semibold">{viewInvoice.due_date}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Created</dt>
+                <dd className="font-semibold">{viewInvoice.created_date}</dd>
+              </div>
+            </dl>
+            <div className="mt-6 flex gap-2">
+              <Button variant="outline" onClick={() => setViewInvoice(null)}>
+                Tutup
+              </Button>
+              <Button variant="primary" onClick={() => handleDownload(viewInvoice)}>
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+              {canUploadProof(viewInvoice) && (
+                <Button variant="secondary" onClick={() => handleUploadProof(viewInvoice)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Bukti Bayar
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

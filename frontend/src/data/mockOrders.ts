@@ -1,14 +1,11 @@
-import { Order as OrderType } from '../types';
-
-// Re-export the Order type
-export type Order = OrderType;
+import { OrderListItem } from '../types';
 
 /**
  * Mock Orders Data
- * Sample order data for testing
+ * Sample order data for list/table display
  */
 
-export const mockOrders: Order[] = [
+export const mockOrders: OrderListItem[] = [
   {
     id: '1',
     order_number: 'ORD-2024-001',

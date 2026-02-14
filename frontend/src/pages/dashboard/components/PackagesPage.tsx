@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Package, Plus, Search, Edit, Trash2, Eye, DollarSign, Calendar, CheckCircle } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import { TableColumn } from '../../../types';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface PackageType {
   id: string;
@@ -53,6 +54,8 @@ const mockPackages: PackageType[] = [
 ];
 
 const PackagesPage: React.FC = () => {
+  const { showToast } = useToast();
+
   const stats = [
     { label: 'Total Packages', value: mockPackages.length, color: 'from-blue-500 to-cyan-500' },
     { label: 'Active Packages', value: mockPackages.filter(p => p.is_active).length, color: 'from-emerald-500 to-teal-500' },
@@ -78,7 +81,9 @@ const PackagesPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Packages Management</h1>
           <p className="text-slate-600 mt-1">Manage bundled umroh packages and pricing</p>
         </div>
-        <Button variant="primary"><Plus className="w-5 h-5 mr-2" />Create Package</Button>
+        <Button variant="primary" onClick={() => showToast('Buat paket baru – hanya Admin Pusat/Super Admin (demo)', 'info')}>
+          <Plus className="w-5 h-5 mr-2" />Create Package
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -134,9 +139,9 @@ const PackagesPage: React.FC = () => {
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Eye className="w-4 h-4" /></button>
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" onClick={() => showToast(`Lihat detail: ${pkg.package_name}`, 'info')} title="View"><Eye className="w-4 h-4" /></button>
+                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => showToast(`Edit paket: ${pkg.package_name} (demo)`, 'info')} title="Edit"><Edit className="w-4 h-4" /></button>
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" onClick={() => showToast('Hapus paket – hanya Super Admin (demo)', 'info')} title="Delete"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>

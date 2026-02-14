@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Globe, LogIn, AlertCircle, Plane, Users, Building2, Receipt, FileText, Bus, BarChart3, DollarSign } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Globe, LogIn, AlertCircle, Plane, Users, Building2, Receipt, FileText, Bus, BarChart3, DollarSign, Hotel } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { DEFAULT_PASSWORD, mockUsers } from '../../data';
 import Button from '../../components/common/Button';
@@ -77,7 +77,7 @@ const LoginPage: React.FC = () => {
     { email: 'adminpusat@bintangglobal.com', role: 'Admin Pusat', icon: <Building2 className="w-4 h-4" />, color: 'from-blue-500 to-cyan-600' },
     { email: 'admincabang.surabaya@bintangglobal.com', role: 'Admin Cabang', icon: <Building2 className="w-4 h-4" />, color: 'from-cyan-500 to-teal-600' },
     { email: 'invoice@bintangglobal.com', role: 'Staff Invoice', icon: <Receipt className="w-4 h-4" />, color: 'from-yellow-500 to-orange-600' },
-    { email: 'handling@bintangglobal.com', role: 'Staff Handling', icon: <Users className="w-4 h-4" />, color: 'from-purple-500 to-pink-600' },
+    { email: 'hotel@bintangglobal.com', role: 'Staff Hotel', icon: <Hotel className="w-4 h-4" />, color: 'from-purple-500 to-pink-600' },
     { email: 'visa@bintangglobal.com', role: 'Staff Visa', icon: <FileText className="w-4 h-4" />, color: 'from-indigo-500 to-blue-600' },
     { email: 'bus@bintangglobal.com', role: 'Staff Bus', icon: <Bus className="w-4 h-4" />, color: 'from-orange-500 to-red-600' },
     { email: 'ticket@bintangglobal.com', role: 'Staff Ticket', icon: <Plane className="w-4 h-4" />, color: 'from-pink-500 to-rose-600' },

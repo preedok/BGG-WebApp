@@ -34,13 +34,13 @@ const menuItems: MenuItem[] = [
     title: 'Dashboard',
     icon: <LayoutDashboard className="w-5 h-5" />,
     path: '/dashboard',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'role_handling', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting', 'owner']
   },
   {
     title: 'Hotels',
     icon: <Hotel className="w-5 h-5" />,
     path: '/dashboard/hotels',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_handling', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_hotel', 'owner']
   },
   {
     title: 'Visa',
@@ -59,12 +59,6 @@ const menuItems: MenuItem[] = [
     icon: <Bus className="w-5 h-5" />,
     path: '/dashboard/bus',
     roles: ['super_admin', 'admin_pusat', 'role_bus', 'owner']
-  },
-  {
-    title: 'Handling',
-    icon: <Users className="w-5 h-5" />,
-    path: '/dashboard/handling',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_handling', 'owner']
   },
   {
     title: 'Packages',
@@ -209,7 +203,7 @@ const DashboardLayout: React.FC = () => {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
           {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
-            const isProductItem = ['Hotels', 'Visa', 'Tickets', 'Bus', 'Handling'].includes(item.title);
+            const isProductItem = ['Hotels', 'Visa', 'Tickets', 'Bus'].includes(item.title);
             
             // Skip rendering product items here, they'll be in the collapse section
             if (isProductItem) return null;
@@ -217,7 +211,7 @@ const DashboardLayout: React.FC = () => {
             // Render Products collapse button before Packages
             if (item.title === 'Packages') {
               const productMenuItems = filteredMenuItems.filter(i => 
-                ['Hotels', 'Visa', 'Tickets', 'Bus', 'Handling'].includes(i.title)
+                ['Hotels', 'Visa', 'Tickets', 'Bus'].includes(i.title)
               );
               
               return (

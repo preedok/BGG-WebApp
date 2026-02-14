@@ -3,9 +3,12 @@ const app = require('./app');
 const sequelize = require('./config/sequelize');
 const logger = require('./config/logger');
 
+// Load models (register with sequelize)
+require('./models');
+
 const PORT = process.env.PORT || 5000;
 
-sequelize.sync({ alter: false })
+sequelize.sync({ alter: true })
   .then(() => {
     logger.info('Database synchronized');
     

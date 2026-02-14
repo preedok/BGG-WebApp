@@ -49,9 +49,9 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: '5',
-    name: 'Role Handling Staff',
-    email: 'handling@bintangglobal.com',
-    role: 'role_handling',
+    name: 'Role Hotel Staff',
+    email: 'hotel@bintangglobal.com',
+    role: 'role_hotel',
     is_active: true,
     created_at: '2024-01-01T00:00:00Z'
   },

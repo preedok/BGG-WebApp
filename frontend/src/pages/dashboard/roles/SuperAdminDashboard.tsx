@@ -97,7 +97,7 @@ const SuperAdminDashboard: React.FC = () => {
       color: 'from-purple-500 to-pink-500'
     },
     {
-      role: 'Handling',
+      role: 'Hotel',
       icon: <Users className="w-5 h-5" />,
       totalUsers: 4,
       activeToday: 4,
@@ -189,7 +189,7 @@ const SuperAdminDashboard: React.FC = () => {
   // Recent Activities (cross-role)
   const recentActivities = [
     { role: 'Invoice', user: 'Staff Invoice', action: 'Verified payment for INV-2024-145', time: '5 min ago', status: 'success' },
-    { role: 'Handling', user: 'Staff Handling', action: 'Updated jamaah progress to 75%', time: '12 min ago', status: 'info' },
+    { role: 'Hotel', user: 'Staff Hotel', action: 'Updated jamaah progress to 75%', time: '12 min ago', status: 'info' },
     { role: 'Admin Pusat', user: 'Admin Jakarta', action: 'Updated hotel pricing for Makkah', time: '25 min ago', status: 'info' },
     { role: 'Visa', user: 'Staff Visa', action: 'Processed 15 visa applications', time: '45 min ago', status: 'success' },
     { role: 'Owner', user: 'Al-Hijrah Travel', action: 'Placed new order ORD-2024-234', time: '1 hour ago', status: 'info' }

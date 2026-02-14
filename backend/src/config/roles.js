@@ -3,7 +3,7 @@ const ROLES = {
   ADMIN_PUSAT: 'admin_pusat',
   ADMIN_CABANG: 'admin_cabang',
   ROLE_INVOICE: 'role_invoice',
-  ROLE_HANDLING: 'role_handling',
+  ROLE_HOTEL: 'role_hotel',
   ROLE_VISA: 'role_visa',
   ROLE_BUS: 'role_bus',
   ROLE_TICKET: 'role_ticket',
@@ -23,8 +23,8 @@ const PERMISSIONS = {
   [ROLES.ROLE_INVOICE]: [
     'create_orders', 'view_orders', 'manage_invoices'
   ],
-  [ROLES.ROLE_HANDLING]: [
-    'view_hotels', 'manage_room_allocation'
+  [ROLES.ROLE_HOTEL]: [
+    'view_hotels', 'manage_room_allocation', 'manage_jamaah_handling'
   ],
   [ROLES.ROLE_VISA]: [
     'view_visa_orders', 'process_visa'
