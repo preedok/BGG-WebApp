@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ChevronRight, 
-  CheckCircle, 
-  Globe, 
-  ShieldCheck, 
-  TrendingUp, 
-  Users, 
-  Calendar, 
-  Zap, 
-  BarChart3, 
-  Lock, 
-  Clock, 
-  Star, 
-  MapPin, 
-  Phone, 
+import {
+  ChevronRight,
+  CheckCircle,
+  Globe,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  Calendar,
+  Zap,
+  BarChart3,
+  Lock,
+  Clock,
+  Star,
+  MapPin,
+  Phone,
   Mail,
-  Building2, 
-  Award, 
-  Heart, 
-  Plane, 
-  Hotel, 
-  FileText, 
+  Building2,
+  Award,
+  Heart,
+  Plane,
+  Hotel,
+  FileText,
   Bus,
-  ChevronLeft, 
-  Menu, 
-  X, 
-  ArrowRight, 
+  ChevronLeft,
+  Menu,
+  X,
+  ArrowRight,
   MessageCircle
 } from 'lucide-react';
 
@@ -392,7 +392,7 @@ const LandingPage = () => {
   };
 
   const getProductIcon = (category: Product['category']): JSX.Element => {
-    switch(category) {
+    switch (category) {
       case 'hotel': return <Hotel className="w-6 h-6" />;
       case 'visa': return <FileText className="w-6 h-6" />;
       case 'handling': return <Users className="w-6 h-6" />;
@@ -422,7 +422,7 @@ const LandingPage = () => {
                 <p className="text-xs text-slate-500 -mt-0.5">Travel Management</p>
               </div>
             </div>
-            
+
             {/* Desktop Menu */}
             <div className="hidden lg:flex items-center space-x-8">
               <button onClick={() => scrollToSection('products')} className="text-slate-600 hover:text-emerald-600 font-medium text-sm transition-colors">Products</button>
@@ -433,16 +433,19 @@ const LandingPage = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <button className="text-slate-700 hover:text-slate-900 font-medium text-sm transition-colors hidden sm:block">
+              <a
+                href="/login"
+                className="text-slate-700 hover:text-slate-900 font-medium text-sm transition-colors hidden sm:block"
+              >
                 Sign In
-              </button>
+              </a>
               <button className="relative group overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-600/40 transition-all duration-300">
                 <span className="relative z-10">Get Started</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-700 to-teal-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </button>
-              
+
               {/* Mobile Menu Button */}
-              <button 
+              <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="lg:hidden p-2 text-slate-600 hover:text-emerald-600 transition-colors"
               >
@@ -480,7 +483,7 @@ const LandingPage = () => {
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                 <span className="text-emerald-700 text-sm font-semibold">B2B Travel Platform Terpercaya</span>
               </div>
-              
+
               <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
                 <span className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent">
                   Platform Terlengkap
@@ -507,8 +510,8 @@ const LandingPage = () => {
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-emerald-700 to-teal-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => scrollToSection('packages')}
                   className="group bg-white text-slate-700 px-8 py-4 rounded-xl font-semibold text-base border-2 border-slate-200 hover:border-emerald-600 hover:text-emerald-600 transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
                 >
@@ -550,7 +553,7 @@ const LandingPage = () => {
                     </div>
                     <div className="text-xs text-slate-400 font-mono">dashboard.bintangglobal.com</div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200/50">
                       <div className="flex items-center space-x-3">
@@ -667,7 +670,7 @@ const LandingPage = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product) => (
-              <div 
+              <div
                 key={product.id}
                 className="group relative bg-white rounded-2xl border-2 border-slate-200 hover:border-emerald-300 p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-600/10 hover:-translate-y-2"
               >
@@ -680,16 +683,16 @@ const LandingPage = () => {
                 )}
 
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-teal-50/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
+
                 <div className="relative">
                   <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-600/30">
                     {getProductIcon(product.category)}
                   </div>
-                  
+
                   <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors">
                     {product.name}
                   </h3>
-                  
+
                   <p className="text-slate-600 text-sm mb-4 leading-relaxed">
                     {product.description}
                   </p>
@@ -725,7 +728,7 @@ const LandingPage = () => {
       {/* Packages Section */}
       <section id="packages" className="py-24 px-6 lg:px-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjAzIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
-        
+
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-16 space-y-4">
             <div className="inline-flex items-center space-x-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full px-4 py-2">
@@ -742,27 +745,25 @@ const LandingPage = () => {
 
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
             {packages.map((pkg) => (
-              <div 
+              <div
                 key={pkg.id}
-                className={`relative bg-white/10 backdrop-blur-sm rounded-3xl border-2 transition-all duration-300 overflow-hidden group hover:scale-105 ${
-                  pkg.badge === 'RECOMMENDED' 
-                    ? 'border-emerald-500 shadow-2xl shadow-emerald-500/20' 
+                className={`relative bg-white/10 backdrop-blur-sm rounded-3xl border-2 transition-all duration-300 overflow-hidden group hover:scale-105 ${pkg.badge === 'RECOMMENDED'
+                    ? 'border-emerald-500 shadow-2xl shadow-emerald-500/20'
                     : 'border-white/20 hover:border-emerald-500/50'
-                }`}
+                  }`}
               >
                 {pkg.badge && (
-                  <div className={`absolute top-0 right-0 px-6 py-2 text-xs font-bold text-white rounded-bl-2xl ${
-                    pkg.badge === 'BEST SELLER' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
-                    pkg.badge === 'RECOMMENDED' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' :
-                    'bg-gradient-to-r from-purple-600 to-pink-600'
-                  }`}>
+                  <div className={`absolute top-0 right-0 px-6 py-2 text-xs font-bold text-white rounded-bl-2xl ${pkg.badge === 'BEST SELLER' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                      pkg.badge === 'RECOMMENDED' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' :
+                        'bg-gradient-to-r from-purple-600 to-pink-600'
+                    }`}>
                     {pkg.badge}
                   </div>
                 )}
 
                 <div className="p-8">
                   <div className="text-6xl mb-4">{pkg.image}</div>
-                  
+
                   <h3 className="text-2xl font-bold text-white mb-2">{pkg.name}</h3>
                   <p className="text-emerald-400 font-semibold mb-4">{pkg.duration}</p>
                   <p className="text-slate-300 text-sm mb-6">{pkg.description}</p>
@@ -801,11 +802,10 @@ const LandingPage = () => {
                     </div>
                   </details>
 
-                  <button className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 shadow-lg hover:shadow-xl ${
-                    pkg.badge === 'RECOMMENDED'
+                  <button className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 shadow-lg hover:shadow-xl ${pkg.badge === 'RECOMMENDED'
                       ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700'
                       : 'bg-white text-slate-900 hover:bg-emerald-50'
-                  }`}>
+                    }`}>
                     Pesan Paket Ini
                   </button>
                 </div>
@@ -849,21 +849,21 @@ const LandingPage = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="group relative p-8 bg-white rounded-2xl border border-slate-200 hover:border-emerald-300 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-600/10 hover:-translate-y-1"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-teal-50/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
+
                 <div className="relative">
                   <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-600/30">
                     {feature.icon}
                   </div>
-                  
+
                   <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-emerald-600 transition-colors">
                     {feature.title}
                   </h3>
-                  
+
                   <p className="text-slate-600 leading-relaxed">
                     {feature.description}
                   </p>
@@ -892,13 +892,12 @@ const LandingPage = () => {
 
           <div className="grid lg:grid-cols-2 gap-8 mb-12">
             {branches.map((branch, index) => (
-              <div 
+              <div
                 key={branch.id}
-                className={`bg-white rounded-2xl border-2 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer ${
-                  selectedBranch === index 
-                    ? 'border-emerald-500 shadow-lg shadow-emerald-600/10' 
+                className={`bg-white rounded-2xl border-2 p-6 transition-all duration-300 hover:shadow-xl cursor-pointer ${selectedBranch === index
+                    ? 'border-emerald-500 shadow-lg shadow-emerald-600/10'
                     : 'border-slate-200 hover:border-emerald-300'
-                }`}
+                  }`}
                 onClick={() => setSelectedBranch(index)}
               >
                 <div className="flex items-start justify-between mb-4">
@@ -1046,15 +1045,14 @@ const LandingPage = () => {
               {testimonials.map((testimonial, index) => (
                 <div
                   key={testimonial.id}
-                  className={`p-12 transition-all duration-500 ${
-                    index === activeTestimonial ? 'block' : 'hidden'
-                  }`}
+                  className={`p-12 transition-all duration-500 ${index === activeTestimonial ? 'block' : 'hidden'
+                    }`}
                 >
                   <div className="flex flex-col items-center text-center space-y-6">
                     <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-emerald-600/30">
                       {testimonial.avatar}
                     </div>
-                    
+
                     <div className="flex items-center space-x-1">
                       {[...Array(testimonial.rating)].map((_, i) => (
                         <Star key={i} className="w-6 h-6 fill-yellow-400 text-yellow-400" />
@@ -1082,11 +1080,10 @@ const LandingPage = () => {
                 <button
                   key={index}
                   onClick={() => setActiveTestimonial(index)}
-                  className={`transition-all duration-300 rounded-full ${
-                    index === activeTestimonial
+                  className={`transition-all duration-300 rounded-full ${index === activeTestimonial
                       ? 'bg-emerald-600 w-8 h-3'
                       : 'bg-slate-300 hover:bg-slate-400 w-3 h-3'
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -1111,7 +1108,7 @@ const LandingPage = () => {
       {/* CTA Section */}
       <section className="py-24 px-6 lg:px-8 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
-        
+
         <div className="max-w-4xl mx-auto text-center relative">
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
             Siap Untuk Meningkatkan Bisnis Umroh Anda?
@@ -1155,16 +1152,16 @@ const LandingPage = () => {
               </p>
               <div className="flex items-center space-x-3">
                 <a href="#" className="w-10 h-10 bg-slate-800 hover:bg-emerald-600 rounded-lg flex items-center justify-center transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
                 </a>
                 <a href="#" className="w-10 h-10 bg-slate-800 hover:bg-emerald-600 rounded-lg flex items-center justify-center transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
                 </a>
                 <a href="#" className="w-10 h-10 bg-slate-800 hover:bg-emerald-600 rounded-lg flex items-center justify-center transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121L8.08 13.73l-2.97-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.827z"/></svg>
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121L8.08 13.73l-2.97-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.827z" /></svg>
                 </a>
                 <a href="#" className="w-10 h-10 bg-slate-800 hover:bg-emerald-600 rounded-lg flex items-center justify-center transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>
                 </a>
               </div>
             </div>
