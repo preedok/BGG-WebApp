@@ -1,4 +1,7 @@
-import { User } from '../types';
+import { User as UserType } from '../types';
+
+// Re-export the User type
+export type User = UserType;
 
 /**
  * Mock Users Data

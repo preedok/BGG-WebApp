@@ -1,8 +1,4 @@
-/**
- * Data Index
- * Barrel export for all mock data
- */
-
+// Re-export all mock data
+export * from './mockOrders';
 export * from './mockUsers';
 export * from './mockHotels';
-export * from './mockOrders';

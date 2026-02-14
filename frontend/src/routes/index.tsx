@@ -2,125 +2,105 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import DashboardLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/auth/LoginPage';
-import SuperAdminDashboard from '../pages/dashboard/SuperAdminDashboard';
+
+// Role-specific Dashboards
+import SuperAdminDashboard from '../pages/dashboard/roles/SuperAdminDashboard';
+import AdminPusatDashboard from '../pages/dashboard/roles/AdminPusatDashboard';
+import AdminCabangDashboard from '../pages/dashboard/roles/AdminCabangDashboard';
+import OwnerDashboard from '../pages/dashboard/roles/OwnerDashboard';
+import InvoiceDashboard from '../pages/dashboard/roles/InvoiceDashboard';
+import VisaDashboard from '../pages/dashboard/roles/VisaDashboard';
+import HandlingDashboard from '../pages/dashboard/roles/HandlingDashboard';
+import TicketDashboard from '../pages/dashboard/roles/TicketDashboard';
+import BusDashboard from '../pages/dashboard/roles/BusDashboard';
+import AccountingDashboard from '../pages/dashboard/roles/AccountingDashboard';
+
+// Shared Dashboard Components
+import HotelsPage from '../pages/dashboard/components/HotelsPage';
+import VisaPage from '../pages/dashboard/components/VisaPage';
+import TicketsPage from '../pages/dashboard/components/TicketsPage';
+import BusPage from '../pages/dashboard/components/BusPage';
+import HandlingPage from '../pages/dashboard/components/HandlingPage';
+import PackagesPage from '../pages/dashboard/components/PackagesPage';
+import OrdersPage from '../pages/dashboard/components/OrdersPage';
+import InvoicesPage from '../pages/dashboard/components/InvoicesPage';
+import UsersPage from '../pages/dashboard/components/UsersPage';
+import BranchesPage from '../pages/dashboard/components/BranchesPage';
+import ReportsPage from '../pages/dashboard/components/ReportsPage';
+import SettingsPage from '../pages/dashboard/components/SettingsPage';
 
 const router = createBrowserRouter([
-    {
-        path: '/',
-        element: <Navigate to="/dashboard" replace />
-    },
-    {
-        path: '/login',
-        element: <LoginPage />
-    },
-    {
-        path: '/dashboard',
-        element: <ProtectedRoute />,
+  {
+    path: '/',
+    element: <Navigate to="/dashboard" replace />
+  },
+  {
+    path: '/login',
+    element: <LoginPage />
+  },
+  {
+    path: '/dashboard',
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <DashboardLayout />,
         children: [
-            {
-                element: <DashboardLayout />,
-                children: [
-                    {
-                        index: true,
-                        element: <SuperAdminDashboard />
-                    },
-                    {
-                        path: 'hotels',
-                        element: <ComingSoonPage title="Hotels Management" />
-                    },
-                    {
-                        path: 'visa',
-                        element: <ComingSoonPage title="Visa Management" />
-                    },
-                    {
-                        path: 'tickets',
-                        element: <ComingSoonPage title="Tickets Management" />
-                    },
-                    {
-                        path: 'bus',
-                        element: <ComingSoonPage title="Bus Management" />
-                    },
-                    {
-                        path: 'packages',
-                        element: <ComingSoonPage title="Package Management" />
-                    },
-                    {
-                        path: 'orders',
-                        element: <ComingSoonPage title="Orders Management" />
-                    },
-                    {
-                        path: 'invoices',
-                        element: <ComingSoonPage title="Invoice Management" />
-                    },
-                    {
-                        path: 'users',
-                        element: <ComingSoonPage title="User Management" />
-                    },
-                    {
-                        path: 'branches',
-                        element: <ComingSoonPage title="Branch Management" />
-                    },
-                    {
-                        path: 'reports',
-                        element: <ComingSoonPage title="Reports & Analytics" />
-                    },
-                    {
-                        path: 'settings',
-                        element: <ComingSoonPage title="Settings" />
-                    },
-                    {
-                        path: 'profile',
-                        element: <ComingSoonPage title="My Profile" />
-                    }
-                ]
-            }
+          {
+            index: true,
+            element: <SuperAdminDashboard />
+          },
+          {
+            path: 'hotels',
+            element: <HotelsPage />
+          },
+          {
+            path: 'visa',
+            element: <VisaPage />
+          },
+          {
+            path: 'tickets',
+            element: <TicketsPage />
+          },
+          {
+            path: 'bus',
+            element: <BusPage />
+          },
+          {
+            path: 'handling',
+            element: <HandlingPage />
+          },
+          {
+            path: 'packages',
+            element: <PackagesPage />
+          },
+          {
+            path: 'orders',
+            element: <OrdersPage />
+          },
+          {
+            path: 'invoices',
+            element: <InvoicesPage />
+          },
+          {
+            path: 'users',
+            element: <UsersPage />
+          },
+          {
+            path: 'branches',
+            element: <BranchesPage />
+          },
+          {
+            path: 'reports',
+            element: <ReportsPage />
+          },
+          {
+            path: 'settings',
+            element: <SettingsPage />
+          }
         ]
-    },
-    {
-        path: '*',
-        element: <NotFoundPage />
-    }
+      }
+    ]
+  }
 ]);
-
-// Coming Soon Page Component
-function ComingSoonPage({ title }: { title: string }) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-6xl">🚧</span>
-                </div>
-                <h1 className="text-4xl font-bold text-slate-900 mb-4">{title}</h1>
-                <p className="text-xl text-slate-600 mb-8">This page is under construction</p>
-                <div className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-100 text-emerald-700 rounded-xl font-semibold">
-                    <span>Coming soon...</span>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// 404 Page Component
-function NotFoundPage() {
-    return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-            <div className="text-center">
-                <div className="mb-8">
-                    <span className="text-9xl font-bold text-slate-300">404</span>
-                </div>
-                <h1 className="text-4xl font-bold text-slate-900 mb-4">Page Not Found</h1>
-                <p className="text-xl text-slate-600 mb-8">
-                    The page you are looking for does not exist.
-                </p>
-                <a
-                    href="/dashboard"
-                    className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl"
-                >
-                    Go to Dashboard
-                </a>
-            </div>
-        </div>
-    );
-}
 
 export default router;

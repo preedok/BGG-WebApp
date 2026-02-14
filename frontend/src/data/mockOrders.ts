@@ -1,4 +1,7 @@
-import { Order } from '../types';
+import { Order as OrderType } from '../types';
+
+// Re-export the Order type
+export type Order = OrderType;
 
 /**
  * Mock Orders Data
