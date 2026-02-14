@@ -1,11 +1,14 @@
-import LandingPage from './pages/Landingpage';
-import './App.css';
+import React from 'react';
+import { RouterProvider } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import router from './routes';
+import './index.css';
 
 function App() {
   return (
-    <>
-      <LandingPage />
-    </>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   );
 }
 

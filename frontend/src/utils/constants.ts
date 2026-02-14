@@ -1,0 +1,261 @@
+/**
+ * Constants
+ * Application-wide constants and configurations
+ */
+
+// ============================================
+// API CONFIGURATION
+// ============================================
+
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+export const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+
+// ============================================
+// CURRENCY
+// ============================================
+
+export const CURRENCIES = {
+  IDR: 'IDR',
+  SAR: 'SAR',
+  USD: 'USD'
+} as const;
+
+export const EXCHANGE_RATES = {
+  SAR_TO_IDR: 4200, // 1 SAR = 4,200 IDR (example rate)
+  USD_TO_IDR: 15800, // 1 USD = 15,800 IDR (example rate)
+  USD_TO_SAR: 3.75 // 1 USD = 3.75 SAR (example rate)
+};
+
+// ============================================
+// ORDER STATUS
+// ============================================
+
+export const ORDER_STATUSES = {
+  DRAFT: 'draft',
+  PENDING: 'pending',
+  CONFIRMED: 'confirmed',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
+} as const;
+
+export const ORDER_STATUS_LABELS = {
+  draft: 'Draft',
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  processing: 'Processing',
+  completed: 'Completed',
+  cancelled: 'Cancelled'
+};
+
+export const ORDER_STATUS_COLORS = {
+  draft: 'default',
+  pending: 'warning',
+  confirmed: 'success',
+  processing: 'info',
+  completed: 'success',
+  cancelled: 'error'
+} as const;
+
+// ============================================
+// INVOICE STATUS
+// ============================================
+
+export const INVOICE_STATUSES = {
+  TENTATIVE: 'tentative',
+  DEFINITE: 'definite',
+  PARTIAL: 'partial',
+  PAID: 'paid',
+  OVERDUE: 'overdue',
+  CANCELLED: 'cancelled'
+} as const;
+
+export const INVOICE_STATUS_LABELS = {
+  tentative: 'Tentative',
+  definite: 'Definite',
+  partial: 'Partial Payment',
+  paid: 'Fully Paid',
+  overdue: 'Overdue',
+  cancelled: 'Cancelled'
+};
+
+export const INVOICE_STATUS_COLORS = {
+  tentative: 'default',
+  definite: 'info',
+  partial: 'warning',
+  paid: 'success',
+  overdue: 'error',
+  cancelled: 'error'
+} as const;
+
+// ============================================
+// PAYMENT METHODS
+// ============================================
+
+export const PAYMENT_METHODS = {
+  BANK_TRANSFER: 'bank_transfer',
+  CASH: 'cash',
+  CREDIT_CARD: 'credit_card'
+} as const;
+
+export const PAYMENT_METHOD_LABELS = {
+  bank_transfer: 'Bank Transfer',
+  cash: 'Cash',
+  credit_card: 'Credit Card'
+};
+
+// ============================================
+// USER ROLES
+// ============================================
+
+export const USER_ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  ADMIN_PUSAT: 'admin_pusat',
+  ADMIN_CABANG: 'admin_cabang',
+  ROLE_INVOICE: 'role_invoice',
+  ROLE_HANDLING: 'role_handling',
+  ROLE_VISA: 'role_visa',
+  ROLE_BUS: 'role_bus',
+  ROLE_TICKET: 'role_ticket',
+  ROLE_ACCOUNTING: 'role_accounting',
+  OWNER: 'owner'
+} as const;
+
+// ============================================
+// HOTEL LOCATIONS
+// ============================================
+
+export const HOTEL_LOCATIONS = {
+  MAKKAH: 'makkah',
+  MADINAH: 'madinah'
+} as const;
+
+export const HOTEL_LOCATION_LABELS = {
+  makkah: 'Mekkah',
+  madinah: 'Madinah'
+};
+
+// ============================================
+// STAR RATINGS
+// ============================================
+
+export const STAR_RATINGS = {
+  ONE: '1_star',
+  TWO: '2_star',
+  THREE: '3_star',
+  FOUR: '4_star',
+  FIVE: '5_star',
+  UNRATED: 'unrated'
+} as const;
+
+export const STAR_RATING_LABELS = {
+  '1_star': '1 Star',
+  '2_star': '2 Star',
+  '3_star': '3 Star',
+  '4_star': '4 Star',
+  '5_star': '5 Star',
+  unrated: 'Unrated'
+};
+
+// ============================================
+// VISA TYPES
+// ============================================
+
+export const VISA_TYPES = {
+  UMROH: 'umroh',
+  HAJJ: 'hajj',
+  TOURIST: 'tourist',
+  BUSINESS: 'business'
+} as const;
+
+export const VISA_TYPE_LABELS = {
+  umroh: 'Umroh',
+  hajj: 'Hajj',
+  tourist: 'Tourist',
+  business: 'Business'
+};
+
+// ============================================
+// BUS TYPES
+// ============================================
+
+export const BUS_TYPES = {
+  STANDARD: 'standard',
+  PREMIUM: 'premium',
+  VIP: 'vip',
+  EXECUTIVE: 'executive'
+} as const;
+
+export const BUS_TYPE_LABELS = {
+  standard: 'Standard',
+  premium: 'Premium',
+  vip: 'VIP',
+  executive: 'Executive'
+};
+
+// ============================================
+// FLIGHT CLASSES
+// ============================================
+
+export const FLIGHT_CLASSES = {
+  ECONOMY: 'economy',
+  BUSINESS: 'business',
+  FIRST: 'first'
+} as const;
+
+export const FLIGHT_CLASS_LABELS = {
+  economy: 'Economy',
+  business: 'Business',
+  first: 'First Class'
+};
+
+// ============================================
+// FILE UPLOAD
+// ============================================
+
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+export const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+
+// ============================================
+// PAGINATION
+// ============================================
+
+export const DEFAULT_PAGE_SIZE = 10;
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// ============================================
+// DATE FORMATS
+// ============================================
+
+export const DATE_FORMAT = 'DD/MM/YYYY';
+export const DATE_TIME_FORMAT = 'DD/MM/YYYY HH:mm';
+export const TIME_FORMAT = 'HH:mm';
+
+// ============================================
+// MINIMUM DEPOSIT PERCENTAGE
+// ============================================
+
+export const MINIMUM_DEPOSIT_PERCENTAGE = 30; // 30% minimum deposit
+
+// ============================================
+// ROUTES
+// ============================================
+
+export const ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  DASHBOARD: '/dashboard',
+  HOTELS: '/dashboard/hotels',
+  VISA: '/dashboard/visa',
+  TICKETS: '/dashboard/tickets',
+  BUS: '/dashboard/bus',
+  PACKAGES: '/dashboard/packages',
+  ORDERS: '/dashboard/orders',
+  INVOICES: '/dashboard/invoices',
+  USERS: '/dashboard/users',
+  BRANCHES: '/dashboard/branches',
+  REPORTS: '/dashboard/reports',
+  SETTINGS: '/dashboard/settings',
+  PROFILE: '/dashboard/profile'
+} as const;
