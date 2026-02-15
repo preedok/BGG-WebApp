@@ -16,10 +16,24 @@ router.get('/', (req, res) => {
   });
 });
 
+router.get('/i18n/:locale', (req, res, next) => {
+  const ctrl = require('../../controllers/superAdminController');
+  ctrl.getI18n(req, res).catch(next);
+});
 router.use('/auth', require('./auth'));
 router.use('/owners', require('./owners'));
 router.use('/branches', require('./branches'));
 router.use('/orders', require('./orders'));
 router.use('/invoices', require('./invoices'));
+router.use('/products', require('./products'));
+router.use('/business-rules', require('./businessRules'));
+router.use('/hotel', require('./hotel'));
+router.use('/ticket', require('./ticket'));
+router.use('/visa', require('./visa'));
+router.use('/bus', require('./bus'));
+router.use('/admin-cabang', require('./adminCabang'));
+router.use('/admin-pusat', require('./adminPusat'));
+router.use('/accounting', require('./accounting'));
+router.use('/super-admin', require('./superAdmin'));
 
 module.exports = router;

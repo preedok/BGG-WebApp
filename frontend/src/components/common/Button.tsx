@@ -30,7 +30,7 @@ const Button: React.FC<ButtonProps> = ({
   const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantStyles: Record<ButtonVariant, string> = {
-    primary: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl focus:ring-emerald-500',
+    primary: 'text-white shadow-lg hover:shadow-xl focus:ring-emerald-500 [background:var(--app-primary,#059669)] hover:opacity-90',
     secondary: 'bg-slate-600 text-white hover:bg-slate-700 shadow-lg hover:shadow-xl focus:ring-slate-500',
     outline: 'bg-white text-slate-700 border-2 border-slate-200 hover:border-emerald-600 hover:text-emerald-600 hover:bg-emerald-50 focus:ring-emerald-500',
     ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-400',

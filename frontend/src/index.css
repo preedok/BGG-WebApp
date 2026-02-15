@@ -9,12 +9,27 @@
   box-sizing: border-box;
 }
 
+:root {
+  --app-primary: #059669;
+  --app-bg: #f8fafc;
+  --app-text: #0f172a;
+  --app-font-size: 14px;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  font-size: var(--app-font-size);
 }
+
+/* Tema dari Super Admin - App Appearance */
+.app-bg { background-color: var(--app-bg) !important; }
+.app-text { color: var(--app-text) !important; }
+.app-primary { background-color: var(--app-primary) !important; }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;

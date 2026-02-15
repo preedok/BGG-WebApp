@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
-const { Branch } = require('../models');
+const { Branch, User } = require('../models');
+const { ROLES } = require('../constants');
 
 const list = asyncHandler(async (req, res) => {
   const branches = await Branch.findAll({
@@ -16,7 +17,7 @@ const getById = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
-  const { code, name, city, region, manager_name, phone, email, address } = req.body;
+  const { code, name, city, region, manager_name, phone, email, address, create_admin_account } = req.body;
   const branch = await Branch.create({
     code,
     name,
@@ -27,7 +28,32 @@ const create = asyncHandler(async (req, res) => {
     email,
     address
   });
-  res.status(201).json({ success: true, data: branch });
+
+  let adminUser = null;
+  if (create_admin_account && typeof create_admin_account === 'object') {
+    const { name: accName, email: accEmail, password: accPassword } = create_admin_account;
+    if (accName && accEmail && accPassword) {
+      const existing = await User.findOne({ where: { email: accEmail.toLowerCase() } });
+      if (existing) {
+        await branch.destroy();
+        return res.status(400).json({ success: false, message: 'Email untuk akun admin cabang sudah terdaftar' });
+      }
+      adminUser = await User.create({
+        email: accEmail.toLowerCase(),
+        password_hash: accPassword,
+        name: accName,
+        role: ROLES.ADMIN_CABANG,
+        branch_id: branch.id,
+        is_active: true
+      });
+      adminUser = adminUser.toJSON();
+      delete adminUser.password_hash;
+    }
+  }
+
+  const data = branch.toJSON();
+  if (adminUser) data.created_admin_account = adminUser;
+  res.status(201).json({ success: true, data, message: adminUser ? 'Cabang dan akun admin cabang berhasil dibuat' : 'Cabang berhasil dibuat' });
 });
 
 const update = asyncHandler(async (req, res) => {

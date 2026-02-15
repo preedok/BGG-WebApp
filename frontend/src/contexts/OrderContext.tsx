@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { OrderListItem, OrderStatus } from '../types';
-import { mockOrders as initialOrders } from '../data/mockOrders';
+import { OrderListItem } from '../types';
 
 interface OrderContextType {
   orders: OrderListItem[];
@@ -18,7 +17,7 @@ function generateOrderNumber(): string {
 }
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  const [orders, setOrders] = useState<OrderListItem[]>(() => [...initialOrders]);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
 
   const addOrder = useCallback((order: Omit<OrderListItem, 'id' | 'order_number'>) => {
     const id = `order-${Date.now()}`;

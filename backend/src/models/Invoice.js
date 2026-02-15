@@ -87,6 +87,21 @@ const Invoice = sequelize.define('Invoice', {
   },
   notes: {
     type: DataTypes.TEXT
+  },
+  is_blocked: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Blocked when DP overdue 1x24h; role invoice can unblock'
+  },
+  unblocked_by: { type: DataTypes.UUID, references: { model: 'users', key: 'id' } },
+  unblocked_at: { type: DataTypes.DATE },
+  overpaid_amount: {
+    type: DataTypes.DECIMAL(18, 2),
+    defaultValue: 0
+  },
+  overpaid_handling: {
+    type: DataTypes.STRING(50),
+    comment: 'refund, transfer_invoice, transfer_order'
   }
 }, {
   tableName: 'invoices',

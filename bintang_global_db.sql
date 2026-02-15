@@ -17,12 +17,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ENUM TYPES
 -- ================================================
 
--- User Roles
+-- User Roles (sesuai aplikasi)
 CREATE TYPE user_role AS ENUM (
     'super_admin',
     'admin_pusat',
     'admin_cabang',
     'role_invoice',
+    'role_hotel',
     'role_handling',
     'role_visa',
     'role_bus',
@@ -31,14 +32,16 @@ CREATE TYPE user_role AS ENUM (
     'owner'
 );
 
--- Order Status
+-- Order Status (sesuai aplikasi)
 CREATE TYPE order_status AS ENUM (
     'draft',
+    'tentative',
     'pending',
     'confirmed',
     'processing',
     'completed',
-    'cancelled'
+    'cancelled',
+    'blocked'
 );
 
 -- Invoice Status
@@ -139,18 +142,12 @@ CREATE TABLE users (
     branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255),
     role user_role NOT NULL,
-    phone VARCHAR(20),
-    address TEXT,
-    city VARCHAR(100),
-    province VARCHAR(100),
-    postal_code VARCHAR(10),
-    company_name VARCHAR(255), -- For owners
-    npwp VARCHAR(50), -- For owners
+    phone VARCHAR(50),
+    company_name VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
-    is_verified BOOLEAN DEFAULT FALSE,
-    last_login TIMESTAMP,
+    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -957,9 +954,11 @@ COMMENT ON TABLE credit_balances IS 'Owner credit balance transaction history';
 \echo '================================================'
 \echo ''
 \echo 'Next steps:'
-\echo '1. Run migrations: npm run migrate'
-\echo '2. Seed initial data: npm run seed'
-\echo '3. Start application: npm start'
+\echo '1. Di folder backend: npm run seed  (isi akun semua role + 3 owner, password: Password123)'
+\echo '2. Start backend: npm start'
+\echo '3. Start frontend: npm start'
+\echo ''
+\echo 'Akun seed: superadmin@bintangglobal.com, adminpusat@bintangglobal.com, owner1@bintangglobal.com, dll.'
 \echo ''
 \echo 'Database: bintang_global'
 \echo 'Tables created: 30+'

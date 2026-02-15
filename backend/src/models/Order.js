@@ -54,9 +54,13 @@ const Order = sequelize.define('Order', {
     defaultValue: 'IDR'
   },
   status: {
-    type: DataTypes.ENUM('draft', 'tentative', 'confirmed', 'processing', 'completed', 'cancelled'),
+    type: DataTypes.ENUM('draft', 'tentative', 'confirmed', 'processing', 'completed', 'cancelled', 'blocked'),
     defaultValue: 'draft'
   },
+  blocked_at: { type: DataTypes.DATE },
+  blocked_reason: { type: DataTypes.STRING(255) },
+  unblocked_by: { type: DataTypes.UUID, references: { model: 'users', key: 'id' } },
+  unblocked_at: { type: DataTypes.DATE },
   created_by: {
     type: DataTypes.UUID,
     references: { model: 'users', key: 'id' }

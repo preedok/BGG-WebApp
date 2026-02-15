@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   Menu,
   X,
@@ -21,12 +21,15 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Rocket,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { MenuItem, UserRole, ROLE_NAMES } from '../types';
 import Dropdown from '../components/common/Dropdown';
 import Badge from '../components/common/Badge';
+import MaintenanceBanner from '../components/MaintenanceBanner';
 import logo from '../assets/logo.png';
 
 const menuItems: MenuItem[] = [
@@ -67,6 +70,12 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat', 'owner']
   },
   {
+    title: 'Products',
+    icon: <Package className="w-5 h-5" />,
+    path: '/dashboard/products',
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'owner']
+  },
+  {
     title: 'Orders',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/orders',
@@ -85,10 +94,40 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat', 'admin_cabang']
   },
   {
+    title: 'Owner Cabang',
+    icon: <Users className="w-5 h-5" />,
+    path: '/dashboard/admin-cabang/owners',
+    roles: ['admin_cabang']
+  },
+  {
+    title: 'Personil Cabang',
+    icon: <UserPlus className="w-5 h-5" />,
+    path: '/dashboard/admin-cabang/personil',
+    roles: ['admin_cabang']
+  },
+  {
     title: 'Branches',
     icon: <Building2 className="w-5 h-5" />,
     path: '/dashboard/branches',
     roles: ['super_admin', 'admin_pusat']
+  },
+  {
+    title: 'Rekap Gabungan',
+    icon: <BarChart3 className="w-5 h-5" />,
+    path: '/dashboard/combined-recap',
+    roles: ['admin_pusat']
+  },
+  {
+    title: 'Buat Akun (Bus/Hotel/Admin Cabang)',
+    icon: <UserPlus className="w-5 h-5" />,
+    path: '/dashboard/admin-pusat/users',
+    roles: ['admin_pusat']
+  },
+  {
+    title: 'Flyer & Template',
+    icon: <Package className="w-5 h-5" />,
+    path: '/dashboard/flyers',
+    roles: ['admin_pusat']
   },
   {
     title: 'Reports',
@@ -97,10 +136,46 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat', 'role_accounting']
   },
   {
+    title: 'Laporan Keuangan',
+    icon: <FileText className="w-5 h-5" />,
+    path: '/dashboard/accounting/financial-report',
+    roles: ['role_accounting']
+  },
+  {
+    title: 'Rekonsiliasi Bank',
+    icon: <Receipt className="w-5 h-5" />,
+    path: '/dashboard/accounting/reconciliation',
+    roles: ['role_accounting']
+  },
+  {
+    title: 'Piutang (AR)',
+    icon: <BarChart3 className="w-5 h-5" />,
+    path: '/dashboard/accounting/aging',
+    roles: ['role_accounting']
+  },
+  {
     title: 'Settings',
     icon: <Settings className="w-5 h-5" />,
     path: '/dashboard/settings',
     roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'owner']
+  },
+  {
+    title: 'System Logs',
+    icon: <FileText className="w-5 h-5" />,
+    path: '/dashboard/super-admin/logs',
+    roles: ['super_admin']
+  },
+  {
+    title: 'Maintenance',
+    icon: <Bell className="w-5 h-5" />,
+    path: '/dashboard/super-admin/maintenance',
+    roles: ['super_admin']
+  },
+  {
+    title: 'App Appearance',
+    icon: <Settings className="w-5 h-5" />,
+    path: '/dashboard/super-admin/appearance',
+    roles: ['super_admin']
   }
 ];
 
@@ -130,26 +205,24 @@ const DashboardLayout: React.FC = () => {
     setProductsCollapsed(!productsCollapsed);
   };
 
-  // Filter menu based on user role
+  // Filter menu based on user role. Super Admin HANYA akses: Dashboard + Monitoring, Order Stats, Logs, Maintenance, Appearance, Language, Deploy (tidak ada Orders, Invoices, dll)
   const filteredMenuItems = user
-    ? menuItems.filter(item => item.roles.includes(user.role))
+    ? user.role === 'super_admin'
+      ? menuItems.filter(item => item.roles.includes('super_admin') && (item.path === '/dashboard' || item.path.startsWith('/dashboard/super-admin')))
+      : menuItems.filter(item => item.roles.includes(user.role))
     : [];
 
   const currentPage = filteredMenuItems.find(item => item.path === location.pathname);
 
   const userMenuItems = [
-    {
-      id: 'profile',
-      label: 'My Profile',
-      icon: <User className="w-4 h-4" />,
-      onClick: () => navigate('/dashboard/profile')
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: <Settings className="w-4 h-4" />,
-      onClick: () => navigate('/dashboard/settings')
-    },
+    ...(user?.role !== 'super_admin'
+      ? [
+          { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" />, onClick: () => navigate('/dashboard/profile') },
+          { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, onClick: () => navigate('/dashboard/settings') }
+        ]
+      : [
+          { id: 'appearance', label: 'App Appearance', icon: <Settings className="w-4 h-4" />, onClick: () => navigate('/dashboard/super-admin/appearance') }
+        ]),
     {
       id: 'logout',
       label: 'Logout',
@@ -390,7 +463,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
+    <div className="min-h-screen app-bg flex overflow-x-hidden">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -470,9 +543,16 @@ const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content — Super Admin hanya boleh di /dashboard dan /dashboard/super-admin/* */}
         <main className="flex-1 p-6">
-          <Outlet />
+          <div className="mb-4">
+            <MaintenanceBanner />
+          </div>
+          {user?.role === 'super_admin' && location.pathname !== '/dashboard' && !location.pathname.startsWith('/dashboard/super-admin') ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>

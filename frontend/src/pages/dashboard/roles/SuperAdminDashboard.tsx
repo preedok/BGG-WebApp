@@ -1,395 +1,322 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   Users,
-  TrendingUp,
   DollarSign,
   Receipt,
-  Building2,
-  Shield,
   Activity,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Eye,
-  BarChart3,
   FileText,
-  Package
+  Bell,
+  Palette,
+  RefreshCw,
+  FileCheck,
+  FileDown,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import Card from '../../../components/common/Card';
-import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
-import { formatIDR } from '../../../utils';
+import { formatIDR, DONUT_COLORS } from '../../../utils';
+import { superAdminApi, branchesApi } from '../../../services/api';
+import { ROLE_NAMES } from '../../../types';
+import type { UserRole } from '../../../types';
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+async function readBlobError(blob: Blob): Promise<string> {
+  const text = await blob.text();
+  try {
+    const j = JSON.parse(text);
+    return j.message || 'Gagal export';
+  } catch {
+    return text || 'Gagal export';
+  }
+}
+
+const MONITORING_ROLES: UserRole[] = [
+  'admin_pusat', 'admin_cabang', 'owner', 'role_invoice', 'role_visa', 'role_ticket', 'role_hotel', 'role_bus', 'role_accounting'
+];
 
 const SuperAdminDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const navigate = useNavigate();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
+  const [exportPeriod, setExportPeriod] = useState<string>('all');
+  const [filterBranch, setFilterBranch] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
 
-  // Overall System Stats
-  const systemStats = [
-    {
-      title: 'Total Revenue',
-      value: formatIDR(2456789000),
-      change: '+12.5%',
-      trend: 'up' as const,
-      icon: <DollarSign className="w-6 h-6" />,
-      color: 'from-emerald-500 to-teal-500'
-    },
-    {
-      title: 'Total Orders',
-      value: '1,234',
-      change: '+8.3%',
-      trend: 'up' as const,
-      icon: <Receipt className="w-6 h-6" />,
-      color: 'from-blue-500 to-cyan-500'
-    },
-    {
-      title: 'Active Users',
-      value: '156',
-      change: '+15.2%',
-      trend: 'up' as const,
-      icon: <Users className="w-6 h-6" />,
-      color: 'from-purple-500 to-pink-500'
-    },
-    {
-      title: 'System Health',
-      value: '99.9%',
-      change: 'Optimal',
-      trend: 'up' as const,
-      icon: <Activity className="w-6 h-6" />,
-      color: 'from-orange-500 to-red-500'
-    }
-  ];
-
-  // Role Performance Monitoring
-  const rolePerformance = [
-    {
-      role: 'Admin Pusat',
-      icon: <Shield className="w-5 h-5" />,
-      totalUsers: 3,
-      activeToday: 3,
-      tasksCompleted: 45,
-      tasksTotal: 52,
-      performance: 87,
-      status: 'excellent' as const,
-      color: 'from-emerald-500 to-teal-500'
-    },
-    {
-      role: 'Admin Cabang',
-      icon: <Building2 className="w-5 h-5" />,
-      totalUsers: 8,
-      activeToday: 7,
-      tasksCompleted: 156,
-      tasksTotal: 180,
-      performance: 87,
-      status: 'excellent' as const,
-      color: 'from-blue-500 to-cyan-500'
-    },
-    {
-      role: 'Invoice',
-      icon: <FileText className="w-5 h-5" />,
-      totalUsers: 2,
-      activeToday: 2,
-      tasksCompleted: 89,
-      tasksTotal: 95,
-      performance: 94,
-      status: 'excellent' as const,
-      color: 'from-purple-500 to-pink-500'
-    },
-    {
-      role: 'Hotel',
-      icon: <Users className="w-5 h-5" />,
-      totalUsers: 4,
-      activeToday: 4,
-      tasksCompleted: 67,
-      tasksTotal: 72,
-      performance: 93,
-      status: 'excellent' as const,
-      color: 'from-orange-500 to-red-500'
-    },
-    {
-      role: 'Visa',
-      icon: <FileText className="w-5 h-5" />,
-      totalUsers: 3,
-      activeToday: 2,
-      tasksCompleted: 123,
-      tasksTotal: 140,
-      performance: 88,
-      status: 'good' as const,
-      color: 'from-yellow-500 to-orange-500'
-    },
-    {
-      role: 'Bus',
-      icon: <Package className="w-5 h-5" />,
-      totalUsers: 2,
-      activeToday: 2,
-      tasksCompleted: 34,
-      tasksTotal: 40,
-      performance: 85,
-      status: 'good' as const,
-      color: 'from-indigo-500 to-purple-500'
-    },
-    {
-      role: 'Ticket',
-      icon: <Receipt className="w-5 h-5" />,
-      totalUsers: 3,
-      activeToday: 3,
-      tasksCompleted: 78,
-      tasksTotal: 85,
-      performance: 92,
-      status: 'excellent' as const,
-      color: 'from-pink-500 to-rose-500'
-    },
-    {
-      role: 'Accounting',
-      icon: <BarChart3 className="w-5 h-5" />,
-      totalUsers: 2,
-      activeToday: 2,
-      tasksCompleted: 56,
-      tasksTotal: 60,
-      performance: 93,
-      status: 'excellent' as const,
-      color: 'from-teal-500 to-cyan-500'
-    },
-    {
-      role: 'Owner',
-      icon: <Users className="w-5 h-5" />,
-      totalUsers: 45,
-      activeToday: 32,
-      ordersPlaced: 234,
-      ordersTotal: 280,
-      performance: 84,
-      status: 'good' as const,
-      color: 'from-green-500 to-emerald-500'
-    }
-  ];
-
-  // System Alerts
-  const systemAlerts = [
-    {
-      type: 'warning' as const,
-      title: 'High Order Volume',
-      message: 'Order volume increased 45% compared to last week',
-      time: '10 minutes ago'
-    },
-    {
-      type: 'info' as const,
-      title: 'New Owner Registered',
-      message: '3 new travel owners registered today',
-      time: '1 hour ago'
-    },
-    {
-      type: 'success' as const,
-      title: 'Payment Processed',
-      message: '125 payments successfully verified',
-      time: '2 hours ago'
-    }
-  ];
-
-  // Recent Activities (cross-role)
-  const recentActivities = [
-    { role: 'Invoice', user: 'Staff Invoice', action: 'Verified payment for INV-2024-145', time: '5 min ago', status: 'success' },
-    { role: 'Hotel', user: 'Staff Hotel', action: 'Updated jamaah progress to 75%', time: '12 min ago', status: 'info' },
-    { role: 'Admin Pusat', user: 'Admin Jakarta', action: 'Updated hotel pricing for Makkah', time: '25 min ago', status: 'info' },
-    { role: 'Visa', user: 'Staff Visa', action: 'Processed 15 visa applications', time: '45 min ago', status: 'success' },
-    { role: 'Owner', user: 'Al-Hijrah Travel', action: 'Placed new order ORD-2024-234', time: '1 hour ago', status: 'info' }
-  ];
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      excellent: 'success' as const,
-      good: 'info' as const,
-      average: 'warning' as const,
-      poor: 'error' as const
-    };
-    return variants[status as keyof typeof variants];
-  };
-
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'warning':
-        return <AlertCircle className="w-5 h-5 text-yellow-600" />;
-      case 'success':
-        return <CheckCircle className="w-5 h-5 text-emerald-600" />;
-      default:
-        return <Activity className="w-5 h-5 text-blue-600" />;
+  const handleExportExcel = async () => {
+    setExporting('excel');
+    try {
+      const params: { period: string; branch_id?: string; role?: string } = { period: exportPeriod };
+      if (filterBranch) params.branch_id = filterBranch;
+      if (filterRole) params.role = filterRole;
+      const res = await superAdminApi.exportMonitoringExcel(params);
+      const date = new Date().toISOString().slice(0, 10);
+      downloadBlob(res.data as Blob, `rekap-monitoring-${exportPeriod}-${date}.xlsx`);
+    } catch (err: any) {
+      if (err.response?.data instanceof Blob) {
+        const msg = await readBlobError(err.response.data);
+        alert(msg);
+      } else {
+        alert(err.response?.data?.message || 'Gagal export Excel');
+      }
+    } finally {
+      setExporting(null);
     }
   };
+
+  const handleExportPdf = async () => {
+    setExporting('pdf');
+    try {
+      const params: { period: string; branch_id?: string; role?: string } = { period: exportPeriod };
+      if (filterBranch) params.branch_id = filterBranch;
+      if (filterRole) params.role = filterRole;
+      const res = await superAdminApi.exportMonitoringPdf(params);
+      const date = new Date().toISOString().slice(0, 10);
+      downloadBlob(res.data as Blob, `rekap-monitoring-${exportPeriod}-${date}.pdf`);
+    } catch (err: any) {
+      if (err.response?.data instanceof Blob) {
+        const msg = await readBlobError(err.response.data);
+        alert(msg);
+      } else {
+        alert(err.response?.data?.message || 'Gagal export PDF');
+      }
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const fetchMonitoring = async () => {
+    setLoading(true);
+    try {
+      const params: { branch_id?: string; role?: string } = {};
+      if (filterBranch) params.branch_id = filterBranch;
+      if (filterRole) params.role = filterRole;
+      const res = await superAdminApi.getMonitoring(params);
+      if (res.data.success) setData(res.data.data);
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    branchesApi.list().then((r) => {
+      if (r.data.success && Array.isArray(r.data.data)) {
+        setBranches(r.data.data.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })));
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchMonitoring();
+    const intervalId = setInterval(fetchMonitoring, 30000);
+    return () => clearInterval(intervalId);
+  }, [filterBranch, filterRole]);
+
+  const o = data?.overview || {};
+  const perf = data?.performance || {};
+  const ordersByStatus = data?.orders_by_status || {};
+
+  const quickActions = [
+    { label: 'System Logs', path: '/dashboard/super-admin/logs', icon: <FileText className="w-6 h-6" />, color: 'from-purple-500 to-pink-500' },
+    { label: 'Maintenance', path: '/dashboard/super-admin/maintenance', icon: <Bell className="w-6 h-6" />, color: 'from-amber-500 to-orange-500' },
+    { label: 'Tampilan Aplikasi', path: '/dashboard/super-admin/appearance', icon: <Palette className="w-6 h-6" />, color: 'from-indigo-500 to-purple-500' }
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">
-            Welcome back, {user?.name}! 👋
+            Selamat datang, {user?.name}
           </h1>
-          <p className="text-slate-600 mt-1">Super Admin - System Monitoring & Control Center</p>
+          <p className="text-slate-600 mt-1">Super Admin – Informasi transaksi & monitoring sistem</p>
         </div>
-        <div className="flex gap-2">
-          {['today', 'week', 'month'].map((period) => (
-            <Button
-              key={period}
-              variant={selectedPeriod === period ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedPeriod(period)}
-            >
-              {period.charAt(0).toUpperCase() + period.slice(1)}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-slate-600">Filter:</span>
+          <select
+            value={filterBranch}
+            onChange={(e) => setFilterBranch(e.target.value)}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[140px]"
+            title="Per cabang"
+          >
+            <option value="">Semua cabang</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[140px]"
+            title="Per role"
+          >
+            <option value="">Semua role</option>
+            {MONITORING_ROLES.map((r) => (
+              <option key={r} value={r}>{ROLE_NAMES[r] || r}</option>
+            ))}
+          </select>
+          <span className="text-sm text-slate-600">Rekap periode:</span>
+          <select
+            value={exportPeriod}
+            onChange={(e) => setExportPeriod(e.target.value)}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="today">Harian</option>
+            <option value="week">Mingguan</option>
+            <option value="month">Bulanan</option>
+            <option value="year">Tahunan</option>
+            <option value="all">Semua</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!!exporting}>
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            {exporting === 'excel' ? '...' : 'Export Excel'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!!exporting}>
+            <FileDown className="w-4 h-4 mr-2" />
+            {exporting === 'pdf' ? '...' : 'Export PDF'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchMonitoring} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 
-      {/* System Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {systemStats.map((stat, index) => (
-          <Card key={index} hover className="relative overflow-hidden">
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} text-white`}>
-                {stat.icon}
-              </div>
-              <div className="flex items-center space-x-1 text-emerald-600 text-sm font-semibold">
-                <TrendingUp className="w-4 h-4" />
-                <span>{stat.change}</span>
-              </div>
-            </div>
-            <p className="text-sm text-slate-600 mb-1">{stat.title}</p>
-            <p className="text-3xl font-bold text-slate-900">{stat.value}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* System Alerts */}
-      <Card>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-slate-900">System Alerts</h3>
-          <Button variant="ghost" size="sm">View All</Button>
-        </div>
-        <div className="space-y-3">
-          {systemAlerts.map((alert, index) => (
-            <div key={index} className={`p-4 rounded-lg border-l-4 ${
-              alert.type === 'warning' ? 'bg-yellow-50 border-yellow-500' :
-              alert.type === 'success' ? 'bg-emerald-50 border-emerald-500' :
-              'bg-blue-50 border-blue-500'
-            }`}>
-              <div className="flex items-start gap-3">
-                {getAlertIcon(alert.type)}
-                <div className="flex-1">
-                  <p className="font-semibold text-slate-900">{alert.title}</p>
-                  <p className="text-sm text-slate-600 mt-1">{alert.message}</p>
-                  <p className="text-xs text-slate-500 mt-2">{alert.time}</p>
+      {loading && !data ? (
+        <Card><div className="py-12 text-center text-slate-500">Memuat...</div></Card>
+      ) : (
+        <>
+          {/* Informasi transaksi keseluruhan */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <Card hover className="relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+                  <DollarSign className="w-6 h-6" />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+              <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
+              <p className="text-2xl font-bold text-slate-900">{formatIDR(o.total_revenue || 0)}</p>
+              <p className="text-xs text-slate-500 mt-1">Hari ini: {formatIDR(o.revenue_today || 0)}</p>
+            </Card>
+            <Card hover className="relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+                  <Receipt className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-1">Total Order</p>
+              <p className="text-2xl font-bold text-slate-900">{o.total_orders ?? 0}</p>
+              <p className="text-xs text-slate-500 mt-1">Hari ini: {o.orders_today ?? 0}</p>
+            </Card>
+            <Card hover className="relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 text-white">
+                  <FileCheck className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-1">Total Faktur</p>
+              <p className="text-2xl font-bold text-slate-900">{o.total_invoices ?? 0}</p>
+              <p className="text-xs text-slate-500 mt-1">Hari ini: {o.invoices_today ?? 0}</p>
+            </Card>
+            <Card hover className="relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                  <Users className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-1">Pengguna Aktif (24j)</p>
+              <p className="text-2xl font-bold text-slate-900">{o.active_users_24h ?? 0}</p>
+              <p className="text-xs text-slate-500 mt-1">Total: {o.total_users ?? 0}</p>
+            </Card>
+            <Card hover className="relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <div className={`p-3 rounded-xl text-white ${perf.database === 'ok' ? 'bg-gradient-to-br from-emerald-500 to-teal-500' : 'bg-gradient-to-br from-red-500 to-rose-500'}`}>
+                  <Activity className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-1">Kesehatan Sistem</p>
+              <p className="text-2xl font-bold text-slate-900">{perf.database === 'ok' ? 'OK' : 'Error'}</p>
+              <p className="text-xs text-slate-500 mt-1">Uptime: {perf.uptime_human || '-'}</p>
+            </Card>
+          </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Role Performance Monitoring */}
-        <div className="lg:col-span-2">
+          {/* Chart Order per Status + Performance */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Order per Status</h3>
+              {Object.keys(ordersByStatus).length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={Object.entries(ordersByStatus).map(([name, count]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value: Number(count) }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius="55%"
+                        outerRadius="85%"
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        {Object.entries(ordersByStatus).map((_, i) => (
+                          <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => [v, 'Jumlah']} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="text-slate-500 text-sm py-8">Belum ada order</p>
+              )}
+            </Card>
+            <Card>
+              <h3 className="text-lg font-bold text-slate-900 mb-4">Performa Aplikasi</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-slate-600">Database</span><span className={perf.database === 'ok' ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>{perf.database === 'ok' ? 'OK' : 'Error'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">Memory</span><span className="font-medium">{perf.memory_mb ?? '-'} MB</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">Uptime</span><span className="font-medium">{perf.uptime_human || '-'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">Cabang aktif</span><span className="font-medium">{o.active_branches ?? 0}</span></div>
+              </div>
+            </Card>
+          </div>
+
           <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-900">Role Performance Monitoring</h3>
-              <Button variant="ghost" size="sm">
-                <Eye className="w-4 h-4 mr-2" />
-                View Details
-              </Button>
-            </div>
-
-            <div className="grid gap-4">
-              {rolePerformance.map((role, index) => (
-                <div key={index} className="p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg bg-gradient-to-br ${role.color} text-white`}>
-                        {role.icon}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900">{role.role}</h4>
-                        <p className="text-sm text-slate-600">
-                          {role.activeToday}/{role.totalUsers} active today
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant={getStatusBadge(role.status)}>
-                      {role.performance}%
-                    </Badge>
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Menu</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="flex-col h-24 gap-2"
+                  onClick={() => navigate(action.path)}
+                >
+                  <div className={`p-2 rounded-lg bg-gradient-to-br ${action.color} text-white`}>
+                    {action.icon}
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600">
-                        {role.role === 'Owner' ? 'Orders' : 'Tasks'} Completed
-                      </span>
-                      <span className="font-semibold text-slate-900">
-                        {role.tasksCompleted || role.ordersPlaced}/{role.tasksTotal || role.ordersTotal}
-                      </span>
-                    </div>
-                    <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`bg-gradient-to-r ${role.color} h-full rounded-full transition-all duration-500`}
-                        style={{ width: `${role.performance}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                  <span className="text-xs text-center">{action.label}</span>
+                </Button>
               ))}
             </div>
           </Card>
-        </div>
-
-        {/* Recent Activities */}
-        <div>
-          <Card>
-            <h3 className="text-xl font-bold text-slate-900 mb-6">Recent Activities</h3>
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 pb-4 border-b border-slate-100 last:border-0">
-                  <div className="mt-1">
-                    {activity.status === 'success' ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-600" />
-                    ) : (
-                      <Clock className="w-5 h-5 text-blue-600" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{activity.user}</p>
-                    <p className="text-sm text-slate-600 mt-1">{activity.action}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="default" size="sm">{activity.role}</Badge>
-                      <span className="text-xs text-slate-500">{activity.time}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <h3 className="text-xl font-bold text-slate-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button variant="outline" className="flex-col h-24 gap-2">
-            <Users className="w-6 h-6" />
-            <span className="text-sm">User Management</span>
-          </Button>
-          <Button variant="outline" className="flex-col h-24 gap-2">
-            <Building2 className="w-6 h-6" />
-            <span className="text-sm">Branch Control</span>
-          </Button>
-          <Button variant="outline" className="flex-col h-24 gap-2">
-            <BarChart3 className="w-6 h-6" />
-            <span className="text-sm">Analytics</span>
-          </Button>
-          <Button variant="outline" className="flex-col h-24 gap-2">
-            <Shield className="w-6 h-6" />
-            <span className="text-sm">System Settings</span>
-          </Button>
-        </div>
-      </Card>
+        </>
+      )}
     </div>
   );
 };

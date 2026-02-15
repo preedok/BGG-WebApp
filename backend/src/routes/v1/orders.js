@@ -9,5 +9,6 @@ router.use(auth);
 router.get('/', orderController.list);
 router.post('/', requireRole(ROLES.OWNER, ROLES.ROLE_INVOICE, ROLES.ADMIN_CABANG, ROLES.ADMIN_PUSAT, ROLES.SUPER_ADMIN), orderController.create);
 router.get('/:id', orderController.getById);
+router.patch('/:id', orderController.update);
 
 module.exports = router;

@@ -4,7 +4,7 @@ module.exports = {
   development: {
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_NAME || 'bintang_global',
+    database: process.env.DB_NAME || 'db_bgg_group',
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
@@ -25,7 +25,7 @@ module.exports = {
   test: {
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
-    database: (process.env.DB_NAME || 'bintang_global') + '_test',
+    database: (process.env.DB_NAME || 'db_bgg_group') + '_test',
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,
     dialect: 'postgres',

@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const { Order, OrderItem, User, Branch } = require('../models');
-const { BUSINESS_RULES } = require('../constants');
+const { getRulesForBranch } = require('./businessRuleController');
+const { getEffectivePrice } = require('./productController');
+const { ORDER_ITEM_TYPE } = require('../constants');
 
 const generateOrderNumber = () => {
   const y = new Date().getFullYear();
@@ -36,7 +38,8 @@ const list = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/v1/orders
- * Validasi: visa+hotel, bus min 35 pack, manifest untuk visa/tiket
+ * Items: [{ product_id, type, quantity, unit_price (optional - resolved if not sent), room_type?, meal?, meta? }]
+ * Validasi: require_hotel_with_visa, bus min pack penalty from business rules.
  */
 const create = asyncHandler(async (req, res) => {
   const { items, branch_id, owner_id, notes } = req.body;
@@ -47,36 +50,48 @@ const create = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Items order wajib' });
   }
 
-  const hasVisa = items.some(i => i.type === 'visa');
-  const hasHotel = items.some(i => i.type === 'hotel');
-  if (hasVisa && !hasHotel) {
-    return res.status(400).json({ success: false, message: 'Visa tidak bisa tanpa hotel' });
+  const rules = await getRulesForBranch(effectiveBranchId);
+  const hasVisa = items.some(i => i.type === ORDER_ITEM_TYPE.VISA);
+  const hasHotel = items.some(i => i.type === ORDER_ITEM_TYPE.HOTEL);
+  if (rules.require_hotel_with_visa && hasVisa && !hasHotel) {
+    return res.status(400).json({ success: false, message: 'Visa wajib bersama hotel' });
   }
 
+  const busMinPack = rules.bus_min_pack ?? 35;
+  const busPenaltyIdr = rules.bus_penalty_idr ?? 500000;
   let subtotal = 0;
   let totalJamaah = 0;
   let penaltyAmount = 0;
   const orderItems = [];
+
   for (const it of items) {
     const qty = parseInt(it.quantity, 10) || 1;
-    const unitPrice = parseFloat(it.unit_price) || 0;
+    let unitPrice = parseFloat(it.unit_price);
+    if (unitPrice == null || isNaN(unitPrice)) {
+      const productId = it.product_id;
+      if (!productId) return res.status(400).json({ success: false, message: 'product_id atau unit_price wajib per item' });
+      unitPrice = await getEffectivePrice(productId, effectiveBranchId, effectiveOwnerId, it.meta || {}, it.currency || 'IDR');
+      if (unitPrice == null) return res.status(400).json({ success: false, message: `Harga tidak ditemukan untuk product ${productId}` });
+    }
     const st = qty * unitPrice;
     subtotal += st;
-    if (it.type === 'bus') {
+    if (it.type === ORDER_ITEM_TYPE.BUS) {
       totalJamaah += qty;
-      if (qty < BUSINESS_RULES.BUS_MIN_PACK) {
-        penaltyAmount += 500000;
-      }
+      if (qty < busMinPack || qty > busMinPack) penaltyAmount += busPenaltyIdr;
     }
     orderItems.push({
       type: it.type,
-      product_ref_id: it.product_ref_id,
-      product_ref_type: it.product_ref_type,
+      product_ref_id: it.product_id,
+      product_ref_type: 'product',
       quantity: qty,
       unit_price: unitPrice,
       subtotal: st,
-      manifest_file_url: it.manifest_file_url,
-      meta: it.meta || {}
+      manifest_file_url: it.manifest_file_url || null,
+      meta: {
+        room_type: it.room_type,
+        meal: it.meal,
+        ...(it.meta || {})
+      }
     });
   }
 
@@ -121,4 +136,60 @@ const getById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: order });
 });
 
-module.exports = { list, create, getById };
+/**
+ * PATCH /api/v1/orders/:id
+ * Update order (e.g. add/remove items, change qty) - recalc totals. Role invoice / admin.
+ */
+const update = asyncHandler(async (req, res) => {
+  const order = await Order.findByPk(req.params.id, { include: [{ model: OrderItem, as: 'OrderItems' }] });
+  if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
+  const allowed = ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice'];
+  if (!allowed.includes(req.user.role) && order.owner_id !== req.user.id) {
+    return res.status(403).json({ success: false, message: 'Akses ditolak' });
+  }
+  if (!['draft', 'tentative'].includes(order.status)) {
+    return res.status(400).json({ success: false, message: 'Order hanya bisa diubah saat draft/tentative' });
+  }
+  const { items, notes } = req.body;
+  if (items && Array.isArray(items)) {
+    const rules = await getRulesForBranch(order.branch_id);
+    const busMinPack = rules.bus_min_pack ?? 35;
+    const busPenaltyIdr = rules.bus_penalty_idr ?? 500000;
+    await OrderItem.destroy({ where: { order_id: order.id } });
+    let subtotal = 0, totalJamaah = 0, penaltyAmount = 0;
+    for (const it of items) {
+      const qty = parseInt(it.quantity, 10) || 1;
+      let unitPrice = parseFloat(it.unit_price);
+      if (unitPrice == null || isNaN(unitPrice) && it.product_id) {
+        unitPrice = await getEffectivePrice(it.product_id, order.branch_id, order.owner_id, {}, it.currency || 'IDR') || 0;
+      }
+      const st = qty * (unitPrice || 0);
+      subtotal += st;
+      if (it.type === ORDER_ITEM_TYPE.BUS) {
+        totalJamaah += qty;
+        if (qty < busMinPack || qty > busMinPack) penaltyAmount += busPenaltyIdr;
+      }
+      await OrderItem.create({
+        order_id: order.id,
+        type: it.type,
+        product_ref_id: it.product_id,
+        product_ref_type: 'product',
+        quantity: qty,
+        unit_price: unitPrice || 0,
+        subtotal: st,
+        meta: it.meta || {}
+      });
+    }
+    await order.update({
+      subtotal,
+      total_jamaah: totalJamaah,
+      penalty_amount: penaltyAmount,
+      total_amount: subtotal + penaltyAmount
+    });
+  }
+  if (notes !== undefined) await order.update({ notes });
+  const full = await Order.findByPk(order.id, { include: [{ model: OrderItem, as: 'OrderItems' }] });
+  res.json({ success: true, data: full });
+});
+
+module.exports = { list, create, getById, update };

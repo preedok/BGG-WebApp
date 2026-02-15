@@ -48,6 +48,23 @@ const PaymentProof = sequelize.define('PaymentProof', {
   },
   notes: {
     type: DataTypes.TEXT
+  },
+  issued_by: {
+    type: DataTypes.UUID,
+    references: { model: 'users', key: 'id' },
+    comment: 'Role invoice Saudi when payment done in Saudi'
+  },
+  payment_location: {
+    type: DataTypes.ENUM('indonesia', 'saudi'),
+    defaultValue: 'indonesia'
+  },
+  reconciled_at: {
+    type: DataTypes.DATE,
+    comment: 'Rekonsiliasi bank oleh accounting'
+  },
+  reconciled_by: {
+    type: DataTypes.UUID,
+    references: { model: 'users', key: 'id' }
   }
 }, {
   tableName: 'payment_proofs',

@@ -257,5 +257,15 @@ export const ROUTES = {
   BRANCHES: '/dashboard/branches',
   REPORTS: '/dashboard/reports',
   SETTINGS: '/dashboard/settings',
-  PROFILE: '/dashboard/profile'
+  PROFILE: '/dashboard/profile',
+  SUPER_ADMIN_MONITORING: '/dashboard/super-admin/monitoring',
+  SUPER_ADMIN_ORDER_STATS: '/dashboard/super-admin/order-statistics',
+  SUPER_ADMIN_LOGS: '/dashboard/super-admin/logs',
+  SUPER_ADMIN_MAINTENANCE: '/dashboard/super-admin/maintenance',
+  SUPER_ADMIN_APPEARANCE: '/dashboard/super-admin/appearance',
+  SUPER_ADMIN_LANGUAGE: '/dashboard/super-admin/language',
+  SUPER_ADMIN_DEPLOY: '/dashboard/super-admin/deploy'
 } as const;
+
+// Chart colors for donut/pie (Recharts)
+export const DONUT_COLORS = ['#059669', '#0891b2', '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#0d9488'];

@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { User, OwnerProfile, Branch } = require('../models');
 const { ROLES, OWNER_STATUS } = require('../constants');
+const uploadConfig = require('../config/uploads');
 /**
  * POST /api/v1/owners/register
  * Calon Owner registrasi. Status: REGISTERED_PENDING_MOU
@@ -53,7 +54,9 @@ const uploadMou = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Status tidak sesuai untuk upload MoU' });
   }
 
-  const mou_signed_url = req.file ? req.file.path || req.file.filename : req.body.mou_signed_url;
+  const mou_signed_url = req.file
+    ? uploadConfig.toUrlPath(uploadConfig.SUBDIRS.MOU, req.file.filename)
+    : req.body.mou_signed_url;
   if (!mou_signed_url) return res.status(400).json({ success: false, message: 'File MoU wajib' });
 
   await profile.update({
@@ -82,12 +85,17 @@ const getMyProfile = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/v1/owners (Admin Pusat / Super Admin)
+ * GET /api/v1/owners (Admin Pusat / Super Admin / Admin Cabang)
+ * Admin Cabang: hanya owner yang assigned ke cabang mereka, atau DEPOSIT_VERIFIED untuk bisa di-assign.
  */
 const list = asyncHandler(async (req, res) => {
   const { status, branch_id } = req.query;
   const where = {};
   if (status) where.status = status;
+
+  const isAdminCabang = req.user.role === ROLES.ADMIN_CABANG;
+  const filterBranchId = branch_id || (isAdminCabang ? req.user.branch_id : null);
+
   const profiles = await OwnerProfile.findAll({
     where,
     include: [
@@ -96,8 +104,12 @@ const list = asyncHandler(async (req, res) => {
     ]
   });
   let list_ = profiles;
-  if (branch_id) {
-    list_ = profiles.filter(p => p.assigned_branch_id === branch_id);
+  if (filterBranchId) {
+    if (isAdminCabang) {
+      list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
+    } else {
+      list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId);
+    }
   }
   res.json({ success: true, data: list_ });
 });
@@ -132,7 +144,7 @@ const verifyMou = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/v1/owners/:id/verify-deposit (Admin Pusat)
+ * PATCH /api/v1/owners/:id/verify-deposit (Admin Pusat / Admin Cabang)
  */
 const verifyDeposit = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -151,11 +163,12 @@ const verifyDeposit = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/v1/owners/:id/assign-branch (Admin Pusat)
+ * PATCH /api/v1/owners/:id/assign-branch (Admin Pusat / Admin Cabang hanya ke cabang sendiri)
  */
 const assignBranch = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { branch_id } = req.body;
+  let { branch_id } = req.body;
+  if (req.user.role === ROLES.ADMIN_CABANG) branch_id = req.user.branch_id;
   const profile = await OwnerProfile.findByPk(id);
   if (!profile) return res.status(404).json({ success: false, message: 'Owner tidak ditemukan' });
   if (profile.status !== OWNER_STATUS.DEPOSIT_VERIFIED) {
@@ -164,6 +177,9 @@ const assignBranch = asyncHandler(async (req, res) => {
 
   const branch = await Branch.findByPk(branch_id);
   if (!branch) return res.status(404).json({ success: false, message: 'Cabang tidak ditemukan' });
+  if (req.user.role === ROLES.ADMIN_CABANG && branch_id !== req.user.branch_id) {
+    return res.status(403).json({ success: false, message: 'Hanya dapat menetapkan ke cabang Anda' });
+  }
 
   await User.update({ branch_id }, { where: { id: profile.user_id } });
   await profile.update({

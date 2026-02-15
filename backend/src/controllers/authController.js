@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const { User, OwnerProfile } = require('../models');
 const { signToken } = require('../middleware/auth');
 const { ROLES } = require('../constants');
+const logger = require('../config/logger');
 
 /**
  * POST /api/v1/auth/login
@@ -12,10 +13,20 @@ const login = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Email dan password wajib' });
   }
 
-  const user = await User.findOne({
-    where: { email: email.toLowerCase() },
-    include: [{ model: require('../models').Branch, as: 'Branch', attributes: ['id', 'code', 'name'] }]
-  });
+  let user;
+  try {
+    user = await User.findOne({
+      where: { email: email.toLowerCase() },
+      include: [{ model: require('../models').Branch, as: 'Branch', attributes: ['id', 'code', 'name'] }]
+    });
+  } catch (err) {
+    const dbMessage = (err && err.original && err.original.message) ? err.original.message : (err && err.message) ? String(err.message) : String(err);
+    logger.error('Login DB error:', dbMessage);
+    return res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === 'production' ? 'Kesalahan server' : dbMessage
+    });
+  }
 
   if (!user) {
     return res.status(401).json({ success: false, message: 'Email tidak ditemukan' });

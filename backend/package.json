@@ -14,7 +14,10 @@
     "seed": "sequelize-cli db:seed:all",
     "seed:undo": "sequelize-cli db:seed:undo:all",
     "db:create": "sequelize-cli db:create",
-    "db:drop": "sequelize-cli db:drop"
+    "db:drop": "sequelize-cli db:drop",
+    "db:update": "npm run migrate && node scripts/sync-database.js && npm run seed",
+    "db:recreate": "node scripts/recreate-database.js && npm run db:update",
+    "db:sync": "node scripts/sync-database.js"
   },
   "dependencies": {
     "express": "^4.19.2",

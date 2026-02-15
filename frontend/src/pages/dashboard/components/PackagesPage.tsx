@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
@@ -6,87 +6,94 @@ import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
+import { productsApi } from '../../../services/api';
 
-interface PackageType {
+/** Produk paket dari API (products is_package=true) */
+interface PackageProduct {
   id: string;
-  package_code: string;
-  package_name: string;
-  duration_days: number;
-  base_price_sar: number;
-  final_price_sar: number;
-  quota: number;
-  used_quota: number;
-  valid_from: string;
-  valid_until: string;
-  is_featured: boolean;
+  code: string;
+  name: string;
+  description?: string | null;
+  meta?: Record<string, unknown> | null;
   is_active: boolean;
+  is_package?: boolean;
+  price_general?: number | null;
+  price_branch?: number | null;
+  currency?: string;
 }
-
-const mockPackages: PackageType[] = [
-  {
-    id: '1',
-    package_code: 'PKG-9D-001',
-    package_name: 'Paket Umroh Ekonomis 9 Hari',
-    duration_days: 9,
-    base_price_sar: 8500,
-    final_price_sar: 9500,
-    quota: 100,
-    used_quota: 45,
-    valid_from: '2026-03-01',
-    valid_until: '2026-12-31',
-    is_featured: false,
-    is_active: true
-  },
-  {
-    id: '2',
-    package_code: 'PKG-12D-001',
-    package_name: 'Paket Umroh Plus 12 Hari',
-    duration_days: 12,
-    base_price_sar: 12000,
-    final_price_sar: 13500,
-    quota: 80,
-    used_quota: 38,
-    valid_from: '2026-03-01',
-    valid_until: '2026-12-31',
-    is_featured: true,
-    is_active: true
-  }
-];
 
 const PackagesPage: React.FC = () => {
   const { showToast } = useToast();
+  const [packages, setPackages] = useState<PackageProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    productsApi
+      .list({ is_package: 'true', with_prices: 'true' })
+      .then((res) => {
+        if (!cancelled && res.data?.data) setPackages(res.data.data as PackageProduct[]);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.response?.data?.message || 'Gagal memuat data paket');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const stats = [
-    { label: 'Total Packages', value: mockPackages.length, color: 'from-blue-500 to-cyan-500' },
-    { label: 'Active Packages', value: mockPackages.filter(p => p.is_active).length, color: 'from-emerald-500 to-teal-500' },
-    { label: 'Total Quota', value: mockPackages.reduce((sum, p) => sum + p.quota, 0), color: 'from-purple-500 to-pink-500' },
-    { label: 'Sold', value: mockPackages.reduce((sum, p) => sum + p.used_quota, 0), color: 'from-orange-500 to-red-500' }
+    { label: 'Total Paket', value: packages.length, color: 'from-blue-500 to-cyan-500' },
+    { label: 'Aktif', value: packages.filter((p: PackageProduct) => p.is_active).length, color: 'from-emerald-500 to-teal-500' },
+    { label: 'Dengan Harga', value: packages.filter((p: PackageProduct) => (p.price_general ?? p.price_branch) != null).length, color: 'from-purple-500 to-pink-500' }
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'code', label: 'Package Code', align: 'left' },
-    { id: 'name', label: 'Package Name', align: 'left' },
-    { id: 'duration', label: 'Duration', align: 'center' },
-    { id: 'price', label: 'Final Price', align: 'right' },
-    { id: 'quota', label: 'Quota', align: 'center' },
-    { id: 'validity', label: 'Valid Period', align: 'left' },
+    { id: 'code', label: 'Kode', align: 'left' },
+    { id: 'name', label: 'Nama Paket', align: 'left' },
+    { id: 'price', label: 'Harga', align: 'right' },
     { id: 'status', label: 'Status', align: 'center' },
-    { id: 'actions', label: 'Actions', align: 'center' }
+    { id: 'actions', label: 'Aksi', align: 'center' }
   ];
+
+  const formatPrice = (p: PackageProduct) => {
+    const amount = p.price_branch ?? p.price_general ?? 0;
+    const cur = p.currency || 'IDR';
+    if (amount) return `${Number(amount).toLocaleString('id-ID')} ${cur}`;
+    return '-';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-slate-600">Memuat data paket...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-50 p-4 text-red-700">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Packages Management</h1>
-          <p className="text-slate-600 mt-1">Manage bundled umroh packages and pricing</p>
+          <h1 className="text-3xl font-bold text-slate-900">Manajemen Paket</h1>
+          <p className="text-slate-600 mt-1">Produk paket umroh dari database – kelola via Admin Pusat / Super Admin</p>
         </div>
-        <Button variant="primary" onClick={() => showToast('Buat paket baru – hanya Admin Pusat/Super Admin (demo)', 'info')}>
-          <Plus className="w-5 h-5 mr-2" />Create Package
+        <Button variant="primary" onClick={() => showToast('Buat paket baru – Admin Pusat / Super Admin', 'info')}>
+          <Plus className="w-5 h-5 mr-2" />Buat Paket
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {stats.map((stat, i) => (
           <Card key={i} hover>
             <div className="flex items-center gap-4">
@@ -105,43 +112,28 @@ const PackagesPage: React.FC = () => {
       <Card>
         <Table
           columns={tableColumns}
-          data={mockPackages}
-          renderRow={(pkg: PackageType) => (
+          data={packages}
+          renderRow={(pkg: PackageProduct) => (
             <tr key={pkg.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <code className="px-2 py-1 bg-slate-100 text-slate-700 rounded font-mono text-sm">
-                    {pkg.package_code}
-                  </code>
-                  {pkg.is_featured && <Badge variant="warning" size="sm">Featured</Badge>}
-                </div>
+                <code className="px-2 py-1 bg-slate-100 text-slate-700 rounded font-mono text-sm">
+                  {pkg.code}
+                </code>
               </td>
-              <td className="px-6 py-4 font-semibold text-slate-900">{pkg.package_name}</td>
-              <td className="px-6 py-4 text-center">
-                <Badge variant="info">{pkg.duration_days} days</Badge>
-              </td>
+              <td className="px-6 py-4 font-semibold text-slate-900">{pkg.name}</td>
               <td className="px-6 py-4 text-right font-semibold text-emerald-600">
-                {pkg.final_price_sar.toLocaleString()} SAR
-              </td>
-              <td className="px-6 py-4 text-center">
-                <div className="text-sm">
-                  <p className="font-semibold">{pkg.used_quota}/{pkg.quota}</p>
-                  <p className="text-slate-500">{Math.round((pkg.used_quota/pkg.quota)*100)}% sold</p>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-sm text-slate-700">
-                {pkg.valid_from} - {pkg.valid_until}
+                {formatPrice(pkg)}
               </td>
               <td className="px-6 py-4 text-center">
                 <Badge variant={pkg.is_active ? 'success' : 'error'}>
-                  {pkg.is_active ? 'Active' : 'Inactive'}
+                  {pkg.is_active ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" onClick={() => showToast(`Lihat detail: ${pkg.package_name}`, 'info')} title="View"><Eye className="w-4 h-4" /></button>
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => showToast(`Edit paket: ${pkg.package_name} (demo)`, 'info')} title="Edit"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" onClick={() => showToast('Hapus paket – hanya Super Admin (demo)', 'info')} title="Delete"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" onClick={() => showToast(`Detail: ${pkg.name}`, 'info')} title="Lihat"><Eye className="w-4 h-4" /></button>
+                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => showToast(`Edit: ${pkg.name}`, 'info')} title="Edit"><Edit className="w-4 h-4" /></button>
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" onClick={() => showToast('Hapus paket – Super Admin', 'info')} title="Hapus"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>

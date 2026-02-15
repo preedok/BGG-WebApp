@@ -1,48 +1,105 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users as UsersIcon, Plus, Search, Edit, Trash2, Eye, Shield, Mail, Phone } from 'lucide-react';
-import { mockUsers, User } from '../../../data/mockUsers';
 import { ROLE_NAMES, TableColumn } from '../../../types';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import { adminPusatApi, UserListItem } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
+
+const roleLabel = (role: string): string =>
+  (ROLE_NAMES as Record<string, string>)[role] || role;
 
 const UsersPage: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState<UserListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
 
-  const filteredUsers = mockUsers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const canListUsers =
+    currentUser?.role === 'super_admin' || currentUser?.role === 'admin_pusat';
+
+  useEffect(() => {
+    if (!canListUsers) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    adminPusatApi
+      .listUsers()
+      .then((res) => {
+        if (!cancelled && res.data?.data) setUsers(res.data.data);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setError(err.response?.data?.message || 'Gagal memuat daftar user');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [canListUsers]);
+
+  const filteredUsers = users.filter((user: UserListItem) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
   const stats = [
-    { label: 'Total Users', value: mockUsers.length, color: 'from-blue-500 to-cyan-500' },
-    { label: 'Active Users', value: mockUsers.filter(u => u.is_active).length, color: 'from-emerald-500 to-teal-500' },
-    { label: 'Owners', value: mockUsers.filter(u => u.role === 'owner').length, color: 'from-purple-500 to-pink-500' },
-    { label: 'Staff', value: mockUsers.filter(u => u.role !== 'owner').length, color: 'from-orange-500 to-red-500' }
+    { label: 'Total Users', value: users.length, color: 'from-blue-500 to-cyan-500' },
+    { label: 'Aktif', value: users.filter((u: UserListItem) => u.is_active).length, color: 'from-emerald-500 to-teal-500' },
+    { label: 'Owner', value: users.filter((u: UserListItem) => u.role === 'owner').length, color: 'from-purple-500 to-pink-500' },
+    { label: 'Staff', value: users.filter((u: UserListItem) => u.role !== 'owner').length, color: 'from-orange-500 to-red-500' }
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'name', label: 'Name', align: 'left' },
+    { id: 'name', label: 'Nama', align: 'left' },
     { id: 'email', label: 'Email', align: 'left' },
     { id: 'role', label: 'Role', align: 'left' },
-    { id: 'phone', label: 'Phone', align: 'left' },
-    { id: 'company', label: 'Company', align: 'left' },
+    { id: 'company', label: 'Perusahaan', align: 'left' },
+    { id: 'branch', label: 'Cabang', align: 'left' },
     { id: 'status', label: 'Status', align: 'center' },
-    { id: 'actions', label: 'Actions', align: 'center' }
+    { id: 'actions', label: 'Aksi', align: 'center' }
   ];
+
+  if (!canListUsers) {
+    return (
+      <div className="rounded-lg bg-amber-50 p-4 text-amber-800">
+        <p>Daftar user hanya dapat diakses oleh Super Admin dan Admin Pusat.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-slate-600">Memuat daftar user...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-50 p-4 text-red-700">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Users Management</h1>
-          <p className="text-slate-600 mt-1">Manage system users and access control</p>
+          <h1 className="text-3xl font-bold text-slate-900">Manajemen User</h1>
+          <p className="text-slate-600 mt-1">Daftar user dari database – tambah akun via Admin Pusat / Admin Cabang</p>
         </div>
-        <Button variant="primary"><Plus className="w-5 h-5 mr-2" />Add User</Button>
+        <Button variant="primary"><Plus className="w-5 h-5 mr-2" />Tambah User</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -67,7 +124,7 @@ const UsersPage: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Cari nama atau email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
@@ -78,17 +135,24 @@ const UsersPage: React.FC = () => {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="all">All Roles</option>
+            <option value="all">Semua Role</option>
             <option value="super_admin">Super Admin</option>
             <option value="admin_pusat">Admin Pusat</option>
+            <option value="admin_cabang">Admin Cabang</option>
             <option value="owner">Owner</option>
+            <option value="role_invoice">Invoice</option>
+            <option value="role_visa">Visa</option>
+            <option value="role_ticket">Tiket</option>
+            <option value="role_hotel">Hotel</option>
+            <option value="role_bus">Bus</option>
+            <option value="role_accounting">Accounting</option>
           </select>
         </div>
 
         <Table
           columns={tableColumns}
           data={filteredUsers}
-          renderRow={(user: User) => (
+          renderRow={(user: UserListItem) => (
             <tr key={user.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
@@ -97,7 +161,7 @@ const UsersPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">{user.name}</p>
-                    <p className="text-xs text-slate-500">{user.branch_name || '-'}</p>
+                    <p className="text-xs text-slate-500">{user.Branch?.name || '-'}</p>
                   </div>
                 </div>
               </td>
@@ -110,26 +174,23 @@ const UsersPage: React.FC = () => {
               <td className="px-6 py-4">
                 <Badge variant="info">
                   <Shield className="w-3 h-3 mr-1" />
-                  {ROLE_NAMES[user.role]}
+                  {roleLabel(user.role)}
                 </Badge>
               </td>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <Phone className="w-4 h-4 text-slate-400" />
-                  {user.phone || '-'}
-                </div>
-              </td>
               <td className="px-6 py-4 text-slate-700">{user.company_name || '-'}</td>
+              <td className="px-6 py-4 text-slate-700">
+                {user.Branch ? `${user.Branch.code} - ${user.Branch.name}` : '-'}
+              </td>
               <td className="px-6 py-4 text-center">
                 <Badge variant={user.is_active ? 'success' : 'error'}>
-                  {user.is_active ? 'Active' : 'Inactive'}
+                  {user.is_active ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Eye className="w-4 h-4" /></button>
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Lihat"><Eye className="w-4 h-4" /></button>
+                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
+                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Hapus"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>

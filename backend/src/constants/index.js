@@ -73,9 +73,24 @@ const VISA_PROGRESS_STATUS = {
   ISSUED: 'issued'
 };
 
+// VI. Bus progress (Role Bus Saudi) - tiket bis, kedatangan, keberangkatan, kepulangan
+const BUS_TICKET_STATUS = {
+  PENDING: 'pending',
+  ISSUED: 'issued'
+};
+const BUS_TRIP_STATUS = {
+  PENDING: 'pending',
+  SCHEDULED: 'scheduled',
+  COMPLETED: 'completed'
+};
+
 // VI. Ticket progress (Role Tiket)
 const TICKET_PROGRESS_STATUS = {
+  PENDING: 'pending',
+  DATA_RECEIVED: 'data_received',
   SEAT_RESERVED: 'seat_reserved',
+  BOOKING: 'booking',
+  PAYMENT_AIRLINE: 'payment_airline',
   TICKET_ISSUED: 'ticket_issued'
 };
 
@@ -89,6 +104,32 @@ const ORDER_ITEM_TYPE = {
   PACKAGE: 'package'
 };
 
+// Room types for hotel
+const ROOM_TYPES = ['single', 'double', 'quad', 'quint'];
+
+// Order status (add blocked)
+const ORDER_STATUS = {
+  DRAFT: 'draft',
+  TENTATIVE: 'tentative',
+  CONFIRMED: 'confirmed',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  BLOCKED: 'blocked'
+};
+
+// Business rule keys (configurable by pusat / cabang)
+const BUSINESS_RULE_KEYS = {
+  BUS_MIN_PACK: 'bus_min_pack',
+  BUS_PENALTY_IDR: 'bus_penalty_idr',
+  HANDLING_DEFAULT_SAR: 'handling_default_sar',
+  REQUIRE_HOTEL_WITH_VISA: 'require_hotel_with_visa',
+  DP_GRACE_HOURS: 'dp_grace_hours',
+  DP_DUE_DAYS: 'dp_due_days',
+  CURRENCY_RATES: 'currency_rates',
+  REGISTRATION_DEPOSIT_IDR: 'registration_deposit_idr'
+};
+
 // Notifikasi trigger (VIII)
 const NOTIFICATION_TRIGGER = {
   INVOICE_CREATED: 'invoice_created',
@@ -98,6 +139,7 @@ const NOTIFICATION_TRIGGER = {
   HOTEL_CONFIRMED: 'hotel_confirmed',
   VISA_ISSUED: 'visa_issued',
   TICKET_ISSUED: 'ticket_issued',
+  ORDER_COMPLETED: 'order_completed',
   CANCEL: 'cancel',
   REFUND: 'refund'
 };
@@ -109,7 +151,8 @@ const BUSINESS_RULES = {
   DP_GRACE_HOURS: 24,        // Invoice tentative batal jika belum DP dalam 24 jam
   DP_DUE_DAYS: 3,            // Tenggat DP 3 hari
   BUS_MIN_PACK: 35,
-  CURRENCY: ['IDR', 'SAR']
+  CURRENCY: ['IDR', 'SAR'],
+  REGISTRATION_DEPOSIT_IDR: 25000000  // Biaya pendaftaran owner (umum dari pusat, bisa diubah cabang)
 };
 
 module.exports = {
@@ -119,9 +162,14 @@ module.exports = {
   REFUND_STATUS,
   HOTEL_PROGRESS_STATUS,
   ROOM_STATUS,
+  BUS_TICKET_STATUS,
+  BUS_TRIP_STATUS,
   VISA_PROGRESS_STATUS,
   TICKET_PROGRESS_STATUS,
   ORDER_ITEM_TYPE,
+  ORDER_STATUS,
+  ROOM_TYPES,
+  BUSINESS_RULE_KEYS,
   NOTIFICATION_TRIGGER,
   BUSINESS_RULES
 };
