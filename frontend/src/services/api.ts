@@ -65,10 +65,13 @@ export const publicApi = {
 };
 
 export const productsApi = {
-  list: (params?: { type?: string; with_prices?: string; branch_id?: string; owner_id?: string; is_package?: string }) => api.get('/products', { params }),
+  list: (params?: { type?: string; with_prices?: string; branch_id?: string; owner_id?: string; is_package?: string; include_inactive?: string }) => api.get('/products', { params }),
   getById: (id: string) => api.get(`/products/${id}`),
-  getPrice: (id: string, params?: { branch_id?: string; owner_id?: string; currency?: string }) => api.get(`/products/${id}/price`, { params }),
+  getPrice: (id: string, params?: { branch_id?: string; owner_id?: string; currency?: string; room_type?: string; with_meal?: string }) => api.get(`/products/${id}/price`, { params }),
   listPrices: (params?: { product_id?: string; branch_id?: string }) => api.get('/products/prices', { params }),
+  create: (body: { type: string; code: string; name: string; description?: string; is_package?: boolean; meta?: object }) => api.post('/products', body),
+  update: (id: string, body: object) => api.patch(`/products/${id}`, body),
+  delete: (id: string) => api.delete(`/products/${id}`),
   createPrice: (body: object) => api.post('/products/prices', body),
   updatePrice: (id: string, body: object) => api.patch(`/products/prices/${id}`, body)
 };
@@ -215,6 +218,7 @@ interface VisaDashboardData {
 export const invoicesApi = {
   list: (params?: { status?: string; branch_id?: string; owner_id?: string }) => api.get('/invoices', { params }),
   getById: (id: string) => api.get(`/invoices/${id}`),
+  getPdf: (id: string) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
   create: (body: { order_id: string; is_super_promo?: boolean }) => api.post('/invoices', body),
   unblock: (id: string) => api.patch(`/invoices/${id}/unblock`),
   verifyPayment: (id: string, body: { payment_proof_id: string; verified: boolean; notes?: string }) => api.post(`/invoices/${id}/verify-payment`, body),
@@ -330,6 +334,8 @@ export const accountingApi = {
     api.get<{ success: boolean; data: any[] }>('/accounting/payments', { params }),
   listInvoices: (params?: { status?: string; branch_id?: string }) =>
     api.get<{ success: boolean; data: any[] }>('/accounting/invoices', { params }),
+  listOrders: (params?: { branch_id?: string; status?: string; limit?: number }) =>
+    api.get<{ success: boolean; data: any[] }>('/accounting/orders', { params }),
   getFinancialReport: (params?: { period?: string; year?: string; month?: string; date_from?: string; date_to?: string }) =>
     api.get<{ success: boolean; data: AccountingFinancialReportData }>('/accounting/financial-report', { params }),
   getReconciliation: (params?: { reconciled?: string; date_from?: string; date_to?: string }) =>

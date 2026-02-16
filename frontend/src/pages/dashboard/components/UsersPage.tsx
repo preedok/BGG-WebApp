@@ -5,7 +5,7 @@ import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
-import { adminPusatApi, UserListItem } from '../../../services/api';
+import { adminPusatApi, branchesApi, UserListItem } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const roleLabel = (role: string): string =>
@@ -14,13 +14,24 @@ const roleLabel = (role: string): string =>
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserListItem[]>([]);
+  const [branches, setBranches] = useState<{ id: string; code: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [branchId, setBranchId] = useState<string>('');
 
   const canListUsers =
     currentUser?.role === 'super_admin' || currentUser?.role === 'admin_pusat';
+  const isAdminPusat = currentUser?.role === 'admin_pusat';
+
+  useEffect(() => {
+    if (isAdminPusat) {
+      branchesApi.list().then((res) => {
+        if (res.data?.data) setBranches(res.data.data);
+      }).catch(() => {});
+    }
+  }, [isAdminPusat]);
 
   useEffect(() => {
     if (!canListUsers) {
@@ -28,8 +39,10 @@ const UsersPage: React.FC = () => {
       return;
     }
     let cancelled = false;
+    const params: { role?: string; branch_id?: string } = {};
+    if (branchId) params.branch_id = branchId;
     adminPusatApi
-      .listUsers()
+      .listUsers(params)
       .then((res) => {
         if (!cancelled && res.data?.data) setUsers(res.data.data);
       })
@@ -41,7 +54,7 @@ const UsersPage: React.FC = () => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [canListUsers]);
+  }, [canListUsers, branchId]);
 
   const filteredUsers = users.filter((user: UserListItem) => {
     const matchesSearch =
@@ -147,6 +160,19 @@ const UsersPage: React.FC = () => {
             <option value="role_bus">Bus</option>
             <option value="role_accounting">Accounting</option>
           </select>
+          {isAdminPusat && (
+            <select
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              className="px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 min-w-[180px]"
+              title="Filter cabang"
+            >
+              <option value="">Semua cabang</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.code} - {b.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <Table

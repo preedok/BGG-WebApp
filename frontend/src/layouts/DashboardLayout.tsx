@@ -41,52 +41,28 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting', 'owner']
   },
   {
-    title: 'Hotels',
-    icon: <Hotel className="w-5 h-5" />,
-    path: '/dashboard/hotels',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_hotel', 'owner']
-  },
-  {
-    title: 'Visa',
-    icon: <FileText className="w-5 h-5" />,
-    path: '/dashboard/visa',
-    roles: ['super_admin', 'admin_pusat', 'role_visa', 'owner']
-  },
-  {
-    title: 'Tickets',
-    icon: <Plane className="w-5 h-5" />,
-    path: '/dashboard/tickets',
-    roles: ['super_admin', 'admin_pusat', 'role_ticket', 'owner']
-  },
-  {
-    title: 'Bus',
-    icon: <Bus className="w-5 h-5" />,
-    path: '/dashboard/bus',
-    roles: ['super_admin', 'admin_pusat', 'role_bus', 'owner']
-  },
-  {
-    title: 'Packages',
-    icon: <Package className="w-5 h-5" />,
-    path: '/dashboard/packages',
-    roles: ['super_admin', 'admin_pusat', 'owner']
-  },
-  {
     title: 'Products',
     icon: <Package className="w-5 h-5" />,
     path: '/dashboard/products',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'owner']
+  },
+  {
+    title: 'Order & Invoice',
+    icon: <Receipt className="w-5 h-5" />,
+    path: '/dashboard/orders-invoices',
+    roles: ['admin_pusat', 'admin_cabang']
   },
   {
     title: 'Orders',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/orders',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'owner']
+    roles: ['super_admin', 'role_invoice', 'owner']
   },
   {
     title: 'Invoices',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/invoices',
-    roles: ['super_admin', 'admin_pusat', 'role_invoice', 'role_accounting', 'owner']
+    roles: ['super_admin', 'role_invoice', 'role_accounting', 'owner']
   },
   {
     title: 'Users',
@@ -111,12 +87,6 @@ const menuItems: MenuItem[] = [
     icon: <Building2 className="w-5 h-5" />,
     path: '/dashboard/branches',
     roles: ['super_admin', 'admin_pusat']
-  },
-  {
-    title: 'Rekap Gabungan',
-    icon: <BarChart3 className="w-5 h-5" />,
-    path: '/dashboard/combined-recap',
-    roles: ['admin_pusat']
   },
   {
     title: 'Buat Akun (Bus/Hotel/Admin Cabang)',
@@ -155,6 +125,12 @@ const menuItems: MenuItem[] = [
     roles: ['role_accounting']
   },
   {
+    title: 'Daftar Order',
+    icon: <Receipt className="w-5 h-5" />,
+    path: '/dashboard/accounting/orders',
+    roles: ['role_accounting']
+  },
+  {
     title: 'Settings',
     icon: <Settings className="w-5 h-5" />,
     path: '/dashboard/settings',
@@ -180,7 +156,6 @@ const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [productsCollapsed, setProductsCollapsed] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: string; title: string; message: string; type: string }>>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -236,10 +211,6 @@ const DashboardLayout: React.FC = () => {
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
-  };
-
-  const toggleProducts = () => {
-    setProductsCollapsed(!productsCollapsed);
   };
 
   // Filter menu based on user role. Super Admin HANYA akses: Dashboard + Monitoring, Order Stats, Logs, Maintenance, Language, Deploy (tidak ada Orders, Invoices, dll)
@@ -311,109 +282,6 @@ const DashboardLayout: React.FC = () => {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
           {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
-            const isProductItem = ['Hotels', 'Visa', 'Tickets', 'Bus'].includes(item.title);
-            
-            // Skip rendering product items here, they'll be in the collapse section
-            if (isProductItem) return null;
-            
-            // Render Products collapse button before Packages
-            if (item.title === 'Packages') {
-              const productMenuItems = filteredMenuItems.filter(i => 
-                ['Hotels', 'Visa', 'Tickets', 'Bus'].includes(i.title)
-              );
-              
-              return (
-                <React.Fragment key="products-section">
-                  {/* Products Collapse Button */}
-                  <div className="relative">
-                    <button
-                      onClick={toggleProducts}
-                      className={`w-full flex items-center ${isCollapsed ? 'justify-center px-3' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all group text-slate-300 hover:bg-white/5 hover:text-white`}
-                    >
-                      <span className="text-slate-400 group-hover:text-emerald-400">
-                        <Package className="w-5 h-5" />
-                      </span>
-                      {!isCollapsed && (
-                        <>
-                          <span className="flex-1 text-left">Products</span>
-                          <ChevronDown className={`w-4 h-4 transition-transform ${productsCollapsed ? '' : 'rotate-180'}`} />
-                        </>
-                      )}
-                    </button>
-                    {isCollapsed && (
-                      <div className="fixed ml-20 px-3 py-2 bg-slate-800 border border-slate-700 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none shadow-xl z-50">
-                        Products
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Collapsed Product Items */}
-                  {!productsCollapsed && !isCollapsed && (
-                    <div className="ml-3 space-y-1 border-l-2 border-white/10 pl-3">
-                      {productMenuItems.map((productItem) => {
-                        const isProductActive = location.pathname === productItem.path;
-                        return (
-                          <button
-                            key={productItem.path}
-                            onClick={() => handleNavigate(productItem.path)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-all group ${
-                              isProductActive
-                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30'
-                                : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                            }`}
-                          >
-                            <span className={isProductActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'}>
-                              {productItem.icon}
-                            </span>
-                            <span className="flex-1 text-left">{productItem.title}</span>
-                            {productItem.badge && (
-                              <Badge variant="error" size="sm">
-                                {productItem.badge}
-                              </Badge>
-                            )}
-                            {isProductActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Original Packages item */}
-                  <div key={item.path} className="relative">
-                    <button
-                      onClick={() => handleNavigate(item.path)}
-                      className={`w-full flex items-center ${isCollapsed ? 'justify-center px-3' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all group ${
-                        isActive
-                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30'
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                      }`}
-                      title={isCollapsed ? item.title : ''}
-                    >
-                      <span className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'}>
-                        {item.icon}
-                      </span>
-                      {!isCollapsed && (
-                        <>
-                          <span className="flex-1 text-left">{item.title}</span>
-                          {item.badge && (
-                            <Badge variant="error" size="sm">
-                              {item.badge}
-                            </Badge>
-                          )}
-                          {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                        </>
-                      )}
-                    </button>
-                    {isCollapsed && (
-                      <div className="fixed ml-20 px-3 py-2 bg-slate-800 border border-slate-700 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none shadow-xl z-50">
-                        {item.title}
-                      </div>
-                    )}
-                  </div>
-                </React.Fragment>
-              );
-            }
-            
             return (
               <div key={item.path} className="relative">
                 <button

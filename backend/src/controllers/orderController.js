@@ -77,7 +77,8 @@ const create = asyncHandler(async (req, res) => {
     subtotal += st;
     if (it.type === ORDER_ITEM_TYPE.BUS) {
       totalJamaah += qty;
-      if (qty < busMinPack || qty > busMinPack) penaltyAmount += busPenaltyIdr;
+      const seatDiff = Math.abs(qty - busMinPack);
+      if (seatDiff > 0) penaltyAmount += seatDiff * busPenaltyIdr;
     }
     orderItems.push({
       type: it.type,
@@ -143,7 +144,7 @@ const getById = asyncHandler(async (req, res) => {
 const update = asyncHandler(async (req, res) => {
   const order = await Order.findByPk(req.params.id, { include: [{ model: OrderItem, as: 'OrderItems' }] });
   if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
-  const allowed = ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice'];
+  const allowed = ['super_admin', 'role_invoice'];
   if (!allowed.includes(req.user.role) && order.owner_id !== req.user.id) {
     return res.status(403).json({ success: false, message: 'Akses ditolak' });
   }
@@ -167,7 +168,8 @@ const update = asyncHandler(async (req, res) => {
       subtotal += st;
       if (it.type === ORDER_ITEM_TYPE.BUS) {
         totalJamaah += qty;
-        if (qty < busMinPack || qty > busMinPack) penaltyAmount += busPenaltyIdr;
+        const seatDiff = Math.abs(qty - busMinPack);
+        if (seatDiff > 0) penaltyAmount += seatDiff * busPenaltyIdr;
       }
       await OrderItem.create({
         order_id: order.id,

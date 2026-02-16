@@ -72,7 +72,7 @@ const AdminCabangDashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card hover><div className="cursor-pointer" onClick={() => navigate('/dashboard/orders')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/dashboard/orders')}>
+        <Card hover><div className="cursor-pointer" onClick={() => navigate('/dashboard/orders-invoices')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/dashboard/orders-invoices')}>
           <div className="flex items-start justify-between">
             <div className="p-3 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white">
               <Receipt className="w-6 h-6" />
@@ -80,7 +80,7 @@ const AdminCabangDashboard: React.FC = () => {
           </div>
           <p className="text-sm text-slate-600 mt-2">Total Order Cabang</p>
           <p className="text-2xl font-bold text-slate-900">{orders.total ?? 0}</p>
-          <p className="text-xs text-slate-500">Klik untuk daftar order & kirim hasil ke owner</p>
+          <p className="text-xs text-slate-500">Klik untuk order, invoice & cek bukti bayar</p>
         </div></Card>
         <Card hover><div className="cursor-pointer" onClick={() => navigate('/dashboard/admin-cabang/owners')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/dashboard/admin-cabang/owners')}>
           <div className="flex items-start justify-between">

@@ -13,6 +13,7 @@ router.get('/:id/price', productController.getPrice);
 
 router.post('/', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT), productController.create);
 router.patch('/:id', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG), productController.update);
+router.delete('/:id', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT), productController.remove);
 
 router.post('/prices', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG, ROLES.ROLE_INVOICE), productController.createPrice);
 router.patch('/prices/:id', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG, ROLES.ROLE_INVOICE), productController.updatePrice);

@@ -1,32 +1,138 @@
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, Globe, DollarSign, Bell, Shield, Database, Mail, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, DollarSign, Bell, Save } from 'lucide-react';
 import Card from '../../../components/common/Card';
-import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
+import { businessRulesApi } from '../../../services/api';
 
 const SettingsPage: React.FC = () => {
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('general');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [rules, setRules] = useState<Record<string, any>>({});
+  const [form, setForm] = useState({
+    company_name: '',
+    company_address: '',
+    SAR_TO_IDR: 4200,
+    USD_TO_IDR: 15500,
+    IDR_TO_SAR: 0.000238,
+    notification_order: true,
+    notification_payment: true,
+    notification_invoice: true
+  });
+
+  const canEdit = user?.role === 'super_admin' || user?.role === 'admin_pusat' || user?.role === 'admin_cabang';
+
+  useEffect(() => {
+    let cancelled = false;
+    businessRulesApi
+      .get(user?.role === 'admin_cabang' ? { branch_id: user.branch_id } : {})
+      .then((res) => {
+        if (!cancelled && res.data?.data) {
+          const data = res.data.data as Record<string, any>;
+          setRules(data);
+          let currency: Record<string, number> = {};
+          try {
+            currency = typeof data.currency_rates === 'string' ? JSON.parse(data.currency_rates) : (data.currency_rates || {});
+          } catch {}
+          setForm((f) => ({
+            ...f,
+            company_name: data.company_name ?? f.company_name,
+            company_address: data.company_address ?? f.company_address,
+            SAR_TO_IDR: currency.SAR_TO_IDR ?? f.SAR_TO_IDR,
+            USD_TO_IDR: currency.USD_TO_IDR ?? f.USD_TO_IDR,
+            IDR_TO_SAR: currency.IDR_TO_SAR ?? f.IDR_TO_SAR,
+            notification_order: data.notification_order === 'true' || data.notification_order === true,
+            notification_payment: data.notification_payment === 'true' || data.notification_payment === true,
+            notification_invoice: data.notification_invoice === 'true' || data.notification_invoice === true
+          }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [user?.role, user?.branch_id]);
 
   const tabs = [
     { id: 'general', label: 'General', icon: <SettingsIcon className="w-5 h-5" /> },
-    { id: 'currency', label: 'Currency & Exchange', icon: <DollarSign className="w-5 h-5" /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-5 h-5" /> },
-    { id: 'security', label: 'Security', icon: <Shield className="w-5 h-5" /> },
-    { id: 'email', label: 'Email Settings', icon: <Mail className="w-5 h-5" /> },
-    { id: 'system', label: 'System', icon: <Database className="w-5 h-5" /> }
+    { id: 'currency', label: 'Currency & Kurs', icon: <DollarSign className="w-5 h-5" /> },
+    { id: 'notifications', label: 'Notifikasi', icon: <Bell className="w-5 h-5" /> }
   ];
 
-  const exchangeRates = [
-    { currency: 'SAR', rate: 4200, symbol: 'ر.س', lastUpdated: '2026-02-14 08:00' },
-    { currency: 'USD', rate: 15500, symbol: '$', lastUpdated: '2026-02-14 08:00' },
-    { currency: 'EUR', rate: 16800, symbol: '€', lastUpdated: '2026-02-14 08:00' }
-  ];
+  const handleSaveGeneral = async () => {
+    if (!canEdit) return;
+    setSaving(true);
+    try {
+      await businessRulesApi.set({
+        rules: {
+          company_name: form.company_name,
+          company_address: form.company_address
+        }
+      });
+      showToast('Pengaturan general disimpan', 'success');
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'Gagal menyimpan', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveCurrency = async () => {
+    if (!canEdit) return;
+    setSaving(true);
+    try {
+      await businessRulesApi.set({
+        rules: {
+          currency_rates: {
+            SAR_TO_IDR: Number(form.SAR_TO_IDR),
+            USD_TO_IDR: Number(form.USD_TO_IDR),
+            IDR_TO_SAR: Number(form.IDR_TO_SAR)
+          }
+        }
+      });
+      showToast('Kurs disimpan', 'success');
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'Gagal menyimpan', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    if (!canEdit) return;
+    setSaving(true);
+    try {
+      await businessRulesApi.set({
+        rules: {
+          notification_order: form.notification_order ? 'true' : 'false',
+          notification_payment: form.notification_payment ? 'true' : 'false',
+          notification_invoice: form.notification_invoice ? 'true' : 'false'
+        }
+      });
+      showToast('Pengaturan notifikasi disimpan', 'success');
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'Gagal menyimpan', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-slate-600">Memuat pengaturan...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-600 mt-1">Configure system settings and preferences</p>
+        <p className="text-slate-600 mt-1">Konfigurasi umum, kurs, dan notifikasi</p>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">
@@ -54,183 +160,121 @@ const SettingsPage: React.FC = () => {
         <div className="lg:col-span-3">
           {activeTab === 'general' && (
             <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">General Settings</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-6">General</h3>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Nama Perusahaan</label>
                   <input
                     type="text"
-                    defaultValue="Bintang Global Group"
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                    value={form.company_name}
+                    onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
+                    disabled={!canEdit}
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Company Address</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Alamat Perusahaan</label>
                   <textarea
-                    defaultValue="Jl. Gatot Subroto No. 123, Jakarta Selatan, DKI Jakarta 12950"
+                    value={form.company_address}
+                    onChange={(e) => setForm((f) => ({ ...f, company_address: e.target.value }))}
+                    disabled={!canEdit}
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Phone</label>
-                    <input
-                      type="text"
-                      defaultValue="+62 21 8094 5678"
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      defaultValue="info@bintangglobal.com"
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-                <Button variant="primary">
-                  <Save className="w-5 h-5 mr-2" />
-                  Save Changes
-                </Button>
+                {canEdit && (
+                  <Button variant="primary" onClick={handleSaveGeneral} disabled={saving}>
+                    <Save className="w-5 h-5 mr-2" />
+                    {saving ? 'Menyimpan...' : 'Simpan'}
+                  </Button>
+                )}
               </div>
             </Card>
           )}
 
           {activeTab === 'currency' && (
             <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Currency & Exchange Rates</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Currency & Kurs</h3>
               <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Base Currency</label>
-                  <select className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500">
-                    <option>IDR - Indonesian Rupiah</option>
-                    <option>SAR - Saudi Riyal</option>
-                    <option>USD - US Dollar</option>
-                  </select>
-                </div>
-
-                <div>
-                  <h4 className="text-lg font-bold text-slate-900 mb-4">Exchange Rates (to IDR)</h4>
-                  <div className="space-y-4">
-                    {exchangeRates.map((rate) => (
-                      <div key={rate.currency} className="p-4 bg-slate-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-full flex items-center justify-center text-white font-bold">
-                              {rate.symbol}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-slate-900">{rate.currency}</p>
-                              <p className="text-xs text-slate-500">Last updated: {rate.lastUpdated}</p>
-                            </div>
-                          </div>
-                          <Badge variant="info">Active</Badge>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-xs text-slate-600 mb-1">Rate</label>
-                            <input
-                              type="number"
-                              defaultValue={rate.rate}
-                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <Button variant="primary" size="sm">Update</Button>
-                        </div>
-                      </div>
-                    ))}
+                <p className="text-sm text-slate-600">Nilai tukar ke IDR (untuk konversi tagihan). Hanya Admin Pusat / Super Admin yang dapat mengubah kurs global.</p>
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">SAR → IDR (1 SAR = ? IDR)</label>
+                    <input
+                      type="number"
+                      value={form.SAR_TO_IDR}
+                      onChange={(e) => setForm((f) => ({ ...f, SAR_TO_IDR: Number(e.target.value) || 0 }))}
+                      disabled={!canEdit}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                    />
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">USD → IDR (1 USD = ? IDR)</label>
+                    <input
+                      type="number"
+                      value={form.USD_TO_IDR}
+                      onChange={(e) => setForm((f) => ({ ...f, USD_TO_IDR: Number(e.target.value) || 0 }))}
+                      disabled={!canEdit}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                    />
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">IDR → SAR (1 IDR = ? SAR)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.IDR_TO_SAR}
+                      onChange={(e) => setForm((f) => ({ ...f, IDR_TO_SAR: Number(e.target.value) || 0 }))}
+                      disabled={!canEdit}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                    />
                   </div>
                 </div>
-
-                <Button variant="primary">
-                  <Save className="w-5 h-5 mr-2" />
-                  Save All Rates
-                </Button>
+                {canEdit && (
+                  <Button variant="primary" onClick={handleSaveCurrency} disabled={saving}>
+                    <Save className="w-5 h-5 mr-2" />
+                    {saving ? 'Menyimpan...' : 'Simpan Kurs'}
+                  </Button>
+                )}
               </div>
             </Card>
           )}
 
           {activeTab === 'notifications' && (
             <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Notification Settings</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-6">Notifikasi</h3>
               <div className="space-y-4">
                 {[
-                  { label: 'Email Notifications', description: 'Receive email notifications for important events' },
-                  { label: 'Order Notifications', description: 'Get notified when new orders are placed' },
-                  { label: 'Payment Notifications', description: 'Receive alerts for payment confirmations' },
-                  { label: 'Invoice Notifications', description: 'Get notified about invoice updates' },
-                  { label: 'System Alerts', description: 'Receive system maintenance and update notifications' }
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                  { key: 'notification_order' as const, label: 'Notifikasi Order', description: 'Notifikasi saat ada order baru' },
+                  { key: 'notification_payment' as const, label: 'Notifikasi Pembayaran', description: 'Notifikasi saat pembayaran diverifikasi' },
+                  { key: 'notification_invoice' as const, label: 'Notifikasi Invoice', description: 'Notifikasi saat invoice diterbitkan atau diupdate' }
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
                     <div>
                       <p className="font-semibold text-slate-900">{item.label}</p>
                       <p className="text-sm text-slate-600">{item.description}</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      <input
+                        type="checkbox"
+                        checked={form[item.key]}
+                        onChange={(e) => setForm((f) => ({ ...f, [item.key]: e.target.checked }))}
+                        disabled={!canEdit}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 disabled:opacity-60"></div>
                     </label>
                   </div>
                 ))}
               </div>
-            </Card>
-          )}
-
-          {activeTab === 'security' && (
-            <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Security Settings</h3>
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-semibold text-slate-900 mb-3">Password Requirements</h4>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="w-4 h-4 text-emerald-600 rounded" />
-                      <span className="text-slate-700">Minimum 8 characters</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="w-4 h-4 text-emerald-600 rounded" />
-                      <span className="text-slate-700">Require uppercase letters</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="w-4 h-4 text-emerald-600 rounded" />
-                      <span className="text-slate-700">Require numbers</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" className="w-4 h-4 text-emerald-600 rounded" />
-                      <span className="text-slate-700">Require special characters</span>
-                    </label>
-                  </div>
+              {canEdit && (
+                <div className="mt-6">
+                  <Button variant="primary" onClick={handleSaveNotifications} disabled={saving}>
+                    <Save className="w-5 h-5 mr-2" />
+                    {saving ? 'Menyimpan...' : 'Simpan Notifikasi'}
+                  </Button>
                 </div>
-
-                <div>
-                  <h4 className="font-semibold text-slate-900 mb-3">Session Settings</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-slate-700 mb-2">Session Timeout (minutes)</label>
-                      <input
-                        type="number"
-                        defaultValue="30"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-700 mb-2">Max Login Attempts</label>
-                      <input
-                        type="number"
-                        defaultValue="5"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <Button variant="primary">
-                  <Save className="w-5 h-5 mr-2" />
-                  Save Security Settings
-                </Button>
-              </div>
+              )}
             </Card>
           )}
         </div>

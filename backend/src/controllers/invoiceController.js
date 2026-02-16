@@ -55,7 +55,7 @@ const create = asyncHandler(async (req, res) => {
   const { order_id, is_super_promo } = req.body;
   const order = await Order.findByPk(order_id, { include: ['OrderItems'] });
   if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
-  if (order.owner_id !== req.user.id && !['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(req.user.role)) {
+  if (order.owner_id !== req.user.id && !['role_invoice', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Akses ditolak' });
   }
 
@@ -133,8 +133,8 @@ const getById = asyncHandler(async (req, res) => {
 const unblock = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findByPk(req.params.id);
   if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
-  if (!['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: 'Hanya role invoice/admin yang dapat unblock' });
+  if (!['role_invoice', 'super_admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Hanya role invoice yang dapat unblock' });
   }
   await invoice.update({
     is_blocked: false,
@@ -164,7 +164,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   const { payment_proof_id, verified, notes } = req.body;
   const proof = await PaymentProof.findByPk(payment_proof_id);
   if (!proof || proof.invoice_id !== req.params.id) return res.status(404).json({ success: false, message: 'Bukti bayar tidak ditemukan' });
-  if (!['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(req.user.role)) {
+  if (!['admin_cabang', 'role_accounting', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Tidak berwenang verifikasi' });
   }
   const invoice = await Invoice.findByPk(proof.invoice_id);

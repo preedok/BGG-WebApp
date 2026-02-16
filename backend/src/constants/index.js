@@ -104,8 +104,8 @@ const ORDER_ITEM_TYPE = {
   PACKAGE: 'package'
 };
 
-// Room types for hotel
-const ROOM_TYPES = ['single', 'double', 'quad', 'quint'];
+// Room types for hotel (single, double, triple, quad, quint)
+const ROOM_TYPES = ['single', 'double', 'triple', 'quad', 'quint'];
 
 // Order status (add blocked)
 const ORDER_STATUS = {
@@ -127,7 +127,18 @@ const BUSINESS_RULE_KEYS = {
   DP_GRACE_HOURS: 'dp_grace_hours',
   DP_DUE_DAYS: 'dp_due_days',
   CURRENCY_RATES: 'currency_rates',
-  REGISTRATION_DEPOSIT_IDR: 'registration_deposit_idr'
+  REGISTRATION_DEPOSIT_IDR: 'registration_deposit_idr',
+  COMPANY_NAME: 'company_name',
+  COMPANY_ADDRESS: 'company_address',
+  NOTIFICATION_ORDER: 'notification_order',
+  NOTIFICATION_PAYMENT: 'notification_payment',
+  NOTIFICATION_INVOICE: 'notification_invoice',
+  VISA_DEFAULT_IDR: 'visa_default_idr',
+  TICKET_DEFAULT_IDR: 'ticket_default_idr',
+  TICKET_GENERAL_IDR: 'ticket_general_idr',
+  TICKET_LION_IDR: 'ticket_lion_idr',
+  TICKET_SUPER_AIR_JET_IDR: 'ticket_super_air_jet_idr',
+  TICKET_GARUDA_IDR: 'ticket_garuda_idr'
 };
 
 // Notifikasi trigger (VIII)

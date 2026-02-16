@@ -8,7 +8,10 @@ import {
   Edit,
   Trash2,
   Eye,
-  XCircle
+  XCircle,
+  Settings,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
@@ -18,7 +21,10 @@ import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import HotelWorkPage from './HotelWorkPage';
-import { productsApi } from '../../../services/api';
+import { productsApi, adminPusatApi, businessRulesApi } from '../../../services/api';
+
+const ROOM_TYPES = ['single', 'double', 'triple', 'quad', 'quint'] as const;
+const DEFAULT_ROOM = { quantity: 0, price: 0 };
 
 /** Product hotel dari API (products type=hotel dengan harga) */
 export interface HotelProduct {
@@ -45,22 +51,62 @@ const HotelsPage: React.FC = () => {
   const [locationFilter, setLocationFilter] = useState<'all' | 'makkah' | 'madinah'>('all');
   const [selectedHotel, setSelectedHotel] = useState<HotelProduct | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: '',
+    code: '',
+    location: 'makkah' as 'makkah' | 'madinah',
+    meal_price: 0,
+    rooms: { single: { ...DEFAULT_ROOM }, double: { ...DEFAULT_ROOM }, triple: { ...DEFAULT_ROOM }, quad: { ...DEFAULT_ROOM }, quint: { ...DEFAULT_ROOM } }
+  });
+  const [handlingConfigOpen, setHandlingConfigOpen] = useState(false);
+  const [handlingPrice, setHandlingPrice] = useState(100);
+  const [handlingConfigLoading, setHandlingConfigLoading] = useState(false);
+  const [handlingConfigSaving, setHandlingConfigSaving] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const canAddHotel = user?.role === 'super_admin' || user?.role === 'admin_pusat';
+
+  const fetchProducts = () => {
+    setLoading(true);
+    setError(null);
     productsApi
       .list({ type: 'hotel', with_prices: 'true' })
-      .then((res) => {
-        if (!cancelled && res.data?.data) setHotels(res.data.data as HotelProduct[]);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.response?.data?.message || 'Gagal memuat data hotel');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
+      .then((res) => res.data?.data && setHotels(res.data.data as HotelProduct[]))
+      .catch((err) => setError(err.response?.data?.message || 'Gagal memuat data hotel'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (!canAddHotel) return;
+    setHandlingConfigLoading(true);
+    businessRulesApi.get()
+      .then((res) => {
+        const d = res.data?.data as { handling_default_sar?: number } | undefined;
+        if (d != null && typeof d.handling_default_sar === 'number') setHandlingPrice(d.handling_default_sar);
+        else if (d != null && d.handling_default_sar != null) setHandlingPrice(Number(d.handling_default_sar) || 100);
+      })
+      .catch(() => {})
+      .finally(() => setHandlingConfigLoading(false));
+  }, [canAddHotel]);
+
+  const handleSaveHandling = async () => {
+    if (!canAddHotel) return;
+    setHandlingConfigSaving(true);
+    try {
+      await businessRulesApi.set({ rules: { handling_default_sar: handlingPrice } });
+      showToast('Harga handling disimpan', 'success');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      showToast(err.response?.data?.message || 'Gagal menyimpan', 'error');
+    } finally {
+      setHandlingConfigSaving(false);
+    }
+  };
 
   if (user?.role === 'role_hotel') {
     return <HotelWorkPage />;
@@ -118,6 +164,75 @@ const HotelsPage: React.FC = () => {
     setShowDetailModal(true);
   };
 
+  const handleOpenAdd = () => {
+    setAddForm({
+      name: '',
+      code: '',
+      location: 'makkah',
+      meal_price: 0,
+      rooms: { single: { ...DEFAULT_ROOM }, double: { ...DEFAULT_ROOM }, triple: { ...DEFAULT_ROOM }, quad: { ...DEFAULT_ROOM }, quint: { ...DEFAULT_ROOM } }
+    });
+    setShowAddModal(true);
+  };
+
+  const handleAddHotel = async () => {
+    if (!addForm.name.trim() || !addForm.code.trim()) {
+      showToast('Nama dan kode hotel wajib', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const meta: Record<string, unknown> = {
+        location: addForm.location,
+        room_types: ROOM_TYPES,
+        meal_price: addForm.meal_price
+      };
+      const createRes = await productsApi.create({
+        type: 'hotel',
+        code: addForm.code.trim(),
+        name: addForm.name.trim(),
+        meta
+      });
+      const productId = (createRes.data as { data?: { id: string } })?.data?.id;
+      if (!productId) throw new Error('Product id tidak ditemukan');
+
+      for (const rt of ROOM_TYPES) {
+        const { price } = addForm.rooms[rt];
+        if (price > 0) {
+          await productsApi.createPrice({
+            product_id: productId,
+            branch_id: null,
+            owner_id: null,
+            currency: 'IDR',
+            amount: price,
+            meta: { room_type: rt, with_meal: false }
+          });
+          await productsApi.createPrice({
+            product_id: productId,
+            branch_id: null,
+            owner_id: null,
+            currency: 'IDR',
+            amount: price + addForm.meal_price,
+            meta: { room_type: rt, with_meal: true }
+          });
+        }
+      }
+
+      const totalQty = ROOM_TYPES.reduce((s, rt) => s + addForm.rooms[rt].quantity, 0);
+      const roomMeta: Record<string, number> = {};
+      ROOM_TYPES.forEach((rt) => { roomMeta[rt] = addForm.rooms[rt].quantity; });
+      await adminPusatApi.setProductAvailability(productId, { quantity: totalQty, meta: { room_types: roomMeta } });
+
+      showToast('Hotel berhasil ditambahkan', 'success');
+      setShowAddModal(false);
+      fetchProducts();
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'Gagal menambah hotel', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatPrice = (p: HotelProduct) => {
     const amount = p.price_branch ?? p.price_general ?? p.price_special ?? 0;
     const cur = p.currency || 'IDR';
@@ -148,14 +263,12 @@ const HotelsPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900">Manajemen Hotel</h1>
           <p className="text-slate-600 mt-1">Produk hotel dari database – harga & ketersediaan dikelola Admin Pusat</p>
         </div>
-        <Button
-          variant="primary"
-          className="flex items-center gap-2"
-          onClick={() => showToast('Tambah produk hotel via Admin Pusat / Super Admin', 'info')}
-        >
-          <Plus className="w-5 h-5" />
-          Tambah Hotel
-        </Button>
+        {canAddHotel && (
+          <Button variant="primary" className="flex items-center gap-2" onClick={handleOpenAdd}>
+            <Plus className="w-5 h-5" />
+            Tambah Hotel
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -173,6 +286,46 @@ const HotelsPage: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      {canAddHotel && (
+        <Card>
+          <button
+            type="button"
+            onClick={() => setHandlingConfigOpen((o) => !o)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <span className="flex items-center gap-2 font-semibold text-slate-900">
+              <Settings className="w-5 h-5" />
+              Konfigurasi Handling
+            </span>
+            {handlingConfigOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+          {handlingConfigOpen && (
+            <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+              {handlingConfigLoading ? (
+                <p className="text-slate-600">Memuat...</p>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Harga default handling (SAR)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={handlingPrice}
+                      onChange={(e) => setHandlingPrice(Number(e.target.value) || 0)}
+                      className="w-full max-w-xs border border-slate-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <Button variant="primary" onClick={handleSaveHandling} disabled={handlingConfigSaving}>
+                    {handlingConfigSaving ? 'Menyimpan...' : 'Simpan'}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card>
         <div className="flex flex-col sm:flex-row gap-4">
@@ -323,6 +476,95 @@ const HotelsPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !saving && setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-slate-900">Tambah Hotel (Mekkah / Madinah)</h2>
+              <button type="button" onClick={() => !saving && setShowAddModal(false)} className="p-2 hover:bg-slate-100 rounded-lg"><XCircle className="w-6 h-6 text-slate-400" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nama Hotel *</label>
+                <input
+                  value={addForm.name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  placeholder="Contoh: Hotel Al Haram"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Kode *</label>
+                <input
+                  value={addForm.code}
+                  onChange={(e) => setAddForm((f) => ({ ...f, code: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  placeholder="Contoh: HTL-MKK-01"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Lokasi</label>
+                <select
+                  value={addForm.location}
+                  onChange={(e) => setAddForm((f) => ({ ...f, location: e.target.value as 'makkah' | 'madinah' }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                >
+                  <option value="makkah">Makkah</option>
+                  <option value="madinah">Madinah</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Harga Makan (IDR) per kamar</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={addForm.meal_price || ''}
+                  onChange={(e) => setAddForm((f) => ({ ...f, meal_price: Number(e.target.value) || 0 }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                  placeholder="75000"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">Tipe kamar: jumlah & harga (IDR)</p>
+                <div className="space-y-2">
+                  {ROOM_TYPES.map((rt) => (
+                    <div key={rt} className="grid grid-cols-3 gap-2 items-center">
+                      <span className="capitalize text-slate-700">{rt}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Jumlah"
+                        value={addForm.rooms[rt].quantity || ''}
+                        onChange={(e) => setAddForm((f) => ({
+                          ...f,
+                          rooms: { ...f.rooms, [rt]: { ...f.rooms[rt], quantity: Number(e.target.value) || 0 } }
+                        }))}
+                        className="border border-slate-300 rounded-lg px-3 py-2"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Harga"
+                        value={addForm.rooms[rt].price || ''}
+                        onChange={(e) => setAddForm((f) => ({
+                          ...f,
+                          rooms: { ...f.rooms, [rt]: { ...f.rooms[rt], price: Number(e.target.value) || 0 } }
+                        }))}
+                        className="border border-slate-300 rounded-lg px-3 py-2"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowAddModal(false)} disabled={saving}>Batal</Button>
+                <Button variant="primary" onClick={handleAddHotel} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Hotel'}</Button>
               </div>
             </div>
           </div>

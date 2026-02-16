@@ -44,8 +44,9 @@ async function getEffectivePrice(productId, branchId, ownerId, meta = {}, curren
  * List products (with optional prices for branch/owner). For invoice: show general + branch prices.
  */
 const list = asyncHandler(async (req, res) => {
-  const { type, branch_id, owner_id, with_prices, is_package } = req.query;
-  const where = { is_active: true };
+  const { type, branch_id, owner_id, with_prices, is_package, include_inactive } = req.query;
+  const where = {};
+  if (include_inactive !== 'true' && include_inactive !== '1') where.is_active = true;
   if (type) where.type = type;
   if (is_package === 'true' || is_package === '1') where.is_package = true;
 
@@ -135,6 +136,17 @@ const update = asyncHandler(async (req, res) => {
 });
 
 /**
+ * DELETE /api/v1/products/:id - soft delete (set is_active = false). Super Admin / Admin Pusat only.
+ */
+const remove = asyncHandler(async (req, res) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) return res.status(404).json({ success: false, message: 'Product tidak ditemukan' });
+  product.is_active = false;
+  await product.save();
+  res.json({ success: true, data: product });
+});
+
+/**
  * GET /api/v1/products/prices
  * List prices (general + branch for current user branch, or all for pusat).
  */
@@ -212,6 +224,7 @@ module.exports = {
   getPrice,
   create,
   update,
+  remove,
   listPrices,
   createPrice,
   updatePrice,

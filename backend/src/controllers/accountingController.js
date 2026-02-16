@@ -1,9 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
-const { Invoice, Order, User, Branch, PaymentProof } = require('../models');
+const { Invoice, Order, OrderItem, User, Branch, PaymentProof } = require('../models');
 const { INVOICE_STATUS } = require('../constants');
 
-// Role accounting bekerja di pusat: melihat data seluruh cabang (tidak filter by branch).
+// Role accounting bekerja di pusat: filter cabang untuk lihat order/invoice per cabang atau seluruh cabang.
 const isAccountingPusat = (user) => user && user.role === 'role_accounting';
 
 /**
@@ -183,7 +183,7 @@ const getPaymentsList = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/v1/accounting/invoices
- * List invoice (sama seperti list invoice tapi khusus view accounting dengan filter).
+ * List invoice dengan filter cabang. Query: branch_id (opsional), status. Tanpa branch_id = semua cabang (order terbaru).
  */
 const listInvoices = asyncHandler(async (req, res) => {
   const { status, branch_id } = req.query;
@@ -205,6 +205,30 @@ const listInvoices = asyncHandler(async (req, res) => {
   });
 
   res.json({ success: true, data: invoices });
+});
+
+/**
+ * GET /api/v1/accounting/orders
+ * Daftar order untuk accounting: filter branch_id (opsional). Tanpa branch_id = semua cabang, terbaru dulu.
+ */
+const listOrders = asyncHandler(async (req, res) => {
+  const { branch_id, status, limit } = req.query;
+  const where = {};
+  if (branch_id) where.branch_id = branch_id;
+  if (status) where.status = status;
+
+  const orders = await Order.findAll({
+    where,
+    include: [
+      { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
+      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] },
+      { model: OrderItem, as: 'OrderItems' }
+    ],
+    order: [['created_at', 'DESC']],
+    limit: Math.min(parseInt(limit, 10) || 100, 500)
+  });
+
+  res.json({ success: true, data: orders });
 });
 
 /**
@@ -313,6 +337,7 @@ module.exports = {
   getAgingReport,
   getPaymentsList,
   listInvoices,
+  listOrders,
   getFinancialReport,
   getReconciliation,
   reconcilePayment

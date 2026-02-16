@@ -14,21 +14,23 @@ import VisaPage from '../pages/dashboard/components/VisaPage';
 import TicketsPage from '../pages/dashboard/components/TicketsPage';
 import BusPage from '../pages/dashboard/components/BusPage';
 import PackagesPage from '../pages/dashboard/components/PackagesPage';
+import ProductsPage from '../pages/dashboard/components/ProductsPage';
 import OrdersPage from '../pages/dashboard/components/OrdersPage';
 import InvoicesPage from '../pages/dashboard/components/InvoicesPage';
 import UsersPage from '../pages/dashboard/components/UsersPage';
 import BranchesPage from '../pages/dashboard/components/BranchesPage';
 import ReportsPage from '../pages/dashboard/components/ReportsPage';
 import SettingsPage from '../pages/dashboard/components/SettingsPage';
-import ProductsPage from '../pages/dashboard/components/ProductsPage';
 import AdminCabangOwnersPage from '../pages/dashboard/components/AdminCabangOwnersPage';
 import AdminCabangPersonilPage from '../pages/dashboard/components/AdminCabangPersonilPage';
 import AdminPusatCombinedRecapPage from '../pages/dashboard/adminpusat/AdminPusatCombinedRecapPage';
 import AdminPusatCreateUserPage from '../pages/dashboard/adminpusat/AdminPusatCreateUserPage';
+import OrdersInvoicesPage from '../pages/dashboard/adminpusat/OrdersInvoicesPage';
 import AdminPusatFlyersPage from '../pages/dashboard/adminpusat/AdminPusatFlyersPage';
 import AccountingFinancialReportPage from '../pages/dashboard/accounting/AccountingFinancialReportPage';
 import AccountingReconciliationPage from '../pages/dashboard/accounting/AccountingReconciliationPage';
 import AccountingAgingPage from '../pages/dashboard/accounting/AccountingAgingPage';
+import AccountingOrdersPage from '../pages/dashboard/accounting/AccountingOrdersPage';
 
 const router = createBrowserRouter([
   {
@@ -75,32 +77,40 @@ const router = createBrowserRouter([
             element: <SuperAdminMaintenancePage />
           },
           {
-            path: 'hotels',
-            element: <HotelsPage />
-          },
-          {
-            path: 'visa',
-            element: <VisaPage />
-          },
-          {
-            path: 'tickets',
-            element: <TicketsPage />
-          },
-          {
-            path: 'bus',
-            element: <BusPage />
-          },
-          {
-            path: 'packages',
-            element: <PackagesPage />
-          },
-          {
             path: 'products',
             element: <ProductsPage />
           },
           {
+            path: 'hotels',
+            element: <Navigate to="/dashboard/products?tab=hotels" replace />
+          },
+          {
+            path: 'visa',
+            element: <Navigate to="/dashboard/products?tab=visa" replace />
+          },
+          {
+            path: 'tickets',
+            element: <Navigate to="/dashboard/products?tab=tickets" replace />
+          },
+          {
+            path: 'bus',
+            element: <Navigate to="/dashboard/products?tab=bus" replace />
+          },
+          {
+            path: 'handling',
+            element: <Navigate to="/dashboard/products?tab=hotels" replace />
+          },
+          {
+            path: 'packages',
+            element: <Navigate to="/dashboard/products?tab=packages" replace />
+          },
+          {
             path: 'orders',
             element: <OrdersPage />
+          },
+          {
+            path: 'orders-invoices',
+            element: <OrdersInvoicesPage />
           },
           {
             path: 'invoices',
@@ -132,7 +142,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'combined-recap',
-            element: <AdminPusatCombinedRecapPage />
+            element: <Navigate to="/dashboard" replace />
           },
           {
             path: 'admin-pusat/users',
@@ -153,6 +163,10 @@ const router = createBrowserRouter([
           {
             path: 'accounting/aging',
             element: <AccountingAgingPage />
+          },
+          {
+            path: 'accounting/orders',
+            element: <AccountingOrdersPage />
           }
             ]
           }

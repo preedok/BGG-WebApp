@@ -28,7 +28,7 @@ const create = [
   asyncHandler(async (req, res) => {
     const invoice = await Invoice.findByPk(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
-    if (invoice.owner_id !== req.user.id && !['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(req.user.role)) {
+    if (invoice.owner_id !== req.user.id && !['role_invoice', 'super_admin'].includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Akses ditolak' });
     }
 

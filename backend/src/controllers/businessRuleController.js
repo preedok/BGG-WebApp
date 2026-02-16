@@ -10,8 +10,19 @@ const DEFAULTS = {
   [BUSINESS_RULE_KEYS.REQUIRE_HOTEL_WITH_VISA]: true,
   [BUSINESS_RULE_KEYS.DP_GRACE_HOURS]: BUSINESS_RULES.DP_GRACE_HOURS,
   [BUSINESS_RULE_KEYS.DP_DUE_DAYS]: BUSINESS_RULES.DP_DUE_DAYS,
-  [BUSINESS_RULE_KEYS.CURRENCY_RATES]: JSON.stringify({ SAR_TO_IDR: 4200, IDR_TO_SAR: 0.000238 }),
-  [BUSINESS_RULE_KEYS.REGISTRATION_DEPOSIT_IDR]: BUSINESS_RULES.REGISTRATION_DEPOSIT_IDR
+  [BUSINESS_RULE_KEYS.CURRENCY_RATES]: JSON.stringify({ SAR_TO_IDR: 4200, USD_TO_IDR: 15500, IDR_TO_SAR: 0.000238 }),
+  [BUSINESS_RULE_KEYS.REGISTRATION_DEPOSIT_IDR]: BUSINESS_RULES.REGISTRATION_DEPOSIT_IDR,
+  [BUSINESS_RULE_KEYS.COMPANY_NAME]: 'Bintang Global Group',
+  [BUSINESS_RULE_KEYS.COMPANY_ADDRESS]: 'Jl. Gatot Subroto No. 123, Jakarta Selatan',
+  [BUSINESS_RULE_KEYS.NOTIFICATION_ORDER]: 'true',
+  [BUSINESS_RULE_KEYS.NOTIFICATION_PAYMENT]: 'true',
+  [BUSINESS_RULE_KEYS.NOTIFICATION_INVOICE]: 'true',
+  [BUSINESS_RULE_KEYS.VISA_DEFAULT_IDR]: 0,
+  [BUSINESS_RULE_KEYS.TICKET_DEFAULT_IDR]: 0,
+  [BUSINESS_RULE_KEYS.TICKET_GENERAL_IDR]: 0,
+  [BUSINESS_RULE_KEYS.TICKET_LION_IDR]: 0,
+  [BUSINESS_RULE_KEYS.TICKET_SUPER_AIR_JET_IDR]: 0,
+  [BUSINESS_RULE_KEYS.TICKET_GARUDA_IDR]: 0
 };
 
 /**
@@ -36,7 +47,7 @@ const get = asyncHandler(async (req, res) => {
     if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) {
       try { val = JSON.parse(val); } catch (e) {}
     } else if (['bus_min_pack', 'dp_grace_hours', 'dp_due_days', 'registration_deposit_idr'].includes(key)) val = parseInt(val, 10);
-    else if (['bus_penalty_idr', 'handling_default_sar'].includes(key)) val = parseFloat(val);
+    else if (['bus_penalty_idr', 'handling_default_sar', 'visa_default_idr', 'ticket_default_idr', 'ticket_general_idr', 'ticket_lion_idr', 'ticket_super_air_jet_idr', 'ticket_garuda_idr'].includes(key)) val = parseFloat(val);
     else if (key === 'require_hotel_with_visa') val = val === 'true' || val === true;
     result[key] = val;
   });
@@ -87,7 +98,7 @@ async function getRulesForBranch(branchId) {
     let val = branchMap[key] ?? globalMap[key] ?? DEFAULTS[key];
     if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) { try { val = JSON.parse(val); } catch (e) {} }
     else if (['bus_min_pack', 'dp_grace_hours', 'dp_due_days', 'registration_deposit_idr'].includes(key)) val = parseInt(val, 10);
-    else if (['bus_penalty_idr', 'handling_default_sar'].includes(key)) val = parseFloat(val);
+    else if (['bus_penalty_idr', 'handling_default_sar', 'visa_default_idr', 'ticket_default_idr', 'ticket_general_idr', 'ticket_lion_idr', 'ticket_super_air_jet_idr', 'ticket_garuda_idr'].includes(key)) val = parseFloat(val);
     else if (key === 'require_hotel_with_visa') val = val === 'true' || val === true;
     result[key] = val;
   });

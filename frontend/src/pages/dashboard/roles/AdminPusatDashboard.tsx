@@ -233,9 +233,9 @@ const AdminPusatDashboard: React.FC = () => {
           <Card>
             <h3 className="text-lg font-bold text-slate-900 mb-4">Aksi Cepat</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="flex flex-col h-24 gap-2 justify-center" onClick={() => navigate('/dashboard/combined-recap')}>
-                <BarChart3 className="w-6 h-6" />
-                <span className="text-sm">Rekap Gabungan</span>
+              <Button variant="outline" className="flex flex-col h-24 gap-2 justify-center" onClick={() => navigate('/dashboard/orders-invoices')}>
+                <Receipt className="w-6 h-6" />
+                <span className="text-sm">Order & Invoice</span>
               </Button>
               <Button variant="outline" className="flex flex-col h-24 gap-2 justify-center" onClick={() => navigate('/dashboard/branches')}>
                 <Building2 className="w-6 h-6" />
