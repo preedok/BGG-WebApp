@@ -11,6 +11,7 @@ interface Notice {
   message: string;
   type: string;
   is_active: boolean;
+  block_app: boolean;
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
@@ -22,7 +23,7 @@ export const SuperAdminMaintenancePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Notice | null>(null);
-  const [form, setForm] = useState({ title: '', message: '', type: 'maintenance', is_active: true, starts_at: '', ends_at: '' });
+  const [form, setForm] = useState({ title: '', message: '', block_app: false, starts_at: '', ends_at: '' });
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const fetchList = async () => {
@@ -43,43 +44,58 @@ export const SuperAdminMaintenancePage: React.FC = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', message: '', type: 'maintenance', is_active: true, starts_at: '', ends_at: '' });
+    setForm({ title: '', message: '', block_app: false, starts_at: '', ends_at: '' });
     setModalOpen(true);
   };
 
   const openEdit = (n: Notice) => {
     setEditing(n);
+    const blockApp = !!(n.block_app ?? (n as any).blockApp);
     setForm({
       title: n.title,
       message: n.message,
-      type: n.type,
-      is_active: n.is_active,
+      block_app: blockApp,
       starts_at: n.starts_at ? n.starts_at.slice(0, 16) : '',
       ends_at: n.ends_at ? n.ends_at.slice(0, 16) : ''
     });
     setModalOpen(true);
   };
 
+  const getNoticeStatus = (n: Notice) => {
+    const blockApp = !!(n.block_app ?? (n as any).blockApp);
+    const now = new Date();
+    const startsAt = n.starts_at ? new Date(n.starts_at) : null;
+    const endsAt = n.ends_at ? new Date(n.ends_at) : null;
+    if (blockApp) return 'blocking';
+    if (startsAt && now >= startsAt && (!endsAt || now <= endsAt)) return 'blocking';
+    if (endsAt && now > endsAt) return 'ended';
+    if (startsAt && now < startsAt) return 'upcoming';
+    return 'upcoming';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.block_app && !form.starts_at.trim()) {
+      alert('Jika tidak centang Blokir akses, wajib isi tanggal/jam mulai.');
+      return;
+    }
     setSubmitLoading(true);
     try {
       if (editing) {
         await superAdminApi.updateMaintenance(editing.id, {
           title: form.title,
           message: form.message,
-          type: form.type,
-          is_active: form.is_active,
-          starts_at: form.starts_at || null,
-          ends_at: form.ends_at || null
+          block_app: form.block_app,
+          starts_at: form.block_app ? null : (form.starts_at || null),
+          ends_at: form.block_app ? null : (form.ends_at || null)
         });
       } else {
         await superAdminApi.createMaintenance({
           title: form.title,
           message: form.message,
-          type: form.type,
-          starts_at: form.starts_at || undefined,
-          ends_at: form.ends_at || undefined
+          block_app: form.block_app,
+          starts_at: form.block_app ? undefined : (form.starts_at || undefined),
+          ends_at: form.block_app ? undefined : (form.ends_at || undefined)
         });
       }
       setModalOpen(false);
@@ -118,29 +134,47 @@ export const SuperAdminMaintenancePage: React.FC = () => {
           <div className="py-8 text-center text-slate-500">Belum ada pemberitahuan.</div>
         ) : (
           <div className="space-y-3">
-            {list.map((n) => (
-              <div key={n.id} className="p-4 border border-slate-200 rounded-xl flex flex-wrap justify-between items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-slate-900">{n.title}</h3>
-                    <span className={`px-2 py-0.5 rounded text-xs ${n.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                      {n.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className="capitalize text-xs text-slate-500">{n.type}</span>
+            {list.map((n) => {
+              const status = getNoticeStatus(n);
+              const showActions = status === 'upcoming';
+              return (
+                <div key={n.id} className="p-4 border border-slate-200 rounded-xl flex flex-wrap justify-between items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-slate-900">{n.title}</h3>
+                      {!!(n.block_app ?? (n as any).blockApp) && (
+                        <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800">Blokir akses (langsung)</span>
+                      )}
+                      {status === 'upcoming' && n.starts_at && (
+                        <span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800">Jadwal: {new Date(n.starts_at).toLocaleString('id-ID')}</span>
+                      )}
+                      {status === 'blocking' && (
+                        <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800">Pemeliharaan sedang berlangsung</span>
+                      )}
+                      {status === 'ended' && (
+                        <span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800">Pemeliharaan aplikasi ini selesai</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600 mt-1">{n.message}</p>
+                    <p className="text-xs text-slate-400 mt-2">
+                      {n.starts_at && `Mulai: ${new Date(n.starts_at).toLocaleString('id-ID')}`}
+                      {n.ends_at && ` — Selesai: ${new Date(n.ends_at).toLocaleString('id-ID')}`}
+                      {n.CreatedBy && ` · Oleh: ${n.CreatedBy.name}`}
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-600 mt-1">{n.message}</p>
-                  <p className="text-xs text-slate-400 mt-2">
-                    {n.starts_at && `From: ${new Date(n.starts_at).toLocaleString()}`}
-                    {n.ends_at && ` — Until: ${new Date(n.ends_at).toLocaleString()}`}
-                    {n.CreatedBy && ` · By: ${n.CreatedBy.name}`}
-                  </p>
+                  {showActions ? (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openEdit(n)}><Pencil className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(n.id)}><Trash2 className="w-4 h-4 text-red-600" /></Button>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-slate-500 italic">
+                      {status === 'blocking' ? 'Pemeliharaan sedang berlangsung' : 'Pemeliharaan selesai'}
+                    </span>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(n)}><Pencil className="w-4 h-4" /></Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(n.id)}><Trash2 className="w-4 h-4 text-red-600" /></Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
@@ -160,7 +194,7 @@ export const SuperAdminMaintenancePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Message</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Pesan</label>
                 <textarea
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 min-h-[100px]"
                   value={form.message}
@@ -168,35 +202,37 @@ export const SuperAdminMaintenancePage: React.FC = () => {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
-                <select
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2"
-                  value={form.type}
-                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-                >
-                  <option value="maintenance">Maintenance</option>
-                  <option value="bug">Bug</option>
-                  <option value="info">Info</option>
-                  <option value="warning">Warning</option>
-                </select>
-              </div>
-              {editing && (
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={form.is_active} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))} />
-                  <span className="text-sm">Active</span>
-                </label>
-              )}
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={form.block_app} onChange={(e) => setForm((f) => ({ ...f, block_app: e.target.checked, ...(e.target.checked ? { starts_at: '', ends_at: '' } : {}) }))} />
+                <span className="text-sm font-medium text-slate-700">Blokir akses aplikasi</span>
+              </label>
+              <p className="text-xs text-slate-500 -mt-2 ml-6">Jika dicentang: seluruh role (kecuali Super Admin) langsung melihat halaman maintenance. Tanggal tidak dipakai.</p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Starts at (optional)</label>
-                  <input type="datetime-local" className="w-full border border-slate-200 rounded-lg px-3 py-2" value={form.starts_at} onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal/jam mulai {!form.block_app && <span className="text-red-600">*</span>}</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 disabled:bg-slate-100 disabled:text-slate-500"
+                    value={form.starts_at}
+                    onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))}
+                    disabled={form.block_app}
+                    required={!form.block_app}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ends at (optional)</label>
-                  <input type="datetime-local" className="w-full border border-slate-200 rounded-lg px-3 py-2" value={form.ends_at} onChange={(e) => setForm((f) => ({ ...f, ends_at: e.target.value }))} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal/jam selesai (opsional)</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 disabled:bg-slate-100 disabled:text-slate-500"
+                    value={form.ends_at}
+                    onChange={(e) => setForm((f) => ({ ...f, ends_at: e.target.value }))}
+                    disabled={form.block_app}
+                  />
                 </div>
               </div>
+              {!form.block_app && (
+                <p className="text-xs text-slate-500">Wajib isi tanggal mulai. Sebelum tanggal tiba: alert pemberitahuan di setiap halaman. Saat tanggal tiba: halaman maintenance full otomatis untuk semua role.</p>
+              )}
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={submitLoading}>{submitLoading ? 'Saving...' : editing ? 'Update' : 'Create'}</Button>

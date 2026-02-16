@@ -18,7 +18,11 @@ export const MaintenanceBanner: React.FC = () => {
 
   useEffect(() => {
     publicApi.getActiveMaintenance()
-      .then((res) => res.data.success && setNotices(res.data.data || []))
+      .then((res) => {
+        if (!res.data.success) return;
+        const d = res.data as { data?: Notice[]; block_app?: boolean; upcoming?: Notice[] };
+        setNotices(d.upcoming || []);
+      })
       .catch(() => {});
   }, []);
 
@@ -49,7 +53,10 @@ export const MaintenanceBanner: React.FC = () => {
             <div className="flex-1 min-w-0">
               <p className="font-semibold">{n.title}</p>
               <p className="text-sm opacity-90 line-clamp-1">{n.message}</p>
-              <p className="text-xs mt-1 opacity-75">Klik untuk detail</p>
+              {n.starts_at && (
+                <p className="text-xs mt-1 opacity-75">Pemeliharaan dijadwalkan: {new Date(n.starts_at).toLocaleString('id-ID')}</p>
+              )}
+              <p className="text-xs mt-0.5 opacity-75">Klik untuk detail</p>
             </div>
             <ChevronDown className="w-4 h-4 flex-shrink-0 mt-1" />
             <button

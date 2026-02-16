@@ -8,7 +8,6 @@ import {
   Activity,
   FileText,
   Bell,
-  Palette,
   RefreshCw,
   FileCheck,
   FileDown,
@@ -133,8 +132,7 @@ const SuperAdminDashboard: React.FC = () => {
 
   const quickActions = [
     { label: 'System Logs', path: '/dashboard/super-admin/logs', icon: <FileText className="w-6 h-6" />, color: 'from-purple-500 to-pink-500' },
-    { label: 'Maintenance', path: '/dashboard/super-admin/maintenance', icon: <Bell className="w-6 h-6" />, color: 'from-amber-500 to-orange-500' },
-    { label: 'Tampilan Aplikasi', path: '/dashboard/super-admin/appearance', icon: <Palette className="w-6 h-6" />, color: 'from-indigo-500 to-purple-500' }
+    { label: 'Maintenance', path: '/dashboard/super-admin/maintenance', icon: <Bell className="w-6 h-6" />, color: 'from-amber-500 to-orange-500' }
   ];
 
   return (

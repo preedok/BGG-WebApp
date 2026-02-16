@@ -262,7 +262,6 @@ export const ROUTES = {
   SUPER_ADMIN_ORDER_STATS: '/dashboard/super-admin/order-statistics',
   SUPER_ADMIN_LOGS: '/dashboard/super-admin/logs',
   SUPER_ADMIN_MAINTENANCE: '/dashboard/super-admin/maintenance',
-  SUPER_ADMIN_APPEARANCE: '/dashboard/super-admin/appearance',
   SUPER_ADMIN_LANGUAGE: '/dashboard/super-admin/language',
   SUPER_ADMIN_DEPLOY: '/dashboard/super-admin/deploy'
 } as const;

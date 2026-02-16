@@ -22,7 +22,6 @@ const defaultTranslations: Record<string, string> = {
   order_statistics: 'Order Statistics',
   system_logs: 'System Logs',
   maintenance: 'Maintenance',
-  app_appearance: 'App Appearance',
   language: 'Language',
   deployment: 'Deployment',
   welcome: 'Welcome back',

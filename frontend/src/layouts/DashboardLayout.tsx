@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   Menu,
@@ -31,6 +31,7 @@ import Dropdown from '../components/common/Dropdown';
 import Badge from '../components/common/Badge';
 import MaintenanceBanner from '../components/MaintenanceBanner';
 import logo from '../assets/logo.png';
+import { publicApi } from '../services/api';
 
 const menuItems: MenuItem[] = [
   {
@@ -170,12 +171,6 @@ const menuItems: MenuItem[] = [
     icon: <Bell className="w-5 h-5" />,
     path: '/dashboard/super-admin/maintenance',
     roles: ['super_admin']
-  },
-  {
-    title: 'App Appearance',
-    icon: <Settings className="w-5 h-5" />,
-    path: '/dashboard/super-admin/appearance',
-    roles: ['super_admin']
   }
 ];
 
@@ -186,6 +181,48 @@ const DashboardLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [productsCollapsed, setProductsCollapsed] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; message: string; type: string }>>([]);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    publicApi.getActiveMaintenance()
+      .then((res) => { if (res.data.success && Array.isArray(res.data.data)) setNotifications(res.data.data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) setNotificationOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      setSearchOpen(false);
+      if (user?.role === 'super_admin') {
+        navigate('/dashboard');
+      } else {
+        navigate(`/dashboard/orders?q=${encodeURIComponent(searchQuery.trim())}`);
+      }
+      setSearchQuery('');
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -205,7 +242,7 @@ const DashboardLayout: React.FC = () => {
     setProductsCollapsed(!productsCollapsed);
   };
 
-  // Filter menu based on user role. Super Admin HANYA akses: Dashboard + Monitoring, Order Stats, Logs, Maintenance, Appearance, Language, Deploy (tidak ada Orders, Invoices, dll)
+  // Filter menu based on user role. Super Admin HANYA akses: Dashboard + Monitoring, Order Stats, Logs, Maintenance, Language, Deploy (tidak ada Orders, Invoices, dll)
   const filteredMenuItems = user
     ? user.role === 'super_admin'
       ? menuItems.filter(item => item.roles.includes('super_admin') && (item.path === '/dashboard' || item.path.startsWith('/dashboard/super-admin')))
@@ -220,9 +257,7 @@ const DashboardLayout: React.FC = () => {
           { id: 'profile', label: 'My Profile', icon: <User className="w-4 h-4" />, onClick: () => navigate('/dashboard/profile') },
           { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, onClick: () => navigate('/dashboard/settings') }
         ]
-      : [
-          { id: 'appearance', label: 'App Appearance', icon: <Settings className="w-4 h-4" />, onClick: () => navigate('/dashboard/super-admin/appearance') }
-        ]),
+      : []),
     {
       id: 'logout',
       label: 'Logout',
@@ -509,19 +544,72 @@ const DashboardLayout: React.FC = () => {
 
             <div className="flex items-center gap-3">
               {/* Search */}
-              <button className="hidden md:flex items-center gap-2 px-3 py-2 text-sm text-slate-500 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors">
-                <Search className="w-4 h-4" />
-                <span>Search...</span>
-                <kbd className="hidden lg:inline-block px-2 py-0.5 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded">
-                  ⌘K
-                </kbd>
-              </button>
+              <div ref={searchRef} className="hidden md:block relative">
+                {searchOpen ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg min-w-[220px]">
+                    <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={handleSearchKeyDown}
+                      placeholder="Cari order (Enter untuk buka Orders)..."
+                      className="flex-1 bg-transparent text-sm text-slate-900 placeholder-slate-500 outline-none min-w-0"
+                    />
+                    <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs text-slate-400 border border-slate-200 rounded">Esc</kbd>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Search...</span>
+                    <kbd className="hidden lg:inline-block px-2 py-0.5 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded">⌘K</kbd>
+                  </button>
+                )}
+              </div>
 
               {/* Notifications */}
-              <button className="relative p-2 text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-              </button>
+              <div ref={notificationRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setNotificationOpen(!notificationOpen)}
+                  className="relative p-2 text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-colors"
+                >
+                  <Bell className="w-5 h-5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                  )}
+                </button>
+                {notificationOpen && (
+                  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-xl shadow-2xl border border-slate-200 py-2 z-50">
+                    <div className="px-4 py-2 border-b border-slate-100">
+                      <h3 className="text-sm font-semibold text-slate-900">Notifikasi</h3>
+                    </div>
+                    {notifications.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-slate-500 text-center">Tidak ada notifikasi baru</p>
+                    ) : (
+                      <ul className="py-1">
+                        {notifications.map((n) => (
+                          <li key={n.id}>
+                            <button
+                              type="button"
+                              onClick={() => { setNotificationOpen(false); navigate('/dashboard'); }}
+                              className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                            >
+                              <p className="font-medium text-slate-900">{n.title}</p>
+                              <p className="text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* User Menu */}
               <Dropdown

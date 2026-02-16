@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import MaintenanceGate from '../components/MaintenanceGate';
 import DashboardLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
@@ -7,8 +8,6 @@ import DashboardRouter from '../pages/dashboard/DashboardRouter';
 import SuperAdminDashboard from '../pages/dashboard/roles/SuperAdminDashboard';
 import SuperAdminLogsPage from '../pages/dashboard/superadmin/SuperAdminLogsPage';
 import SuperAdminMaintenancePage from '../pages/dashboard/superadmin/SuperAdminMaintenancePage';
-import SuperAdminAppearancePage from '../pages/dashboard/superadmin/SuperAdminAppearancePage';
-
 // Shared Dashboard Components
 import HotelsPage from '../pages/dashboard/components/HotelsPage';
 import VisaPage from '../pages/dashboard/components/VisaPage';
@@ -49,12 +48,15 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        element: <DashboardLayout />,
+        element: <MaintenanceGate />,
         children: [
           {
-            index: true,
-            element: <DashboardRouter />
-          },
+            element: <DashboardLayout />,
+            children: [
+              {
+                index: true,
+                element: <DashboardRouter />
+              },
           // Fallback for direct path (optional): /dashboard/super-admin
           {
             path: 'super-admin',
@@ -71,10 +73,6 @@ const router = createBrowserRouter([
           {
             path: 'super-admin/maintenance',
             element: <SuperAdminMaintenancePage />
-          },
-          {
-            path: 'super-admin/appearance',
-            element: <SuperAdminAppearancePage />
           },
           {
             path: 'hotels',
@@ -155,6 +153,8 @@ const router = createBrowserRouter([
           {
             path: 'accounting/aging',
             element: <AccountingAgingPage />
+          }
+            ]
           }
         ]
       }

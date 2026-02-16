@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, RefreshCw, Circle, FileDown, FileSpreadsheet } from 'lucide-react';
+import { FileText, RefreshCw, Circle, FileDown, FileSpreadsheet, Search } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import { superAdminApi } from '../../../services/api';
@@ -21,6 +21,7 @@ export const SuperAdminLogsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState('');
   const [level, setLevel] = useState('');
+  const [search, setSearch] = useState('');
   const [live, setLive] = useState(true);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,13 +54,14 @@ export const SuperAdminLogsPage: React.FC = () => {
     }
   };
 
-  const limit = 100;
+  const limit = 200;
 
   const fetchLogs = async () => {
     try {
       const res = await superAdminApi.getLogs({
         source: source || undefined,
         level: level || undefined,
+        q: search.trim() || undefined,
         page: 1,
         limit
       });
@@ -76,7 +78,7 @@ export const SuperAdminLogsPage: React.FC = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, [source, level]);
+  }, [source, level, search]);
 
   useEffect(() => {
     if (!live) return;
@@ -85,7 +87,7 @@ export const SuperAdminLogsPage: React.FC = () => {
       fetchLogs();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [live, source, level]);
+  }, [live, source, level, search]);
 
   return (
     <div className="space-y-6">
@@ -103,7 +105,7 @@ export const SuperAdminLogsPage: React.FC = () => {
             {live ? 'Live' : 'Paused'}
           </button>
           <select
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
             value={source}
             onChange={(e) => setSource(e.target.value)}
           >
@@ -113,7 +115,7 @@ export const SuperAdminLogsPage: React.FC = () => {
             <option value="database">Database</option>
           </select>
           <select
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
             value={level}
             onChange={(e) => setLevel(e.target.value)}
           >
@@ -123,6 +125,16 @@ export const SuperAdminLogsPage: React.FC = () => {
             <option value="error">Error</option>
             <option value="debug">Debug</option>
           </select>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari pesan..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm w-40 bg-white"
+            />
+          </div>
           <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!!exporting}>
             <FileSpreadsheet className="w-4 h-4 mr-1" />
             {exporting === 'excel' ? '...' : 'Excel'}

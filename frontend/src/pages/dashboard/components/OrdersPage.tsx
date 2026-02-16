@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Receipt, Plus, Search, Eye, Edit, Trash2, Download, X } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
@@ -13,11 +14,17 @@ import { TableColumn, OrderListItem, OrderStatus } from '../../../types';
 const STATUS_OPTIONS: OrderStatus[] = ['pending', 'confirmed', 'processing', 'completed', 'cancelled'];
 
 const OrdersPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { orders, addOrder, updateOrder, deleteOrder, getOrderById } = useOrders();
   const { showToast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
+  const qFromUrl = searchParams.get('q') || '';
+  const [searchTerm, setSearchTerm] = useState(qFromUrl);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  useEffect(() => {
+    if (qFromUrl) setSearchTerm(qFromUrl);
+  }, [qFromUrl]);
 
   // Modals
   const [viewOrder, setViewOrder] = useState<OrderListItem | null>(null);

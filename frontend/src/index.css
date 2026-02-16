@@ -26,7 +26,7 @@ body {
   font-size: var(--app-font-size);
 }
 
-/* Tema dari Super Admin - App Appearance */
+/* Tema aplikasi (CSS variables) */
 .app-bg { background-color: var(--app-bg) !important; }
 .app-text { color: var(--app-text) !important; }
 .app-primary { background-color: var(--app-primary) !important; }

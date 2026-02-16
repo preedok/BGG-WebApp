@@ -35,20 +35,40 @@ async function ensureUsersPasswordHashColumn(db) {
   }
 }
 
+/** Ensure maintenance_notices has block_app column (untuk blokir akses aplikasi) */
+async function ensureMaintenanceBlockAppColumn(db) {
+  try {
+    const [rows] = await db.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'maintenance_notices' AND column_name = 'block_app';
+    `);
+    if (rows && rows.length > 0) return;
+    await db.query('ALTER TABLE maintenance_notices ADD COLUMN IF NOT EXISTS block_app BOOLEAN DEFAULT false');
+    logger.info('maintenance_notices: added column block_app');
+  } catch (e) {
+    logger.warn('ensureMaintenanceBlockAppColumn:', e.message);
+  }
+}
+
 // alter: false by default — avoid ALTER when DB has views (e.g. v_orders_summary) that depend on tables.
 // Set SYNC_ALTER=true only when you need schema changes and have dropped dependent views.
 sequelize.sync({ alter: process.env.SYNC_ALTER === 'true' })
   .then(() => ensureUsersPasswordHashColumn(sequelize))
-  .then(() => {
+  .then(() => ensureMaintenanceBlockAppColumn(sequelize))
+  .then(async () => {
     logger.info('Database synchronized');
-    
+    const { SystemLog } = require('./models');
+    await SystemLog.create({ source: 'backend', level: 'info', message: 'Database ready', meta: {} }).catch((err) => {
+      console.error('SystemLog create failed (pastikan tabel system_logs ada):', err.message);
+    });
     app.listen(PORT, async () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
       logger.info(`🗄️  Database: PostgreSQL`);
       logger.info(`🌐 API: http://localhost:${PORT}/api/v1`);
-      const { SystemLog } = require('./models');
-      await SystemLog.create({ source: 'backend', level: 'info', message: 'Server started', meta: { port: PORT } }).catch(() => {});
+      await SystemLog.create({ source: 'backend', level: 'info', message: 'Server started', meta: { port: PORT } }).catch((err) => {
+        console.error('SystemLog (Server started) failed:', err.message);
+      });
     });
   })
   .catch(err => {

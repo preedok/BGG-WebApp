@@ -222,16 +222,19 @@ const getOrderStatistics = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/v1/super-admin/logs
- * System logs with filter (source, level) and pagination
+ * System logs with filter (source, level, q = search in message) and pagination
  */
 const getLogs = asyncHandler(async (req, res) => {
-  const { source, level, page = 1, limit = 50 } = req.query;
+  const { source, level, q, page = 1, limit = 50 } = req.query;
   const where = {};
   if (source) where.source = source;
   if (level) where.level = level;
+  if (q && String(q).trim()) {
+    where.message = { [Op.iLike]: `%${String(q).trim()}%` };
+  }
 
-  const offset = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(100, Math.max(1, parseInt(limit, 10)));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+  const offset = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(200, Math.max(1, parseInt(limit, 10)));
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10)));
 
   const { count, rows } = await SystemLog.findAndCountAll({
     where,
@@ -282,46 +285,66 @@ const listMaintenance = asyncHandler(async (req, res) => {
   const notices = await MaintenanceNotice.findAll({
     where,
     order: [['created_at', 'DESC']],
+    attributes: ['id', 'title', 'message', 'type', 'is_active', 'block_app', 'starts_at', 'ends_at', 'created_at', 'created_by'],
     include: [{ model: User, as: 'CreatedBy', attributes: ['id', 'name', 'email'] }]
   });
-  res.json({ success: true, data: notices });
+  const data = notices.map((n) => {
+    const plain = n.get ? n.get({ plain: true }) : n;
+    return { ...plain, block_app: !!plain.block_app };
+  });
+  res.json({ success: true, data });
 });
 
 /**
- * GET /api/v1/super-admin/maintenance/active (public - for banner)
- * Active notices to show to all users
+ * GET /api/v1/super-admin/maintenance/active (public - for banner & block check)
+ * - block_app true + centang: seluruh role (kecuali super_admin) lihat halaman maintenance full.
+ * - block_app false + set tanggal: sebelum tanggal = alert pemberitahuan; saat/sesudah tanggal = halaman maintenance full.
  */
 const getActiveMaintenance = asyncHandler(async (req, res) => {
   const now = new Date();
-  const notices = await MaintenanceNotice.findAll({
-    where: {
-      is_active: true,
-      [Op.and]: [
-        { [Op.or]: [{ starts_at: null }, { starts_at: { [Op.lte]: now } }] },
-        { [Op.or]: [{ ends_at: null }, { ends_at: { [Op.gte]: now } }] }
-      ]
-    },
+  const all = await MaintenanceNotice.findAll({
+    where: { is_active: true },
     order: [['created_at', 'DESC']],
-    attributes: ['id', 'title', 'message', 'type', 'starts_at', 'ends_at']
+    attributes: ['id', 'title', 'message', 'type', 'starts_at', 'ends_at', 'block_app']
   });
-  res.json({ success: true, data: notices });
+  const blocking = [];
+  const upcoming = [];
+  for (const n of all) {
+    const blockFlag = n.block_app === true;
+    const startsAt = n.starts_at ? new Date(n.starts_at) : null;
+    const endsAt = n.ends_at ? new Date(n.ends_at) : null;
+    if (blockFlag) {
+      blocking.push(n);
+    } else if (startsAt && now >= startsAt && (!endsAt || now <= endsAt)) {
+      blocking.push(n);
+    } else if (startsAt && now < startsAt) {
+      upcoming.push(n);
+    }
+  }
+  const blockApp = blocking.length > 0;
+  res.json({ success: true, data: blocking, block_app: blockApp, upcoming });
 });
 
 /**
  * POST /api/v1/super-admin/maintenance
  */
 const createMaintenance = asyncHandler(async (req, res) => {
-  const { title, message, type = 'maintenance', starts_at, ends_at } = req.body;
+  const { title, message, starts_at, ends_at } = req.body;
   if (!title || !message) {
     return res.status(400).json({ success: false, message: 'title and message required' });
+  }
+  const block_app = req.body.block_app === true;
+  if (!block_app && !(starts_at && String(starts_at).trim())) {
+    return res.status(400).json({ success: false, message: 'Jika tidak centang Blokir akses, wajib isi tanggal/jam mulai.' });
   }
   const notice = await MaintenanceNotice.create({
     title,
     message,
-    type: ['maintenance', 'bug', 'info', 'warning'].includes(type) ? type : 'maintenance',
+    type: 'maintenance',
     is_active: true,
-    starts_at: starts_at || null,
-    ends_at: ends_at || null,
+    starts_at: block_app ? null : (starts_at || null),
+    ends_at: block_app ? null : (ends_at || null),
+    block_app,
     created_by: req.user.id
   });
   res.status(201).json({ success: true, data: notice });
@@ -333,13 +356,26 @@ const createMaintenance = asyncHandler(async (req, res) => {
 const updateMaintenance = asyncHandler(async (req, res) => {
   const notice = await MaintenanceNotice.findByPk(req.params.id);
   if (!notice) return res.status(404).json({ success: false, message: 'Notice not found' });
-  const { title, message, type, is_active, starts_at, ends_at } = req.body;
+  const { title, message, starts_at, ends_at, block_app } = req.body;
+  const blockApp = block_app !== undefined ? !!block_app : notice.block_app;
   if (title !== undefined) notice.title = title;
   if (message !== undefined) notice.message = message;
-  if (type !== undefined) notice.type = type;
-  if (is_active !== undefined) notice.is_active = is_active;
-  if (starts_at !== undefined) notice.starts_at = starts_at;
-  if (ends_at !== undefined) notice.ends_at = ends_at;
+  if (block_app !== undefined) notice.block_app = !!block_app;
+  if (block_app !== undefined) {
+    if (blockApp) {
+      notice.starts_at = null;
+      notice.ends_at = null;
+    } else {
+      if (!(starts_at && String(starts_at).trim())) {
+        return res.status(400).json({ success: false, message: 'Jika tidak centang Blokir akses, wajib isi tanggal/jam mulai.' });
+      }
+      notice.starts_at = starts_at || null;
+      notice.ends_at = ends_at || null;
+    }
+  } else {
+    if (starts_at !== undefined) notice.starts_at = starts_at || null;
+    if (ends_at !== undefined) notice.ends_at = ends_at || null;
+  }
   await notice.save();
   res.json({ success: true, data: notice });
 });
@@ -476,7 +512,6 @@ const I18N = {
     order_statistics: 'Order Statistics',
     system_logs: 'System Logs',
     maintenance: 'Maintenance',
-    app_appearance: 'App Appearance',
     language: 'Language',
     deployment: 'Deployment',
     welcome: 'Welcome back',
@@ -504,7 +539,6 @@ const I18N = {
     order_statistics: 'Statistik Order',
     system_logs: 'Log Sistem',
     maintenance: 'Pemeliharaan',
-    app_appearance: 'Tampilan Aplikasi',
     language: 'Bahasa',
     deployment: 'Deployment',
     welcome: 'Selamat datang kembali',
@@ -532,7 +566,6 @@ const I18N = {
     order_statistics: 'إحصائيات الطلبات',
     system_logs: 'سجلات النظام',
     maintenance: 'الصيانة',
-    app_appearance: 'مظهر التطبيق',
     language: 'اللغة',
     deployment: 'النشر',
     welcome: 'مرحباً بعودتك',

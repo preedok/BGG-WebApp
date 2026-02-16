@@ -35,6 +35,11 @@ const MaintenanceNotice = sequelize.define('MaintenanceNotice', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  block_app: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'When true and notice is active, all roles except super_admin see full maintenance page'
+  },
   created_by: {
     type: DataTypes.UUID,
     references: { model: 'users', key: 'id' }
