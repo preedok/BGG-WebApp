@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Receipt, Plus, Search, Eye, Edit, Trash2, Download, X } from 'lucide-react';
 import Card from '../../../components/common/Card';
@@ -41,14 +41,46 @@ const OrdersPage: React.FC = () => {
     date: new Date().toISOString().slice(0, 16).replace('T', ' ')
   });
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.package_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [sortBy, setSortBy] = useState('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const filteredOrders = useMemo(() => {
+    const filtered = orders.filter((order) => {
+      const matchesSearch =
+        order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.package_name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+    const sorted = [...filtered].sort((a, b) => {
+      const getVal = (o: OrderListItem, key: string): string | number => {
+        const v = (o as unknown as Record<string, unknown>)[key];
+        if (key === 'amount') return parseFloat(String(v)) || 0;
+        if (key === 'date') return new Date(String(v)).getTime();
+        return String(v ?? '');
+      };
+      const va = getVal(a, sortBy);
+      const vb = getVal(b, sortBy);
+      if (va < vb) return sortOrder === 'asc' ? -1 : 1;
+      if (va > vb) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [orders, searchTerm, statusFilter, sortBy, sortOrder]);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredOrders.slice(start, start + limit);
+  }, [filteredOrders, page, limit]);
+
+  const totalPages = Math.ceil(filteredOrders.length / limit) || 1;
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
 
   const stats = [
     { label: 'Total Orders', value: orders.length, color: 'from-blue-500 to-cyan-500' },
@@ -58,12 +90,12 @@ const OrdersPage: React.FC = () => {
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'order_number', label: 'Order ID', align: 'left' },
-    { id: 'owner_name', label: 'Owner', align: 'left' },
-    { id: 'package_name', label: 'Package', align: 'left' },
-    { id: 'amount', label: 'Amount', align: 'right' },
-    { id: 'status', label: 'Status', align: 'center' },
-    { id: 'date', label: 'Date', align: 'left' },
+    { id: 'order_number', label: 'Order ID', align: 'left', sortable: true },
+    { id: 'owner_name', label: 'Owner', align: 'left', sortable: true },
+    { id: 'package_name', label: 'Package', align: 'left', sortable: true },
+    { id: 'amount', label: 'Amount', align: 'right', sortable: true },
+    { id: 'status', label: 'Status', align: 'center', sortable: true },
+    { id: 'date', label: 'Date', align: 'left', sortable: true },
     { id: 'actions', label: 'Actions', align: 'center' }
   ];
 
@@ -226,8 +258,18 @@ const OrdersPage: React.FC = () => {
 
         <Table
           columns={tableColumns}
-          data={filteredOrders}
+          data={paginatedOrders}
           emptyMessage="Tidak ada order"
+          sort={{ columnId: sortBy, order: sortOrder }}
+          onSortChange={(col, order) => { setSortBy(col); setSortOrder(order); setPage(1); }}
+          pagination={filteredOrders.length > 0 ? {
+            total: filteredOrders.length,
+            page,
+            limit,
+            totalPages,
+            onPageChange: setPage,
+            onLimitChange: (l) => { setLimit(l); setPage(1); }
+          } : undefined}
           renderRow={(order: OrderListItem) => (
             <tr key={order.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4 font-semibold text-slate-900">{order.order_number}</td>

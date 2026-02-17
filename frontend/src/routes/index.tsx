@@ -16,7 +16,6 @@ import BusPage from '../pages/dashboard/components/BusPage';
 import PackagesPage from '../pages/dashboard/components/PackagesPage';
 import ProductsPage from '../pages/dashboard/components/ProductsPage';
 import OrdersPage from '../pages/dashboard/components/OrdersPage';
-import InvoicesPage from '../pages/dashboard/components/InvoicesPage';
 import UsersPage from '../pages/dashboard/components/UsersPage';
 import BranchesPage from '../pages/dashboard/components/BranchesPage';
 import ReportsPage from '../pages/dashboard/components/ReportsPage';
@@ -26,11 +25,17 @@ import AdminCabangPersonilPage from '../pages/dashboard/components/AdminCabangPe
 import AdminPusatCombinedRecapPage from '../pages/dashboard/adminpusat/AdminPusatCombinedRecapPage';
 import AdminPusatCreateUserPage from '../pages/dashboard/adminpusat/AdminPusatCreateUserPage';
 import OrdersInvoicesPage from '../pages/dashboard/adminpusat/OrdersInvoicesPage';
-import AdminPusatFlyersPage from '../pages/dashboard/adminpusat/AdminPusatFlyersPage';
 import AccountingFinancialReportPage from '../pages/dashboard/accounting/AccountingFinancialReportPage';
-import AccountingReconciliationPage from '../pages/dashboard/accounting/AccountingReconciliationPage';
 import AccountingAgingPage from '../pages/dashboard/accounting/AccountingAgingPage';
-import AccountingOrdersPage from '../pages/dashboard/accounting/AccountingOrdersPage';
+import AccountingChartOfAccountsPage from '../pages/dashboard/accounting/AccountingChartOfAccountsPage';
+import AccountingFiscalPeriodsPage from '../pages/dashboard/accounting/AccountingFiscalPeriodsPage';
+import {
+  PayrollSettingsPage,
+  PayrollEmployeesPage,
+  PayrollRunsPage,
+  PayrollRunDetailPage,
+  MySlipGajiPage
+} from '../pages/dashboard/accounting';
 
 const router = createBrowserRouter([
   {
@@ -114,7 +119,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'invoices',
-            element: <InvoicesPage />
+            element: <Navigate to="/dashboard" replace />
           },
           {
             path: 'users',
@@ -149,30 +154,58 @@ const router = createBrowserRouter([
             element: <AdminPusatCreateUserPage />
           },
           {
-            path: 'flyers',
-            element: <AdminPusatFlyersPage />
-          },
-          {
             path: 'accounting/financial-report',
             element: <AccountingFinancialReportPage />
           },
           {
+            path: 'accounting/chart-of-accounts',
+            element: <AccountingChartOfAccountsPage />
+          },
+          {
+            path: 'accounting/fiscal-periods',
+            element: <AccountingFiscalPeriodsPage />
+          },
+          {
             path: 'accounting/reconciliation',
-            element: <AccountingReconciliationPage />
+            element: <Navigate to="/dashboard" replace />
           },
           {
             path: 'accounting/aging',
             element: <AccountingAgingPage />
           },
           {
-            path: 'accounting/orders',
-            element: <AccountingOrdersPage />
+            path: 'accounting/payroll/settings',
+            element: <PayrollSettingsPage />
+          },
+          {
+            path: 'accounting/payroll/employees',
+            element: <PayrollEmployeesPage />
+          },
+          {
+            path: 'accounting/payroll/runs',
+            element: <PayrollRunsPage />
+          },
+          {
+            path: 'accounting/payroll/runs/:id',
+            element: <PayrollRunDetailPage />
+          },
+          {
+            path: 'my-slip-gaji',
+            element: <MySlipGajiPage />
+          },
+          {
+            path: '*',
+            element: <Navigate to="/dashboard" replace />
           }
             ]
           }
         ]
       }
     ]
+  },
+  {
+    path: '*',
+    element: <Navigate to="/dashboard" replace />
   }
 ]);
 

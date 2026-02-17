@@ -20,6 +20,11 @@ const UsersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [branchId, setBranchId] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null);
 
   const canListUsers =
     currentUser?.role === 'super_admin' || currentUser?.role === 'admin_pusat';
@@ -27,7 +32,7 @@ const UsersPage: React.FC = () => {
 
   useEffect(() => {
     if (isAdminPusat) {
-      branchesApi.list().then((res) => {
+      branchesApi.list({ limit: 500, page: 1 }).then((res) => {
         if (res.data?.data) setBranches(res.data.data);
       }).catch(() => {});
     }
@@ -39,12 +44,17 @@ const UsersPage: React.FC = () => {
       return;
     }
     let cancelled = false;
-    const params: { role?: string; branch_id?: string } = {};
+    const params: { role?: string; branch_id?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' } = { limit, page, sort_by: sortBy, sort_order: sortOrder };
     if (branchId) params.branch_id = branchId;
+    if (roleFilter !== 'all') params.role = roleFilter;
     adminPusatApi
       .listUsers(params)
       .then((res) => {
         if (!cancelled && res.data?.data) setUsers(res.data.data);
+        if (!cancelled) {
+          const p = (res.data as { pagination?: { total: number; page: number; limit: number; totalPages: number } }).pagination;
+          setPagination(p || (res.data?.data ? { total: (res.data.data as unknown[]).length, page: 1, limit: (res.data.data as unknown[]).length, totalPages: 1 } : null));
+        }
       })
       .catch((err) => {
         if (!cancelled)
@@ -54,27 +64,30 @@ const UsersPage: React.FC = () => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [canListUsers, branchId]);
+  }, [canListUsers, branchId, roleFilter, page, limit, sortBy, sortOrder]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [branchId, roleFilter]);
 
   const filteredUsers = users.filter((user: UserListItem) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+    return matchesSearch;
   });
 
   const stats = [
-    { label: 'Total Users', value: users.length, color: 'from-blue-500 to-cyan-500' },
+    { label: 'Total Users', value: pagination?.total ?? users.length, color: 'from-blue-500 to-cyan-500' },
     { label: 'Aktif', value: users.filter((u: UserListItem) => u.is_active).length, color: 'from-emerald-500 to-teal-500' },
     { label: 'Owner', value: users.filter((u: UserListItem) => u.role === 'owner').length, color: 'from-purple-500 to-pink-500' },
     { label: 'Staff', value: users.filter((u: UserListItem) => u.role !== 'owner').length, color: 'from-orange-500 to-red-500' }
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'name', label: 'Nama', align: 'left' },
-    { id: 'email', label: 'Email', align: 'left' },
-    { id: 'role', label: 'Role', align: 'left' },
+    { id: 'name', label: 'Nama', align: 'left', sortable: true },
+    { id: 'email', label: 'Email', align: 'left', sortable: true },
+    { id: 'role', label: 'Role', align: 'left', sortable: true },
     { id: 'company', label: 'Perusahaan', align: 'left' },
     { id: 'branch', label: 'Cabang', align: 'left' },
     { id: 'status', label: 'Status', align: 'center' },
@@ -178,6 +191,16 @@ const UsersPage: React.FC = () => {
         <Table
           columns={tableColumns}
           data={filteredUsers}
+          sort={{ columnId: sortBy, order: sortOrder }}
+          onSortChange={(col, order) => { setSortBy(col); setSortOrder(order); setPage(1); }}
+          pagination={pagination ? {
+            total: pagination.total,
+            page: pagination.page,
+            limit: pagination.limit,
+            totalPages: pagination.totalPages,
+            onPageChange: setPage,
+            onLimitChange: (l) => { setLimit(l); setPage(1); }
+          } : undefined}
           renderRow={(user: UserListItem) => (
             <tr key={user.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4">

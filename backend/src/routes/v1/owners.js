@@ -23,10 +23,10 @@ router.use(auth);
 router.get('/me', requireRole(ROLES.OWNER), ownerController.getMyProfile);
 router.post('/upload-mou', requireRole(ROLES.OWNER), upload.single('mou_file'), ownerController.uploadMou);
 
-router.get('/', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG), ownerController.list);
+router.get('/', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_KOORDINATOR, ROLES.ROLE_ACCOUNTING), ownerController.list);
 router.patch('/:id/verify-mou', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT), ownerController.verifyMou);
-router.patch('/:id/verify-deposit', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG), ownerController.verifyDeposit);
-router.patch('/:id/assign-branch', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG), ownerController.assignBranch);
-router.patch('/:id/activate', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG), ownerController.activate);
+router.patch('/:id/verify-deposit', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_KOORDINATOR), ownerController.verifyDeposit);
+router.patch('/:id/assign-branch', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_KOORDINATOR), ownerController.assignBranch);
+router.patch('/:id/activate', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_KOORDINATOR), ownerController.activate);
 
 module.exports = router;

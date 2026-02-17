@@ -14,7 +14,6 @@ const AppSetting = sequelize.define('AppSetting', {
   key: {
     type: DataTypes.STRING(100),
     allowNull: false,
-    unique: true,
     comment: 'e.g. theme, locale, primary_color, font_size, ui_template'
   },
   value: {
@@ -28,7 +27,8 @@ const AppSetting = sequelize.define('AppSetting', {
 }, {
   tableName: 'app_settings',
   underscored: true,
-  timestamps: true
+  timestamps: true,
+  indexes: [{ unique: true, fields: ['key'] }]
 });
 
 module.exports = AppSetting;

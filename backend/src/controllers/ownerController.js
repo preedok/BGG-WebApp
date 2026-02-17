@@ -7,11 +7,17 @@ const uploadConfig = require('../config/uploads');
  * Calon Owner registrasi. Status: REGISTERED_PENDING_MOU
  */
 const register = asyncHandler(async (req, res) => {
-  const { email, password, name, phone, company_name, address, operational_region, whatsapp, npwp } = req.body;
+  const { email, password, name, phone, company_name, address, operational_region, whatsapp, npwp, preferred_branch_id } = req.body;
 
   const existing = await User.findOne({ where: { email: email.toLowerCase() } });
   if (existing) {
     return res.status(400).json({ success: false, message: 'Email sudah terdaftar' });
+  }
+
+  let operationalRegion = operational_region;
+  if (preferred_branch_id) {
+    const branch = await Branch.findByPk(preferred_branch_id);
+    if (branch) operationalRegion = branch.region || operationalRegion;
   }
 
   const user = await User.create({
@@ -28,7 +34,8 @@ const register = asyncHandler(async (req, res) => {
     user_id: user.id,
     status: OWNER_STATUS.REGISTERED_PENDING_MOU,
     address,
-    operational_region,
+    operational_region: operationalRegion,
+    preferred_branch_id: preferred_branch_id || null,
     whatsapp: whatsapp || phone,
     npwp
   });
@@ -85,31 +92,32 @@ const getMyProfile = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/v1/owners (Admin Pusat / Super Admin / Admin Cabang)
- * Admin Cabang: hanya owner yang assigned ke cabang mereka, atau DEPOSIT_VERIFIED untuk bisa di-assign.
+ * GET /api/v1/owners (Admin Pusat / Super Admin / Admin Koordinator)
+ * Admin Koordinator: hanya owner yang assigned ke cabang di wilayah mereka, atau DEPOSIT_VERIFIED.
  */
 const list = asyncHandler(async (req, res) => {
   const { status, branch_id } = req.query;
   const where = {};
   if (status) where.status = status;
 
-  const isAdminCabang = req.user.role === ROLES.ADMIN_CABANG;
-  const filterBranchId = branch_id || (isAdminCabang ? req.user.branch_id : null);
+  const isKoordinator = req.user.role === ROLES.ADMIN_KOORDINATOR;
+  const wilayahId = req.user.wilayah_id;
+  const branchIdsWilayah = isKoordinator && wilayahId ? await require('../utils/wilayahScope').getBranchIdsForWilayah(wilayahId) : null;
+  const filterBranchId = branch_id || (isKoordinator ? null : null);
 
   const profiles = await OwnerProfile.findAll({
     where,
     include: [
       { model: User, as: 'User', attributes: ['id', 'email', 'name', 'phone', 'company_name'] },
+      { model: Branch, as: 'PreferredBranch', attributes: ['id', 'code', 'name', 'region', 'koordinator_provinsi', 'koordinator_wilayah'], required: false },
       { model: Branch, as: 'AssignedBranch', attributes: ['id', 'code', 'name'] }
     ]
   });
   let list_ = profiles;
-  if (filterBranchId) {
-    if (isAdminCabang) {
-      list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
-    } else {
-      list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId);
-    }
+  if (isKoordinator && branchIdsWilayah && branchIdsWilayah.length > 0) {
+    list_ = profiles.filter(p => p.assigned_branch_id && branchIdsWilayah.includes(p.assigned_branch_id) || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
+  } else if (filterBranchId) {
+    list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId);
   }
   res.json({ success: true, data: list_ });
 });
@@ -163,12 +171,11 @@ const verifyDeposit = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/v1/owners/:id/assign-branch (Admin Pusat / Admin Cabang hanya ke cabang sendiri)
+ * PATCH /api/v1/owners/:id/assign-branch (Admin Pusat / Admin Koordinator hanya ke cabang di wilayah)
  */
 const assignBranch = asyncHandler(async (req, res) => {
   const { id } = req.params;
   let { branch_id } = req.body;
-  if (req.user.role === ROLES.ADMIN_CABANG) branch_id = req.user.branch_id;
   const profile = await OwnerProfile.findByPk(id);
   if (!profile) return res.status(404).json({ success: false, message: 'Owner tidak ditemukan' });
   if (profile.status !== OWNER_STATUS.DEPOSIT_VERIFIED) {
@@ -177,8 +184,9 @@ const assignBranch = asyncHandler(async (req, res) => {
 
   const branch = await Branch.findByPk(branch_id);
   if (!branch) return res.status(404).json({ success: false, message: 'Cabang tidak ditemukan' });
-  if (req.user.role === ROLES.ADMIN_CABANG && branch_id !== req.user.branch_id) {
-    return res.status(403).json({ success: false, message: 'Hanya dapat menetapkan ke cabang Anda' });
+  if (req.user.role === ROLES.ADMIN_KOORDINATOR) {
+    const branchIds = await require('../utils/wilayahScope').getBranchIdsForWilayah(req.user.wilayah_id);
+    if (!branchIds.includes(branch_id)) return res.status(403).json({ success: false, message: 'Hanya dapat menetapkan ke cabang di wilayah Anda' });
   }
 
   await User.update({ branch_id }, { where: { id: profile.user_id } });

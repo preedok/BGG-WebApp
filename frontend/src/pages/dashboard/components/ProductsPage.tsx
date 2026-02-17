@@ -8,11 +8,11 @@ import BusPage from './BusPage';
 import PackagesPage from './PackagesPage';
 
 const TABS = [
-  { id: 'hotels', label: 'Hotels', icon: Hotel },
+  { id: 'hotels', label: 'Hotel', icon: Hotel },
   { id: 'visa', label: 'Visa', icon: FileText },
   { id: 'tickets', label: 'Tiket', icon: Plane },
   { id: 'bus', label: 'Bus', icon: Bus },
-  { id: 'packages', label: 'Packages', icon: Package }
+  { id: 'packages', label: 'Paket', icon: Package }
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -29,28 +29,33 @@ const ProductsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="border-b border-slate-200">
-        <nav className="flex gap-1 overflow-x-auto" aria-label="Product tabs">
+    <div className="flex flex-col min-h-0">
+      {/* Sticky tab navigation */}
+      <div className="sticky top-0 z-10 -mx-1 px-1 pt-1 pb-3 bg-gradient-to-b from-white via-white to-transparent">
+        <nav
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+          aria-label="Tab produk"
+        >
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 border-2 ${
                 tab === id
-                  ? 'border-emerald-600 text-emerald-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800'
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className={`w-5 h-5 shrink-0 ${tab === id ? 'text-emerald-600' : 'text-slate-500'}`} />
               {label}
             </button>
           ))}
         </nav>
       </div>
 
-      <div className="min-h-[400px]">
+      {/* Tab content - consistent padding and min height */}
+      <div className="flex-1 min-h-[420px] pt-2">
         {tab === 'hotels' && <HotelsPage />}
         {tab === 'visa' && <VisaPage />}
         {tab === 'tickets' && <TicketsPage />}

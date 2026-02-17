@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plane, Settings, Building2, Globe, Save, Edit2, Trash2 } from 'lucide-react';
+import { Plane, Settings, Building2, Save, Edit2, Trash2 } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -52,13 +52,10 @@ const TicketsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [listLoading, setListLoading] = useState(false);
-  const [configOpen, setConfigOpen] = useState(false);
-  const [globalConfig, setGlobalConfig] = useState<TicketForm>(emptyForm);
   const [branchRows, setBranchRows] = useState<TicketBranchRow[]>([]);
   const [form, setForm] = useState<TicketForm>(emptyForm);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
-  const [mode, setMode] = useState<'global' | 'branch'>('global');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isPusat = user?.role === 'super_admin' || user?.role === 'admin_pusat';
@@ -67,9 +64,7 @@ const TicketsPage: React.FC = () => {
 
   const branchIdForApi = isBranch && user?.branch_id
     ? user.branch_id
-    : mode === 'branch' && selectedBranchId
-      ? selectedBranchId
-      : undefined;
+    : selectedBranchId || undefined;
 
   const fetchTicketList = useCallback(() => {
     if (!canConfig) return;
@@ -77,8 +72,6 @@ const TicketsPage: React.FC = () => {
     if (isPusat) {
       Promise.all([businessRulesApi.get(), branchesApi.list()])
         .then(([rulesRes, branchesRes]) => {
-          const globalData = rulesRes.data?.data as Record<string, unknown> | undefined;
-          setGlobalConfig(toForm(globalData));
           const branchList = (branchesRes.data?.data || []) as Branch[];
           setBranches(branchList);
           if (branchList.length === 0) {
@@ -105,9 +98,7 @@ const TicketsPage: React.FC = () => {
         .catch(() => setListLoading(false));
     } else if (isBranch && user?.branch_id) {
       businessRulesApi.get({ branch_id: user.branch_id })
-        .then((res) => {
-          const d = res.data?.data as Record<string, unknown> | undefined;
-          setGlobalConfig(toForm(d));
+        .then(() => {
           setBranchRows([]);
         })
         .catch(() => {})
@@ -187,20 +178,7 @@ const TicketsPage: React.FC = () => {
     }
   };
 
-  const onEditGlobal = () => {
-    if (isBranch && user?.branch_id) {
-      setMode('branch');
-      setSelectedBranchId(user.branch_id);
-    } else {
-      setMode('global');
-      setSelectedBranchId('');
-    }
-    setForm(globalConfig);
-    setConfigOpen(true);
-  };
-
   const onEditBranch = (row: TicketBranchRow) => {
-    setMode('branch');
     setSelectedBranchId(row.branchId);
     setForm({
       ticket_general_idr: row.ticket_general_idr,
@@ -208,11 +186,17 @@ const TicketsPage: React.FC = () => {
       ticket_super_air_jet_idr: row.ticket_super_air_jet_idr,
       ticket_garuda_idr: row.ticket_garuda_idr
     });
-    setConfigOpen(true);
   };
 
   const updateForm = (key: keyof TicketForm, value: number) => {
     setForm((f) => ({ ...f, [key]: value }));
+  };
+
+  const formatInputValue = (n: number) => (n === 0 ? '' : String(n));
+  const parseInputValue = (raw: string): number => {
+    if (raw === '' || raw === '-') return 0;
+    const n = Number(raw.replace(/\D/g, ''));
+    return Number.isNaN(n) ? 0 : n;
   };
 
   if (user?.role === 'role_ticket') {
@@ -220,223 +204,157 @@ const TicketsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <header className="flex flex-wrap items-start gap-5">
-        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20 shrink-0">
-          <Plane className="w-7 h-7" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tiket</h1>
-          <p className="text-slate-600 mt-1 text-sm leading-relaxed max-w-xl">
-            Harga general (Admin Pusat) dan harga per cabang per maskapai (Lion, Super Air Jet, Garuda).
-          </p>
-        </div>
-      </header>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">Tiket</h2>
+        <p className="text-slate-600 text-sm mt-0.5">
+          Harga general dan per cabang per maskapai (Lion, Super Air Jet, Garuda).
+        </p>
+      </div>
 
       {canConfig && (
         <>
-          {/* Card list: Harga global */}
-          <section>
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">List konfigurasi tiket</h2>
+          <Card>
+            <h3 className="text-base font-semibold text-slate-900 mb-3">Konfigurasi tiket</h3>
             {listLoading ? (
-              <p className="text-slate-500 text-sm py-4">Memuat list...</p>
+              <p className="text-slate-500 text-sm py-4">Memuat...</p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-1">
-                <Card className="p-5 border border-slate-200/80 bg-white rounded-2xl shadow-sm">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 rounded-xl bg-sky-100 text-sky-600">
-                        {isPusat ? <Globe className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
-                      </div>
-                      <span className="font-semibold text-slate-900">{isPusat ? 'Harga global' : 'Harga cabang ini'}</span>
+              <>
+                <div className="pt-0">
+                  {isPusat && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Edit untuk</label>
+                      <select
+                        value={selectedBranchId}
+                        onChange={(e) => setSelectedBranchId(e.target.value)}
+                        className="w-full max-w-md border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
+                      >
+                        <option value="">Global</option>
+                        {branches.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                        ))}
+                      </select>
                     </div>
-                    <button
-                      type="button"
-                      onClick={onEditGlobal}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Ubah
-                    </button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-                    <div>
-                      <span className="text-slate-500 block">General</span>
-                      <span className="font-medium text-slate-900">{formatPrice(globalConfig.ticket_general_idr)}</span>
-                    </div>
-                    {MASKAPAI.map((m) => (
-                      <div key={m.key}>
-                        <span className="text-slate-500 block">{m.label}</span>
-                        <span className="font-medium text-slate-900">{formatPrice((globalConfig as Record<string, number>)[m.key])}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
+                  )}
+                  {isBranch && <p className="text-sm text-slate-600 mb-4">Mengatur harga tiket untuk cabang Anda.</p>}
+                  {(
+                    <>
+                      {loading ? (
+                        <p className="text-slate-500 text-sm py-2">Memuat...</p>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap gap-4 items-end">
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Harga general (IDR)</label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={formatInputValue(form.ticket_general_idr)}
+                                onChange={(e) => updateForm('ticket_general_idr', parseInputValue(e.target.value))}
+                                className="w-full max-w-[180px] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
+                                placeholder="0"
+                              />
+                            </div>
+                            {MASKAPAI.map((m) => (
+                              <div key={m.key}>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{m.label} (IDR)</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={formatInputValue(form[m.key] as number)}
+                                  onChange={(e) => updateForm(m.key as keyof TicketForm, parseInputValue(e.target.value))}
+                                  className="w-full max-w-[140px] border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
+                                  placeholder="0"
+                                />
+                              </div>
+                            ))}
+                            <Button variant="primary" onClick={handleSaveConfig} disabled={saving} className="flex items-center gap-2 shrink-0">
+                              <Save className="w-4 h-4" />
+                              {saving ? 'Menyimpan...' : 'Simpan'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
-          </section>
+          </Card>
 
-          {/* Table: Harga per cabang (hanya Admin Pusat) */}
+          {/* Tabel harga per cabang (Admin Pusat) */}
           {isPusat && (
-            <section>
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Harga per cabang</h2>
+            <Card>
+              <h3 className="text-base font-semibold text-slate-900 mb-3">Harga per cabang</h3>
               {listLoading ? (
                 <p className="text-slate-500 text-sm py-2">Memuat...</p>
               ) : branchRows.length === 0 ? (
                 <p className="text-slate-500 text-sm py-2">Belum ada cabang.</p>
               ) : (
-                <Card className="border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                          <th className="text-left py-3 px-4 font-semibold text-slate-700">Cabang</th>
-                          <th className="text-right py-3 px-4 font-semibold text-slate-700">General</th>
-                          <th className="text-right py-3 px-4 font-semibold text-slate-700">Lion</th>
-                          <th className="text-right py-3 px-4 font-semibold text-slate-700">Super Air Jet</th>
-                          <th className="text-right py-3 px-4 font-semibold text-slate-700">Garuda</th>
-                          <th className="text-center py-3 px-4 font-semibold text-slate-700 w-28">Aksi</th>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-sm min-w-[500px]">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="text-left py-3 px-4 font-semibold text-slate-700">Cabang</th>
+                        <th className="text-right py-3 px-4 font-semibold text-slate-700">General</th>
+                        <th className="text-right py-3 px-4 font-semibold text-slate-700">Lion</th>
+                        <th className="text-right py-3 px-4 font-semibold text-slate-700">Super Air Jet</th>
+                        <th className="text-right py-3 px-4 font-semibold text-slate-700">Garuda</th>
+                        <th className="text-center py-3 px-4 font-semibold text-slate-700 w-24">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {branchRows.map((row) => (
+                        <tr key={row.branchId} className="border-b border-slate-100 hover:bg-slate-50/50">
+                          <td className="py-3 px-4">
+                            <span className="font-medium text-slate-900">{row.branchName}</span>
+                            <span className="text-slate-500 ml-1">({row.branchCode})</span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_general_idr)}</td>
+                          <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_lion_idr)}</td>
+                          <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_super_air_jet_idr)}</td>
+                          <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_garuda_idr)}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => onEditBranch(row)}
+                                className="p-2 rounded-lg text-sky-600 hover:bg-sky-50 transition-colors"
+                                title="Ubah"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBranch(row.branchId)}
+                                disabled={deletingId === row.branchId}
+                                className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                title="Hapus"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {branchRows.map((row) => (
-                          <tr key={row.branchId} className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-3 px-4">
-                              <span className="font-medium text-slate-900">{row.branchName}</span>
-                              <span className="text-slate-500 ml-1">({row.branchCode})</span>
-                            </td>
-                            <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_general_idr)}</td>
-                            <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_lion_idr)}</td>
-                            <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_super_air_jet_idr)}</td>
-                            <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_garuda_idr)}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center justify-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => onEditBranch(row)}
-                                  className="p-2 rounded-lg text-slate-500 hover:bg-sky-50 hover:text-sky-700 transition-colors"
-                                  title="Ubah"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteBranch(row.branchId)}
-                                  disabled={deletingId === row.branchId}
-                                  className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                                  title="Hapus"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              )}
-            </section>
-          )}
-
-          {/* Form ubah (global atau cabang) */}
-          <Card className="p-6 sm:p-8 border border-slate-200/80 bg-white rounded-2xl shadow-sm">
-            <button
-              type="button"
-              onClick={() => setConfigOpen((o) => !o)}
-              className="w-full flex items-center justify-between text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
-                  <Settings className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    {isPusat && mode === 'global' && 'Ubah harga global'}
-                    {isPusat && mode === 'branch' && (selectedBranchId ? 'Ubah harga cabang terpilih' : 'Pilih cabang di tabel untuk ubah')}
-                    {isBranch && 'Ubah harga cabang ini'}
-                  </h2>
-                  <p className="text-sm text-slate-500">Harga general & per maskapai</p>
-                </div>
-              </div>
-              <span className="text-slate-400 text-sm font-medium">{configOpen ? 'Tutup' : 'Buka'}</span>
-            </button>
-            {configOpen && (mode === 'global' || selectedBranchId || isBranch) && (
-              <div className="mt-6 pt-6 border-t border-slate-100 space-y-5">
-                {isPusat && mode === 'branch' && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Cabang</label>
-                    <select
-                      value={selectedBranchId}
-                      onChange={(e) => setSelectedBranchId(e.target.value)}
-                      className="w-full max-w-md border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
-                    >
-                      <option value="">-- Pilih cabang --</option>
-                      {branches.map((b) => (
-                        <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
                       ))}
-                    </select>
-                  </div>
-                )}
-                {loading ? (
-                  <p className="text-slate-500 text-sm">Memuat...</p>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Harga general (IDR)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={form.ticket_general_idr || ''}
-                        onChange={(e) => updateForm('ticket_general_idr', Number(e.target.value) || 0)}
-                        className="w-full max-w-xs border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-slate-50/50"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-700 mb-2">Harga per maskapai (IDR)</p>
-                      <div className="flex flex-wrap gap-4">
-                        {MASKAPAI.map((m) => (
-                          <div key={m.key}>
-                            <label className="block text-xs text-slate-500 mb-1">{m.label}</label>
-                            <input
-                              type="number"
-                              min={0}
-                              value={(form[m.key] as number) ?? ''}
-                              onChange={(e) => updateForm(m.key as keyof TicketForm, Number(e.target.value) || 0)}
-                              className="w-36 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-slate-50/50"
-                              placeholder="0"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <Button variant="primary" onClick={handleSaveConfig} disabled={saving} className="flex items-center gap-2">
-                      <Save className="w-4 h-4" />
-                      {saving ? 'Menyimpan...' : 'Simpan'}
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
-          </Card>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
         </>
       )}
 
-      <Card className="p-5 border border-slate-200/80 bg-slate-50/80 rounded-2xl">
-        <div className="flex gap-4">
-          <div className="shrink-0 w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500">
-            <Plane className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold text-slate-900 mb-0.5 text-sm">Penerbitan tiket</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Untuk mengelola order tiket dan penerbitan tiket jamaah, gunakan akun dengan role Tiket cabang.
-            </p>
-          </div>
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex gap-3">
+        <Plane className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+        <div>
+          <h3 className="font-medium text-slate-900 text-sm">Penerbitan tiket</h3>
+          <p className="text-sm text-slate-600 mt-0.5">
+            Order dan penerbitan tiket jamaah dikelola dengan akun role Tiket cabang.
+          </p>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

@@ -17,13 +17,19 @@ const INCLUDE_OPTIONS = [
   { id: 'handling', label: 'Handling' }
 ] as const;
 
+const CURRENCIES = [
+  { id: 'IDR', label: 'Rupiah (IDR)', symbol: 'Rp', locale: 'id-ID' },
+  { id: 'SAR', label: 'Riyal Saudi (SAR)', symbol: 'SAR', locale: 'en-US' },
+  { id: 'USD', label: 'US Dollar (USD)', symbol: '$', locale: 'en-US' }
+] as const;
+
 /** Produk paket dari API (products is_package=true) */
 interface PackageProduct {
   id: string;
   code: string;
   name: string;
   description?: string | null;
-  meta?: { includes?: string[]; discount_percent?: number; days?: number } | null;
+  meta?: { includes?: string[]; discount_percent?: number; days?: number; currency?: string } | null;
   is_active: boolean;
   is_package?: boolean;
   price_general?: number | null;
@@ -37,9 +43,10 @@ type FormState = {
   days: number;
   discountPercent: number;
   includes: string[];
+  currency: 'IDR' | 'SAR' | 'USD';
 };
 
-const emptyForm: FormState = { name: '', price: 0, days: 1, discountPercent: 0, includes: [] };
+const emptyForm: FormState = { name: '', price: 0, days: 1, discountPercent: 0, includes: [], currency: 'IDR' };
 
 const PackagesPage: React.FC = () => {
   const { user } = useAuth();
@@ -56,29 +63,43 @@ const PackagesPage: React.FC = () => {
 
   const canCreatePackage = user?.role === 'super_admin' || user?.role === 'admin_pusat';
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [sortBy, setSortBy] = useState('code');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null);
+
   const fetchPackages = () => {
     setLoading(true);
     setError(null);
     productsApi
-      .list({ is_package: 'true', with_prices: 'true', include_inactive: 'true' })
-      .then((res) => res.data?.data && setPackages(res.data.data as PackageProduct[]))
-      .catch((err) => setError(err.response?.data?.message || 'Gagal memuat data paket'))
+      .list({ is_package: 'true', with_prices: 'true', include_inactive: 'false', limit, page, sort_by: sortBy, sort_order: sortOrder })
+      .then((res) => {
+        if (res.data?.data) setPackages(res.data.data as PackageProduct[]);
+        const p = (res.data as { pagination?: { total: number; page: number; limit: number; totalPages: number } }).pagination;
+        setPagination(p || (res.data?.data ? { total: (res.data.data as unknown[]).length, page: 1, limit: (res.data.data as unknown[]).length, totalPages: 1 } : null));
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || 'Gagal memuat data paket');
+        setPagination(null);
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchPackages();
-  }, []);
+  }, [page, limit, sortBy, sortOrder]);
 
   const stats = [
-    { label: 'Total Paket', value: packages.length, color: 'from-blue-500 to-cyan-500' },
+    { label: 'Total Paket', value: pagination?.total ?? packages.length, color: 'from-blue-500 to-cyan-500' },
     { label: 'Aktif', value: packages.filter((p) => p.is_active).length, color: 'from-emerald-500 to-teal-500' },
     { label: 'Dengan Harga', value: packages.filter((p) => (p.price_general ?? p.price_branch) != null).length, color: 'from-purple-500 to-pink-500' }
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'name', label: 'Nama Paket', align: 'left' },
+    { id: 'name', label: 'Nama Paket', align: 'left', sortable: true },
     { id: 'days', label: 'Lama (hari)', align: 'center' },
+    { id: 'currency', label: 'Mata Uang', align: 'center' },
     { id: 'price', label: 'Harga', align: 'right' },
     { id: 'discount', label: 'Diskon (%)', align: 'center' },
     { id: 'priceAfter', label: 'Harga setelah diskon', align: 'right' },
@@ -86,9 +107,10 @@ const PackagesPage: React.FC = () => {
     { id: 'actions', label: 'Aksi', align: 'center' }
   ];
 
-  const formatPrice = (amount: number | null | undefined) => {
-    if (amount != null && amount > 0) return `Rp ${Number(amount).toLocaleString('id-ID')}`;
-    return '-';
+  const formatPrice = (amount: number | null | undefined, currencyId?: string) => {
+    if (amount == null || amount <= 0) return '-';
+    const cur = CURRENCIES.find((c) => c.id === (currencyId || 'IDR')) || CURRENCIES[0];
+    return `${cur.symbol} ${Number(amount).toLocaleString(cur.locale)}`;
   };
 
   const getPriceAfterDiscount = (basePrice: number, discountPercent: number) => {
@@ -112,14 +134,15 @@ const PackagesPage: React.FC = () => {
 
   const openEdit = (pkg: PackageProduct) => {
     setEditingPackage(pkg);
-    const meta = pkg.meta as { includes?: string[]; discount_percent?: number; days?: number } | undefined;
+    const meta = pkg.meta as { includes?: string[]; discount_percent?: number; days?: number; currency?: string } | undefined;
     const days = Number(meta?.days ?? 1);
     setForm({
       name: pkg.name,
       price: Number(pkg.price_branch ?? pkg.price_general ?? 0),
       days,
       discountPercent: Number(meta?.discount_percent ?? 0),
-      includes: meta?.includes ?? []
+      includes: meta?.includes ?? [],
+      currency: (meta?.currency as 'IDR' | 'SAR' | 'USD') || (pkg.currency as 'IDR' | 'SAR' | 'USD') || 'IDR'
     });
     setDaysInput(days >= 1 ? String(days) : '1');
     setShowModal(true);
@@ -146,6 +169,7 @@ const PackagesPage: React.FC = () => {
       const meta = {
         includes: form.includes,
         days,
+        currency: form.currency,
         ...(editingPackage ? { discount_percent: form.discountPercent } : {})
       };
       if (editingPackage) {
@@ -157,13 +181,13 @@ const PackagesPage: React.FC = () => {
         const prices = (pricesRes.data as { data?: Array<{ id: string; branch_id: string | null; owner_id: string | null }> })?.data ?? [];
         const general = prices.find((p: { branch_id: string | null; owner_id: string | null }) => !p.branch_id && !p.owner_id);
         if (general) {
-          await productsApi.updatePrice(general.id, { amount: form.price });
+          await productsApi.updatePrice(general.id, { amount: form.price, currency: form.currency });
         } else if (form.price > 0) {
           await productsApi.createPrice({
             product_id: editingPackage.id,
             branch_id: null,
             owner_id: null,
-            currency: 'IDR',
+            currency: form.currency,
             amount: form.price
           });
         }
@@ -185,7 +209,7 @@ const PackagesPage: React.FC = () => {
             product_id: productId,
             branch_id: null,
             owner_id: null,
-            currency: 'IDR',
+            currency: form.currency,
             amount: form.price
           });
         }
@@ -203,10 +227,11 @@ const PackagesPage: React.FC = () => {
 
   const handleDelete = async (pkg: PackageProduct) => {
     if (!canCreatePackage) return;
-    if (!window.confirm(`Hapus paket "${pkg.name}"? Paket akan dinonaktifkan dan tidak tampil di daftar.`)) return;
+    if (!window.confirm(`Hapus paket "${pkg.name}"? Data akan dihapus permanen dari database.`)) return;
     try {
       await productsApi.delete(pkg.id);
       showToast('Paket berhasil dihapus', 'success');
+      setPackages((prev) => prev.filter((p) => p.id !== pkg.id));
       fetchPackages();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
@@ -231,30 +256,30 @@ const PackagesPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Manajemen Paket</h1>
-          <p className="text-slate-600 mt-1">Harga paket untuk total hari (contoh: Paket Ramadhan 9 hari = harga untuk 9 hari)</p>
+          <h2 className="text-lg font-semibold text-slate-900">Paket</h2>
+          <p className="text-slate-600 text-sm mt-0.5">Harga paket untuk total hari (contoh: Paket 9 hari = harga untuk 9 hari)</p>
         </div>
         {canCreatePackage && (
-          <Button variant="primary" onClick={openAdd}>
-            <Plus className="w-5 h-5 mr-2" />
+          <Button variant="primary" className="flex items-center gap-2 shrink-0" onClick={openAdd}>
+            <Plus className="w-5 h-5" />
             Buat paket baru
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {stats.map((stat, i) => (
-          <Card key={i} hover>
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} text-white`}>
+          <Card key={i} padding="sm" className="!p-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.color} text-white shrink-0`}>
                 <Package className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-sm text-slate-600">{stat.label}</p>
-                <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500 truncate">{stat.label}</p>
+                <p className="text-xl font-bold text-slate-900 tabular-nums">{stat.value}</p>
               </div>
             </div>
           </Card>
@@ -262,28 +287,44 @@ const PackagesPage: React.FC = () => {
       </div>
 
       <Card>
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-slate-900">Daftar paket</h3>
+          <p className="text-sm text-slate-500 mt-0.5">{packages.length} paket</p>
+        </div>
         <Table
           columns={tableColumns}
           data={packages}
+          sort={{ columnId: sortBy, order: sortOrder }}
+          onSortChange={(col, order) => { setSortBy(col); setSortOrder(order); setPage(1); }}
+          pagination={pagination ? {
+            total: pagination.total,
+            page: pagination.page,
+            limit: pagination.limit,
+            totalPages: pagination.totalPages,
+            onPageChange: setPage,
+            onLimitChange: (l) => { setLimit(l); setPage(1); }
+          } : undefined}
           renderRow={(pkg: PackageProduct) => {
             const basePrice = Number(pkg.price_branch ?? pkg.price_general ?? 0);
-            const meta = pkg.meta as { discount_percent?: number; days?: number } | undefined;
+            const meta = pkg.meta as { discount_percent?: number; days?: number; currency?: string } | undefined;
             const discountPercent = Number(meta?.discount_percent ?? 0);
             const priceAfter = getPriceAfterDiscount(basePrice, discountPercent);
             const days = Number(meta?.days ?? 1);
+            const cur = meta?.currency || pkg.currency || 'IDR';
             return (
               <tr key={pkg.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-semibold text-slate-900">{pkg.name}</td>
                 <td className="px-6 py-4 text-center text-slate-700">{days} hari</td>
+                <td className="px-6 py-4 text-center text-slate-700">{cur}</td>
                 <td className="px-6 py-4 text-right font-medium text-slate-900">
-                  {formatPrice(basePrice)}
+                  {formatPrice(basePrice, cur)}
                 </td>
                 <td className="px-6 py-4 text-center">
                   {discountPercent > 0 ? <span className="text-amber-600 font-medium">{discountPercent}%</span> : '-'}
                 </td>
                 <td className="px-6 py-4 text-right">
                   {discountPercent > 0 ? (
-                    <span className="text-emerald-600 font-medium">{formatPrice(priceAfter)}</span>
+                    <span className="text-emerald-600 font-medium">{formatPrice(priceAfter, cur)}</span>
                   ) : (
                     '-'
                   )}
@@ -370,8 +411,20 @@ const PackagesPage: React.FC = () => {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mata uang</label>
+                <select
+                  value={form.currency}
+                  onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value as 'IDR' | 'SAR' | 'USD' }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Harga (IDR) – total untuk {(() => { const v = parseInt(daysInput.trim(), 10); return (Number.isNaN(v) || v < 1) ? 1 : v; })()} hari
+                  Harga ({form.currency}) – total untuk {(() => { const v = parseInt(daysInput.trim(), 10); return (Number.isNaN(v) || v < 1) ? 1 : v; })()} hari
                 </label>
                 <input
                   type="number"
@@ -400,7 +453,7 @@ const PackagesPage: React.FC = () => {
                     <div className="rounded-lg bg-slate-50 p-3 text-sm">
                       <span className="text-slate-600">Harga setelah diskon: </span>
                       <span className="font-semibold text-emerald-600">
-                        {formatPrice(getPriceAfterDiscount(form.price, form.discountPercent))}
+                        {formatPrice(getPriceAfterDiscount(form.price, form.discountPercent), form.currency)}
                       </span>
                     </div>
                   )}

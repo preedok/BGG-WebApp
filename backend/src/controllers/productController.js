@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
-const { Product, ProductPrice, Branch, User } = require('../models');
+const { Product, ProductPrice, ProductAvailability, Branch, User } = require('../models');
 const { ROLES } = require('../constants');
 
 /**
@@ -39,43 +39,88 @@ async function getEffectivePrice(productId, branchId, ownerId, meta = {}, curren
   return price ? parseFloat(price.amount) : null;
 }
 
+const PRODUCT_ALLOWED_SORT = ['code', 'name', 'type', 'is_active', 'created_at'];
+
 /**
  * GET /api/v1/products
  * List products (with optional prices for branch/owner). For invoice: show general + branch prices.
  */
 const list = asyncHandler(async (req, res) => {
-  const { type, branch_id, owner_id, with_prices, is_package, include_inactive } = req.query;
+  const { type, branch_id, owner_id, with_prices, is_package, include_inactive, limit = 25, page = 1, sort_by, sort_order } = req.query;
   const where = {};
   if (include_inactive !== 'true' && include_inactive !== '1') where.is_active = true;
   if (type) where.type = type;
   if (is_package === 'true' || is_package === '1') where.is_package = true;
 
-  const products = await Product.findAll({
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 500);
+  const pg = Math.max(parseInt(page, 10) || 1, 1);
+  const offset = (pg - 1) * lim;
+
+  const sortCol = PRODUCT_ALLOWED_SORT.includes(sort_by) ? sort_by : 'code';
+  const sortDir = (sort_order || '').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+  const includeList = with_prices === 'true'
+    ? [
+        { model: ProductPrice, as: 'ProductPrices', required: false },
+        ...(type === 'hotel' ? [{ model: ProductAvailability, as: 'ProductAvailability', required: false }] : [])
+      ]
+    : [];
+  const { count, rows: products } = await Product.findAndCountAll({
     where,
-    order: [['type', 'ASC'], ['code', 'ASC']],
-    include: with_prices === 'true' ? [{ model: ProductPrice, as: 'ProductPrices', required: false }] : []
+    order: [[sortCol, sortDir]],
+    include: includeList,
+    limit: lim,
+    offset,
+    distinct: true
   });
 
   if (with_prices === 'true') {
     const bid = branch_id || req.user?.branch_id || null;
     const oid = owner_id || null;
-    const result = products.map(p => {
+    const result = (products || []).map(p => {
       const prices = p.ProductPrices || [];
       const general = prices.find(pr => !pr.branch_id && !pr.owner_id);
       const branch = bid ? prices.find(pr => pr.branch_id === bid && !pr.owner_id) : null;
       const special = oid ? prices.find(pr => pr.owner_id === oid) : null;
-      return {
+      const base = {
         ...p.toJSON(),
         price_general: general ? parseFloat(general.amount) : null,
         price_branch: branch ? parseFloat(branch.amount) : null,
         price_special: special ? parseFloat(special.amount) : null,
         currency: general?.currency || branch?.currency || 'IDR'
       };
+      if (type === 'hotel') {
+        const av = p.ProductAvailability;
+        const avMeta = (av?.meta || {}) || {};
+        const roomTypesMeta = avMeta.room_types || {};
+        const generalPrices = prices.filter(pr => !pr.branch_id && !pr.owner_id);
+        const rooms = {};
+        ['single', 'double', 'triple', 'quad', 'quint'].forEach(rt => {
+          const qty = Number(roomTypesMeta[rt]) || 0;
+          const priceRow = generalPrices.find(pr => pr.meta?.room_type === rt && !pr.meta?.with_meal);
+          const priceWithMeal = generalPrices.find(pr => pr.meta?.room_type === rt && pr.meta?.with_meal);
+          const basePrice = priceRow ? parseFloat(priceRow.amount) : (priceWithMeal ? parseFloat(priceWithMeal.amount) - (base.meta?.meal_price || 0) : 0);
+          rooms[rt] = { quantity: qty, price: basePrice };
+        });
+        base.room_breakdown = rooms;
+        base.prices_by_room = rooms;
+      }
+      return base;
     });
-    return res.json({ success: true, data: result });
+    const totalPages = Math.ceil(count / lim) || 1;
+    return res.json({
+      success: true,
+      data: result,
+      pagination: { total: count, page: pg, limit: lim, totalPages }
+    });
   }
 
-  res.json({ success: true, data: products });
+  const totalPages = Math.ceil(count / lim) || 1;
+  res.json({
+    success: true,
+    data: products,
+    pagination: { total: count, page: pg, limit: lim, totalPages }
+  });
 });
 
 /**
@@ -83,7 +128,10 @@ const list = asyncHandler(async (req, res) => {
  */
 const getById = asyncHandler(async (req, res) => {
   const product = await Product.findByPk(req.params.id, {
-    include: [{ model: ProductPrice, as: 'ProductPrices' }]
+    include: [
+      { model: ProductPrice, as: 'ProductPrices' },
+      { model: ProductAvailability, as: 'ProductAvailability', required: false }
+    ]
   });
   if (!product) return res.status(404).json({ success: false, message: 'Product tidak ditemukan' });
   res.json({ success: true, data: product });
@@ -103,13 +151,58 @@ const getPrice = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Generate kode hotel: HTL-{abbrev}-{loc}-{seq}. Contoh: Royal Andalus Makkah → HTL-RA-M-001
+ */
+async function generateHotelCode(name, location) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  const abbrev = words.length === 0 ? 'XX' : words.map(w => w[0]).join('').slice(0, 3).toUpperCase();
+  const loc = (location === 'madinah') ? 'D' : 'M';
+  const prefix = `HTL-${abbrev}-${loc}-`;
+  const existing = await Product.findAll({
+    where: { type: 'hotel', code: { [Op.like]: `${prefix}%` } },
+    attributes: ['code']
+  });
+  const nums = existing
+    .map(p => parseInt(String(p.code || '').replace(prefix, '') || '0', 10))
+    .filter(n => !Number.isNaN(n));
+  const nextSeq = nums.length === 0 ? 1 : Math.max(...nums) + 1;
+  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
+}
+
+/**
+ * POST /api/v1/products/hotels - buat hotel, type & code otomatis dari system
+ */
+const createHotel = asyncHandler(async (req, res) => {
+  const { name, description, meta } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ success: false, message: 'name wajib' });
+  const location = meta?.location || 'makkah';
+  const code = await generateHotelCode(name, location);
+  const product = await Product.create({
+    type: 'hotel',
+    code,
+    name: name.trim(),
+    description: description || null,
+    is_package: false,
+    meta: meta || {},
+    created_by: req.user.id
+  });
+  res.status(201).json({ success: true, data: product });
+});
+
+/**
  * POST /api/v1/products - admin pusat only
  */
 const create = asyncHandler(async (req, res) => {
   const { type, code, name, description, is_package, meta } = req.body;
-  if (!type || !code || !name) return res.status(400).json({ success: false, message: 'type, code, name wajib' });
+  if (!type || !name) return res.status(400).json({ success: false, message: 'type dan name wajib' });
+  let finalCode = code;
+  if (type === 'hotel' && (!finalCode || finalCode.trim() === '')) {
+    const location = meta?.location || 'makkah';
+    finalCode = await generateHotelCode(name, location);
+  }
+  if (!finalCode || finalCode.trim() === '') return res.status(400).json({ success: false, message: 'code wajib' });
   const product = await Product.create({
-    type, code, name,
+    type, code: finalCode, name,
     description: description || null,
     is_package: !!is_package,
     meta: meta || {},
@@ -136,14 +229,14 @@ const update = asyncHandler(async (req, res) => {
 });
 
 /**
- * DELETE /api/v1/products/:id - soft delete (set is_active = false). Super Admin / Admin Pusat only.
+ * DELETE /api/v1/products/:id - hard delete (hapus permanen dari database). Super Admin / Admin Pusat only.
+ * ProductPrice dan ProductAvailability akan terhapus otomatis (CASCADE).
  */
 const remove = asyncHandler(async (req, res) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).json({ success: false, message: 'Product tidak ditemukan' });
-  product.is_active = false;
-  await product.save();
-  res.json({ success: true, data: product });
+  await product.destroy();
+  res.json({ success: true, message: 'Product berhasil dihapus' });
 });
 
 /**
@@ -210,12 +303,23 @@ const createPrice = asyncHandler(async (req, res) => {
 const updatePrice = asyncHandler(async (req, res) => {
   const price = await ProductPrice.findByPk(req.params.id);
   if (!price) return res.status(404).json({ success: false, message: 'Price tidak ditemukan' });
-  const { amount, effective_from, effective_until } = req.body;
+  const { amount, currency, effective_from, effective_until } = req.body;
   if (amount !== undefined) price.amount = amount;
+  if (currency !== undefined) price.currency = currency;
   if (effective_from !== undefined) price.effective_from = effective_from;
   if (effective_until !== undefined) price.effective_until = effective_until;
   await price.save();
   res.json({ success: true, data: price });
+});
+
+/**
+ * DELETE /api/v1/products/prices/:id
+ */
+const deletePrice = asyncHandler(async (req, res) => {
+  const price = await ProductPrice.findByPk(req.params.id);
+  if (!price) return res.status(404).json({ success: false, message: 'Price tidak ditemukan' });
+  await price.destroy();
+  res.json({ success: true, message: 'Price berhasil dihapus' });
 });
 
 module.exports = {
@@ -223,10 +327,12 @@ module.exports = {
   getById,
   getPrice,
   create,
+  createHotel,
   update,
   remove,
   listPrices,
   createPrice,
   updatePrice,
+  deletePrice,
   getEffectivePrice
 };

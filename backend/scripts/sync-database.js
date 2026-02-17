@@ -38,8 +38,10 @@ async function ensureUsersPasswordHashColumn(db) {
 
 async function main() {
   try {
+    const useAlter = process.env.SYNC_ALTER === 'true' || process.env.NODE_ENV === 'development';
+    if (useAlter) console.log('Mode: alter=true (perubahan kolom dari model akan diterapkan)');
     console.log('Syncing database (creating/updating tables)...');
-    await sequelize.sync({ alter: process.env.SYNC_ALTER === 'true' });
+    await sequelize.sync({ alter: useAlter });
     await ensureUsersPasswordHashColumn(sequelize);
     console.log('Database sync selesai. Tabel siap untuk seed.');
     process.exit(0);

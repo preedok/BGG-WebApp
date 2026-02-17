@@ -378,7 +378,13 @@ export type InvoiceStatus =
   | 'completed'
   | 'overdue'
   | 'canceled'
-  | 'refunded';
+  | 'refunded'
+  | 'order_updated'
+  | 'overpaid'
+  | 'overpaid_transferred'
+  | 'overpaid_received'
+  | 'refund_canceled'
+  | 'overpaid_refund_pending';
 export type PaymentStatus = 'unpaid' | 'dp_paid' | 'partial' | 'paid';
 
 export interface Invoice {
@@ -556,6 +562,8 @@ export interface TableColumn {
   label: string;
   align?: 'left' | 'center' | 'right';
   sortable?: boolean;
+  /** Backend field name for server-side sort (default: id) */
+  sortKey?: string;
 }
 
 // ==================== COMMON ====================

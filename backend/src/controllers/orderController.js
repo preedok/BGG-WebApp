@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
-const { Order, OrderItem, User, Branch } = require('../models');
+const { Op } = require('sequelize');
+const { Order, OrderItem, User, Branch, Provinsi } = require('../models');
 const { getRulesForBranch } = require('./businessRuleController');
 const { getEffectivePrice } = require('./productController');
 const { ORDER_ITEM_TYPE } = require('../constants');
@@ -13,27 +14,70 @@ const generateOrderNumber = () => {
 /**
  * GET /api/v1/orders
  */
+const ALLOWED_SORT = ['order_number', 'created_at', 'total_amount', 'status'];
+
 const list = asyncHandler(async (req, res) => {
-  const { status, branch_id, owner_id } = req.query;
+  const { status, branch_id, owner_id, limit = 25, page = 1, sort_by, sort_order, date_from, date_to, order_number, provinsi_id, wilayah_id } = req.query;
   const where = {};
   if (status) where.status = status;
   if (branch_id) where.branch_id = branch_id;
   if (owner_id) where.owner_id = owner_id;
+  if (order_number && String(order_number).trim()) {
+    where.order_number = { [Op.iLike]: `%${String(order_number).trim()}%` };
+  }
+  if (date_from || date_to) {
+    where.created_at = {};
+    if (date_from) where.created_at[Op.gte] = new Date(date_from);
+    if (date_to) {
+      const d = new Date(date_to);
+      d.setHours(23, 59, 59, 999);
+      where.created_at[Op.lte] = d;
+    }
+  }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
   if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
     where.branch_id = req.user.branch_id;
   }
+  if (provinsi_id || wilayah_id) {
+    const branchWhere = { is_active: true };
+    if (provinsi_id) branchWhere.provinsi_id = provinsi_id;
+    const branchOpts = { where: branchWhere, attributes: ['id'] };
+    if (wilayah_id) {
+      branchOpts.include = [{ model: Provinsi, as: 'Provinsi', attributes: [], required: true, where: { wilayah_id } }];
+    }
+    const branchIds = (await Branch.findAll(branchOpts)).map(r => r.id);
+    if (branchIds.length > 0) {
+      where.branch_id = branch_id ? (branchIds.includes(branch_id) ? branch_id : 'none') : { [Op.in]: branchIds };
+    } else {
+      where.branch_id = 'none';
+    }
+  }
 
-  const orders = await Order.findAll({
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 500);
+  const pg = Math.max(parseInt(page, 10) || 1, 1);
+  const offset = (pg - 1) * lim;
+
+  const sortCol = ALLOWED_SORT.includes(sort_by) ? sort_by : 'created_at';
+  const sortDir = (sort_order || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+  const { count, rows } = await Order.findAndCountAll({
     where,
     include: [
       { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
       { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] },
       { model: OrderItem, as: 'OrderItems' }
     ],
-    order: [['created_at', 'DESC']]
+    order: [[sortCol, sortDir]],
+    limit: lim,
+    offset,
+    distinct: true
   });
-  res.json({ success: true, data: orders });
+  const totalPages = Math.ceil(count / lim) || 1;
+  res.json({
+    success: true,
+    data: rows,
+    pagination: { total: count, page: pg, limit: lim, totalPages }
+  });
 });
 
 /**

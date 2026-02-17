@@ -55,84 +55,72 @@ const BusPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Hero */}
-      <header className="flex flex-wrap items-start gap-5">
-        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 shrink-0">
-          <Bus className="w-7 h-7" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Bus Saudi</h1>
-          <p className="text-slate-600 mt-1 text-sm leading-relaxed max-w-xl">
-            Atur minimal paket dan penalti bus. Order, tiket, dan status harian dikelola oleh tim Bus cabang.
-          </p>
-        </div>
-      </header>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">Bus Saudi</h2>
+        <p className="text-slate-600 text-sm mt-0.5">
+          Atur minimal paket dan penalti bus. Order & tiket dikelola tim Bus cabang.
+        </p>
+      </div>
 
       {canConfig && (
-        <div className="space-y-6">
-          {/* Summary + form in one flow */}
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Card className="p-5 border border-slate-200/80 bg-white rounded-2xl shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-amber-100 text-amber-600 shrink-0">
-                  <Users className="w-6 h-6" />
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card padding="sm" className="!p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-600 shrink-0">
+                  <Users className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-500">Minimal paket</p>
-                  <p className="text-xl font-bold text-slate-900">{form.bus_min_pack || 0} <span className="text-base font-normal text-slate-600">orang</span></p>
+                  <p className="text-xs text-slate-500">Minimal paket</p>
+                  <p className="text-xl font-bold text-slate-900 tabular-nums">{form.bus_min_pack || 0} <span className="text-sm font-normal text-slate-600">orang</span></p>
                 </div>
               </div>
             </Card>
-            <Card className="p-5 border border-slate-200/80 bg-white rounded-2xl shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-red-100 text-red-600 shrink-0">
-                  <AlertCircle className="w-6 h-6" />
+            <Card padding="sm" className="!p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-red-100 text-red-600 shrink-0">
+                  <AlertCircle className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-500">Penalti bus</p>
-                  <p className="text-xl font-bold text-slate-900">
-                    Rp {Number(form.bus_penalty_idr || 0).toLocaleString('id-ID')}
-                  </p>
+                  <p className="text-xs text-slate-500">Penalti bus</p>
+                  <p className="text-xl font-bold text-slate-900 tabular-nums">Rp {Number(form.bus_penalty_idr || 0).toLocaleString('id-ID')}</p>
                 </div>
               </div>
             </Card>
           </div>
 
-          {/* Konfigurasi – selalu tampil, tidak pakai collapse */}
-          <Card className="p-6 sm:p-8 border border-slate-200/80 bg-white rounded-2xl shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
-                <Settings className="w-5 h-5" />
-              </div>
+          <Card>
+            <div className="flex items-center gap-3 mb-4">
+              <Settings className="w-5 h-5 text-slate-500" />
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Ubah konfigurasi</h2>
+                <h3 className="text-base font-semibold text-slate-900">Ubah konfigurasi</h3>
                 <p className="text-sm text-slate-500">Minimal paket & penalti bus</p>
               </div>
             </div>
 
             {loading ? (
-              <div className="py-8 text-center text-slate-500 text-sm">Memuat...</div>
+              <p className="text-slate-500 text-sm py-4">Memuat...</p>
             ) : (
-              <div className="flex flex-wrap items-end gap-6">
-                <div className="min-w-0 w-full sm:max-w-[200px]">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Minimal paket (orang)</label>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Minimal paket (orang)</label>
                   <input
                     type="number"
                     min={1}
                     value={form.bus_min_pack || ''}
                     onChange={(e) => setForm((f) => ({ ...f, bus_min_pack: Number(e.target.value) || 0 }))}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-slate-50/50"
+                    className="w-full max-w-[160px] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
                   />
                 </div>
-                <div className="min-w-0 w-full sm:max-w-[220px]">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Penalti bus (IDR)</label>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Penalti bus (IDR)</label>
                   <input
                     type="number"
                     min={0}
                     value={form.bus_penalty_idr || ''}
                     onChange={(e) => setForm((f) => ({ ...f, bus_penalty_idr: Number(e.target.value) || 0 }))}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-slate-50/50"
+                    className="w-full max-w-[200px] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
                   />
                 </div>
                 <Button variant="primary" onClick={handleSaveConfig} disabled={saving} className="flex items-center gap-2 shrink-0">
@@ -141,23 +129,18 @@ const BusPage: React.FC = () => {
               </div>
             )}
           </Card>
-        </div>
+        </>
       )}
 
-      {/* Info */}
-      <Card className="p-5 border border-slate-200/80 bg-slate-50/80 rounded-2xl">
-        <div className="flex gap-4">
-          <div className="shrink-0 w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500">
-            <Bus className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold text-slate-900 mb-0.5 text-sm">Order & tiket bus</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Untuk mengelola order bus, tiket bis, dan status kedatangan/keberangkatan/kepulangan, gunakan akun <strong>role Bus Saudi cabang</strong>.
-            </p>
-          </div>
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex gap-3">
+        <Bus className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+        <div>
+          <h3 className="font-medium text-slate-900 text-sm">Order & tiket bus</h3>
+          <p className="text-sm text-slate-600 mt-0.5">
+            Order bus, tiket, dan status kedatangan/keberangkatan dikelola dengan akun <strong>role Bus Saudi cabang</strong>.
+          </p>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

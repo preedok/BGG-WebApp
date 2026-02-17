@@ -36,7 +36,10 @@ const SUBDIRS = {
   MANIFEST_TICKET: 'manifest/ticket',
   VISA_DOCS: 'visa-docs',
   TICKET_DOCS: 'ticket-docs',
-  FLYER: 'flyer'
+  FLYER: 'flyer',
+  INVOICE_EXAMPLES: 'invoice-examples',
+  INVOICES: 'invoices',
+  PAYROLL_SLIPS: 'payroll-slips'
 };
 
 function getDir(subdir) {
@@ -106,6 +109,23 @@ function ticketDocFilename(orderNumber, orderItemId, originalName) {
 }
 
 /**
+ * Nama file invoice PDF: INV_{invoiceNumber}_{status}_YYYYMMDD_HHmmss.pdf
+ */
+function invoiceFilename(invoiceNumber, status) {
+  const { date, time } = dateTimeForFilename();
+  const safeNum = (invoiceNumber || 'INV').replace(/[^a-zA-Z0-9-]/g, '_');
+  const safeStatus = (status || 'draft').replace(/[^a-zA-Z0-9_]/g, '_');
+  return `INV_${safeNum}_${safeStatus}_${date}_${time}.pdf`;
+}
+
+function payrollSlipFilename(employeeName, periodYear, periodMonth, itemId) {
+  const { date, time } = dateTimeForFilename();
+  const safeName = (employeeName || 'emp').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
+  const id6 = (itemId || '').toString().slice(-6);
+  return `SLIP_${safeName}_${periodYear}_${periodMonth}_${id6}_${date}_${time}.pdf`;
+}
+
+/**
  * URL path untuk akses file dari API (tanpa host). Contoh: /uploads/mou/MOU_Owner_xxx.pdf
  */
 function toUrlPath(subdir, filename) {
@@ -124,5 +144,7 @@ module.exports = {
   paymentProofFilename,
   visaDocFilename,
   ticketDocFilename,
+  invoiceFilename,
+  payrollSlipFilename,
   toUrlPath
 };

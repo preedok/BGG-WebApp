@@ -3,18 +3,29 @@
  * Sesuai Master Business Process
  */
 
+// Workflow: Pusat + Koordinator per wilayah. Hotel/Bus/Invoice Saudi di Saudi Arabia.
 const ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN_PUSAT: 'admin_pusat',
+  // Koordinator per wilayah (menggantikan admin_cabang/admin_provinsi/admin_wilayah + role per cabang)
+  ADMIN_KOORDINATOR: 'admin_koordinator',
+  INVOICE_KOORDINATOR: 'invoice_koordinator',
+  TIKET_KOORDINATOR: 'tiket_koordinator',
+  VISA_KOORDINATOR: 'visa_koordinator',
+  // Saudi Arabia: hotel, bus, invoice
+  ROLE_HOTEL: 'role_hotel',
+  ROLE_BUS: 'role_bus',
+  ROLE_INVOICE_SAUDI: 'role_invoice_saudi',
+  ROLE_ACCOUNTING: 'role_accounting',
+  OWNER: 'owner',
+  // Deprecated (tetap di enum DB untuk kompatibilitas, tidak dipakai)
+  ADMIN_PROVINSI: 'admin_provinsi',
+  ADMIN_WILAYAH: 'admin_wilayah',
   ADMIN_CABANG: 'admin_cabang',
   ROLE_INVOICE: 'role_invoice',
-  ROLE_HOTEL: 'role_hotel',
   ROLE_VISA: 'role_visa',
   ROLE_TICKET: 'role_ticket',
-  ROLE_BUS: 'role_bus',
-  ROLE_HANDLING: 'role_handling',
-  ROLE_ACCOUNTING: 'role_accounting',
-  OWNER: 'owner'
+  ROLE_HANDLING: 'role_handling'
 };
 
 // PROSES A - Registrasi & Aktivasi Owner
@@ -29,17 +40,23 @@ const OWNER_STATUS = {
   REJECTED: 'rejected'
 };
 
-// IV. Status Invoice (Blueprint)
+// IV. Status Invoice (Blueprint) - Lengkap
 const INVOICE_STATUS = {
   DRAFT: 'draft',
-  TENTATIVE: 'tentative',
-  PARTIAL_PAID: 'partial_paid',
-  PAID: 'paid',
+  TENTATIVE: 'tentative',           // Tagihan DP - menunggu pembayaran DP
+  PARTIAL_PAID: 'partial_paid',    // Pembayaran DP - DP sudah dibayar
+  PAID: 'paid',                    // Lunas
   PROCESSING: 'processing',
   COMPLETED: 'completed',
   OVERDUE: 'overdue',
   CANCELED: 'canceled',
-  REFUNDED: 'refunded'
+  REFUNDED: 'refunded',
+  ORDER_UPDATED: 'order_updated',   // Order diupdate, invoice perlu penyesuaian
+  OVERPAID: 'overpaid',             // Kelebihan bayar
+  OVERPAID_TRANSFERRED: 'overpaid_transferred',  // Pindahan overpaid (sumber/dipindahkan)
+  OVERPAID_RECEIVED: 'overpaid_received',        // Menerima pindahan overpaid
+  REFUND_CANCELED: 'refund_canceled',            // Refund dibatalkan
+  OVERPAID_REFUND_PENDING: 'overpaid_refund_pending'  // Kelebihan bayar - sisa pengembalian
 };
 
 // VII. Status Refund
@@ -152,7 +169,63 @@ const NOTIFICATION_TRIGGER = {
   TICKET_ISSUED: 'ticket_issued',
   ORDER_COMPLETED: 'order_completed',
   CANCEL: 'cancel',
-  REFUND: 'refund'
+  REFUND: 'refund',
+  PAYROLL_SLIP_ISSUED: 'payroll_slip_issued'
+};
+
+// Payroll
+const PAYROLL_METHOD = {
+  SCHEDULED: 'scheduled',
+  MANUAL: 'manual'
+};
+
+const PAYROLL_RUN_STATUS = {
+  DRAFT: 'draft',
+  PROCESSED: 'processed',
+  FINALIZED: 'finalized'
+};
+
+// Accounting Document Workflow
+const ACCOUNTING_DOC_STATUS = {
+  DRAFT: 'draft',
+  SUBMITTED: 'submitted',
+  VERIFIED: 'verified',
+  APPROVED: 'approved',
+  POSTED_TO_GL: 'posted_to_gl',
+  CLOSED: 'closed'
+};
+
+// Journal Entry Status
+const JOURNAL_ENTRY_STATUS = {
+  DRAFT: 'draft',
+  SUBMITTED: 'submitted',
+  APPROVED: 'approved',
+  POSTED: 'posted',
+  REVERSED: 'reversed'
+};
+
+// Account Types (Chart of Accounts)
+const ACCOUNT_TYPE = {
+  ASSET: 'asset',
+  LIABILITY: 'liability',
+  EQUITY: 'equity',
+  REVENUE: 'revenue',
+  EXPENSE: 'expense'
+};
+
+// Account Mapping Types
+const ACCOUNT_MAPPING_TYPE = {
+  SALES_HOTEL: 'sales_hotel',
+  SALES_VISA: 'sales_visa',
+  SALES_TICKET: 'sales_ticket',
+  SALES_BUS: 'sales_bus',
+  SALES_HANDLING: 'sales_handling',
+  PURCHASE_HOTEL: 'purchase_hotel',
+  PURCHASE_BUS: 'purchase_bus',
+  PAYROLL: 'payroll',
+  CASH_RECEIPT: 'cash_receipt',
+  CASH_DISBURSEMENT: 'cash_disbursement',
+  BANK_TRANSFER: 'bank_transfer'
 };
 
 // Business rules
@@ -171,6 +244,10 @@ module.exports = {
   OWNER_STATUS,
   INVOICE_STATUS,
   REFUND_STATUS,
+  ACCOUNTING_DOC_STATUS,
+  JOURNAL_ENTRY_STATUS,
+  ACCOUNT_TYPE,
+  ACCOUNT_MAPPING_TYPE,
   HOTEL_PROGRESS_STATUS,
   ROOM_STATUS,
   BUS_TICKET_STATUS,
@@ -182,5 +259,7 @@ module.exports = {
   ROOM_TYPES,
   BUSINESS_RULE_KEYS,
   NOTIFICATION_TRIGGER,
-  BUSINESS_RULES
+  BUSINESS_RULES,
+  PAYROLL_METHOD,
+  PAYROLL_RUN_STATUS
 };

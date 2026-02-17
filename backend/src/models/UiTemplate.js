@@ -13,7 +13,6 @@ const UiTemplate = sequelize.define('UiTemplate', {
   code: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    unique: true,
     comment: 'e.g. default, compact, modern, minimal'
   },
   name: {
@@ -40,7 +39,8 @@ const UiTemplate = sequelize.define('UiTemplate', {
 }, {
   tableName: 'ui_templates',
   underscored: true,
-  timestamps: true
+  timestamps: true,
+  indexes: [{ unique: true, fields: ['code'] }]
 });
 
 module.exports = UiTemplate;

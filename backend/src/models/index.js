@@ -1,10 +1,13 @@
 const sequelize = require('../config/sequelize');
+const Wilayah = require('./Wilayah');
+const Provinsi = require('./Provinsi');
 const Branch = require('./Branch');
 const User = require('./User');
 const OwnerProfile = require('./OwnerProfile');
 const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Invoice = require('./Invoice');
+const InvoiceFile = require('./InvoiceFile');
 const PaymentProof = require('./PaymentProof');
 const Refund = require('./Refund');
 const AuditLog = require('./AuditLog');
@@ -22,14 +25,33 @@ const VisaProgress = require('./VisaProgress');
 const BusProgress = require('./BusProgress');
 const ProductAvailability = require('./ProductAvailability');
 const FlyerTemplate = require('./FlyerTemplate');
+const AccountingFiscalYear = require('./AccountingFiscalYear');
+const AccountingPeriod = require('./AccountingPeriod');
+const ChartOfAccount = require('./ChartOfAccount');
+const AccountMapping = require('./AccountMapping');
+const JournalEntry = require('./JournalEntry');
+const JournalEntryLine = require('./JournalEntryLine');
+const PayrollSetting = require('./PayrollSetting');
+const EmployeeSalary = require('./EmployeeSalary');
+const PayrollRun = require('./PayrollRun');
+const PayrollItem = require('./PayrollItem');
 
-// Branch
+// Wilayah -> Provinsi -> Branch
+Wilayah.hasMany(Provinsi, { foreignKey: 'wilayah_id' });
+Provinsi.belongsTo(Wilayah, { foreignKey: 'wilayah_id', as: 'Wilayah' });
+Provinsi.hasMany(Branch, { foreignKey: 'provinsi_id' });
+Branch.belongsTo(Provinsi, { foreignKey: 'provinsi_id', as: 'Provinsi' });
+
+// Branch & Wilayah
 User.belongsTo(Branch, { foreignKey: 'branch_id', as: 'Branch' });
 Branch.hasMany(User, { foreignKey: 'branch_id' });
+User.belongsTo(Wilayah, { foreignKey: 'wilayah_id', as: 'Wilayah' });
+Wilayah.hasMany(User, { foreignKey: 'wilayah_id' });
 
 // OwnerProfile -> User
 OwnerProfile.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
 User.hasOne(OwnerProfile, { foreignKey: 'user_id' });
+OwnerProfile.belongsTo(Branch, { foreignKey: 'preferred_branch_id', as: 'PreferredBranch' });
 OwnerProfile.belongsTo(Branch, { foreignKey: 'assigned_branch_id', as: 'AssignedBranch' });
 
 // Order
@@ -52,6 +74,10 @@ PaymentProof.belongsTo(Invoice, { foreignKey: 'invoice_id' });
 PaymentProof.belongsTo(User, { foreignKey: 'uploaded_by' });
 PaymentProof.belongsTo(User, { foreignKey: 'verified_by' });
 Invoice.hasMany(PaymentProof, { foreignKey: 'invoice_id', as: 'PaymentProofs' });
+Invoice.hasOne(InvoiceFile, { foreignKey: 'invoice_id', as: 'InvoiceFile' });
+InvoiceFile.belongsTo(Invoice, { foreignKey: 'invoice_id' });
+InvoiceFile.belongsTo(Order, { foreignKey: 'order_id', as: 'Order' });
+InvoiceFile.belongsTo(User, { foreignKey: 'generated_by', as: 'GeneratedBy' });
 
 // Refund
 Refund.belongsTo(Invoice, { foreignKey: 'invoice_id' });
@@ -111,15 +137,44 @@ FlyerTemplate.belongsTo(Product, { foreignKey: 'product_id' });
 FlyerTemplate.belongsTo(User, { foreignKey: 'created_by', as: 'CreatedBy' });
 Product.hasMany(FlyerTemplate, { foreignKey: 'product_id', as: 'FlyerTemplates' });
 
+// Accounting
+AccountingFiscalYear.hasMany(AccountingPeriod, { foreignKey: 'fiscal_year_id', as: 'Periods' });
+AccountingPeriod.belongsTo(AccountingFiscalYear, { foreignKey: 'fiscal_year_id', as: 'FiscalYear' });
+ChartOfAccount.hasMany(ChartOfAccount, { foreignKey: 'parent_id', as: 'Children' });
+ChartOfAccount.belongsTo(ChartOfAccount, { foreignKey: 'parent_id', as: 'Parent' });
+AccountMapping.belongsTo(ChartOfAccount, { foreignKey: 'debit_account_id', as: 'DebitAccount' });
+AccountMapping.belongsTo(ChartOfAccount, { foreignKey: 'credit_account_id', as: 'CreditAccount' });
+JournalEntry.belongsTo(AccountingPeriod, { foreignKey: 'period_id', as: 'Period' });
+JournalEntry.belongsTo(Branch, { foreignKey: 'branch_id', as: 'Branch' });
+JournalEntry.belongsTo(User, { foreignKey: 'created_by', as: 'CreatedBy' });
+JournalEntry.hasMany(JournalEntryLine, { foreignKey: 'journal_entry_id', as: 'Lines' });
+JournalEntryLine.belongsTo(JournalEntry, { foreignKey: 'journal_entry_id', as: 'JournalEntry' });
+JournalEntryLine.belongsTo(ChartOfAccount, { foreignKey: 'account_id', as: 'Account' });
+
+PayrollSetting.belongsTo(Branch, { foreignKey: 'branch_id', as: 'Branch' });
+Branch.hasOne(PayrollSetting, { foreignKey: 'branch_id', as: 'PayrollSetting' });
+EmployeeSalary.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
+User.hasMany(EmployeeSalary, { foreignKey: 'user_id', as: 'EmployeeSalaries' });
+PayrollRun.belongsTo(Branch, { foreignKey: 'branch_id', as: 'Branch' });
+PayrollRun.belongsTo(User, { foreignKey: 'created_by', as: 'CreatedBy' });
+Branch.hasMany(PayrollRun, { foreignKey: 'branch_id', as: 'PayrollRuns' });
+PayrollRun.hasMany(PayrollItem, { foreignKey: 'payroll_run_id', as: 'PayrollItems' });
+PayrollItem.belongsTo(PayrollRun, { foreignKey: 'payroll_run_id', as: 'PayrollRun' });
+PayrollItem.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
+User.hasMany(PayrollItem, { foreignKey: 'user_id', as: 'PayrollItems' });
+
 const db = {
   sequelize,
   Sequelize: require('sequelize'),
+  Wilayah,
+  Provinsi,
   Branch,
   User,
   OwnerProfile,
   Order,
   OrderItem,
   Invoice,
+  InvoiceFile,
   PaymentProof,
   Refund,
   AuditLog,
@@ -136,7 +191,17 @@ const db = {
   VisaProgress,
   BusProgress,
   ProductAvailability,
-  FlyerTemplate
+  FlyerTemplate,
+  AccountingFiscalYear,
+  AccountingPeriod,
+  ChartOfAccount,
+  AccountMapping,
+  JournalEntry,
+  JournalEntryLine,
+  PayrollSetting,
+  EmployeeSalary,
+  PayrollRun,
+  PayrollItem
 };
 
 module.exports = db;

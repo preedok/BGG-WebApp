@@ -35,6 +35,19 @@ const User = sequelize.define('User', {
     onUpdate: 'CASCADE',
     onDelete: 'SET NULL'
   },
+  wilayah_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: { model: 'wilayah', key: 'id' },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL',
+    comment: 'For koordinator roles: scope to this wilayah (and its provinsi/cabang)'
+  },
+  region: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    comment: 'For admin_provinsi: province/region scope'
+  },
   company_name: {
     type: DataTypes.STRING(255),
     comment: 'For owner: nama perusahaan'

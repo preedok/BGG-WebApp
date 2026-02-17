@@ -23,7 +23,9 @@ import {
   ChevronRight,
   ChevronDown,
   Rocket,
-  UserPlus
+  UserPlus,
+  Calendar,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { MenuItem, UserRole, ROLE_NAMES } from '../types';
@@ -50,19 +52,13 @@ const menuItems: MenuItem[] = [
     title: 'Order & Invoice',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/orders-invoices',
-    roles: ['admin_pusat', 'admin_cabang']
+    roles: ['admin_pusat', 'admin_cabang', 'role_accounting']
   },
   {
     title: 'Orders',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/orders',
     roles: ['super_admin', 'role_invoice', 'owner']
-  },
-  {
-    title: 'Invoices',
-    icon: <Receipt className="w-5 h-5" />,
-    path: '/dashboard/invoices',
-    roles: ['super_admin', 'role_invoice', 'role_accounting', 'owner']
   },
   {
     title: 'Users',
@@ -89,16 +85,10 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat']
   },
   {
-    title: 'Buat Akun (Bus/Hotel/Admin Cabang)',
+    title: 'Buat Akun',
     icon: <UserPlus className="w-5 h-5" />,
     path: '/dashboard/admin-pusat/users',
-    roles: ['admin_pusat']
-  },
-  {
-    title: 'Flyer & Template',
-    icon: <Package className="w-5 h-5" />,
-    path: '/dashboard/flyers',
-    roles: ['admin_pusat']
+    roles: ['super_admin', 'admin_pusat']
   },
   {
     title: 'Reports',
@@ -107,15 +97,21 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat', 'role_accounting']
   },
   {
-    title: 'Laporan Keuangan',
+    title: 'Chart of Accounts',
     icon: <FileText className="w-5 h-5" />,
-    path: '/dashboard/accounting/financial-report',
+    path: '/dashboard/accounting/chart-of-accounts',
     roles: ['role_accounting']
   },
   {
-    title: 'Rekonsiliasi Bank',
-    icon: <Receipt className="w-5 h-5" />,
-    path: '/dashboard/accounting/reconciliation',
+    title: 'Periode Fiskal',
+    icon: <Calendar className="w-5 h-5" />,
+    path: '/dashboard/accounting/fiscal-periods',
+    roles: ['role_accounting']
+  },
+  {
+    title: 'Laporan Keuangan',
+    icon: <FileText className="w-5 h-5" />,
+    path: '/dashboard/accounting/financial-report',
     roles: ['role_accounting']
   },
   {
@@ -125,10 +121,16 @@ const menuItems: MenuItem[] = [
     roles: ['role_accounting']
   },
   {
-    title: 'Daftar Order',
-    icon: <Receipt className="w-5 h-5" />,
-    path: '/dashboard/accounting/orders',
-    roles: ['role_accounting']
+    title: 'Penggajian',
+    icon: <DollarSign className="w-5 h-5" />,
+    path: '/dashboard/accounting/payroll/runs',
+    roles: ['super_admin', 'admin_pusat', 'role_accounting']
+  },
+  {
+    title: 'Slip Gaji Saya',
+    icon: <FileText className="w-5 h-5" />,
+    path: '/dashboard/my-slip-gaji',
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting']
   },
   {
     title: 'Settings',
@@ -216,7 +218,7 @@ const DashboardLayout: React.FC = () => {
   // Filter menu based on user role. Super Admin HANYA akses: Dashboard + Monitoring, Order Stats, Logs, Maintenance, Language, Deploy (tidak ada Orders, Invoices, dll)
   const filteredMenuItems = user
     ? user.role === 'super_admin'
-      ? menuItems.filter(item => item.roles.includes('super_admin') && (item.path === '/dashboard' || item.path.startsWith('/dashboard/super-admin')))
+      ? menuItems.filter(item => item.roles.includes('super_admin') && (item.path === '/dashboard' || item.path.startsWith('/dashboard/super-admin') || item.path === '/dashboard/reports'))
       : menuItems.filter(item => item.roles.includes(user.role))
     : [];
 

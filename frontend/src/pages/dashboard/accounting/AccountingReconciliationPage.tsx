@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Filter, CheckCircle } from 'lucide-react';
+import { Receipt, Filter, CheckCircle, RefreshCw } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import Badge from '../../../components/common/Badge';
@@ -10,14 +10,18 @@ const AccountingReconciliationPage: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [reconciled, setReconciled] = useState<string>('');
+  const [branchId, setBranchId] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [branches, setBranches] = useState<{ id: string; code: string; name: string }[]>([]);
+  const [showFilters, setShowFilters] = useState(true);
 
   const fetchList = async () => {
     setLoading(true);
     try {
-      const params: { reconciled?: string; date_from?: string; date_to?: string } = {};
+      const params: Record<string, string> = {};
       if (reconciled) params.reconciled = reconciled;
+      if (branchId) params.branch_id = branchId;
       if (dateFrom) params.date_from = dateFrom;
       if (dateTo) params.date_to = dateTo;
       const res = await accountingApi.getReconciliation(params);
@@ -31,8 +35,14 @@ const AccountingReconciliationPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchList();
+    accountingApi.getDashboard({}).then((r) => {
+      if (r.data.success && r.data.data?.branches) setBranches(r.data.data.branches);
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetchList();
+  }, [reconciled, branchId, dateFrom, dateTo]);
 
   const handleReconcile = async (id: string) => {
     try {
@@ -43,38 +53,72 @@ const AccountingReconciliationPage: React.FC = () => {
     }
   };
 
+  const resetFilters = () => {
+    setReconciled('');
+    setBranchId('');
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  const hasActiveFilters = branchId || reconciled || dateFrom || dateTo;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Rekonsiliasi Bank</h1>
-        <p className="text-slate-600 mt-1">Cocokkan bukti pembayaran dengan rekening koran, tandai yang sudah direkonsiliasi</p>
+      <div className="flex flex-wrap justify-between items-start gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Rekonsiliasi Bank</h1>
+          <p className="text-slate-600 mt-1">Cocokkan bukti pembayaran dengan rekening koran, tandai yang sudah direkonsiliasi</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="w-4 h-4 mr-2" />
+            Filter {hasActiveFilters && <span className="ml-1 px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded-full">aktif</span>}
+          </Button>
+          {hasActiveFilters && <Button variant="ghost" size="sm" onClick={resetFilters}>Reset</Button>}
+          <Button variant="primary" size="sm" onClick={fetchList} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-center gap-2 text-slate-600">
-            <Filter className="w-5 h-5" />
-            <span className="font-medium">Filter</span>
+      {showFilters && (
+        <Card className="bg-slate-50/80">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+            <Filter className="w-4 h-4" /> Filter Data
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Cabang</label>
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                <option value="">Semua cabang</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.code} - {b.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Status Rekonsiliasi</label>
+              <select value={reconciled} onChange={(e) => setReconciled(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                <option value="">Semua</option>
+                <option value="true">Sudah direkonsiliasi</option>
+                <option value="false">Belum direkonsiliasi</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Dari Tanggal</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Sampai Tanggal</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Status Rekonsiliasi</label>
-            <select value={reconciled} onChange={(e) => setReconciled(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500">
-              <option value="">Semua</option>
-              <option value="true">Sudah direkonsiliasi</option>
-              <option value="false">Belum direkonsiliasi</option>
-            </select>
+          <div className="mt-4">
+            <Button variant="primary" onClick={fetchList} disabled={loading}>{loading ? 'Memuat...' : 'Terapkan'}</Button>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Dari</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Sampai</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2" />
-          </div>
-          <Button variant="primary" onClick={fetchList} disabled={loading}>{loading ? 'Memuat...' : 'Terapkan'}</Button>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <Card>
         {loading ? (
@@ -91,7 +135,7 @@ const AccountingReconciliationPage: React.FC = () => {
                   <th className="pb-2 pr-4">Jumlah</th>
                   <th className="pb-2 pr-4">Bank</th>
                   <th className="pb-2 pr-4">Verifikasi</th>
-                  <th className="pb-2">Rekonsiliasi</th>
+                  <th className="pb-2">Aksi</th>
                 </tr>
               </thead>
               <tbody>

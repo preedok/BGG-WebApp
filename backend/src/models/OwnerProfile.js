@@ -62,6 +62,12 @@ const OwnerProfile = sequelize.define('OwnerProfile', {
     type: DataTypes.UUID,
     references: { model: 'users', key: 'id' }
   },
+  preferred_branch_id: {
+    type: DataTypes.UUID,
+    references: { model: 'branches', key: 'id' },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL'
+  },
   assigned_branch_id: {
     type: DataTypes.UUID,
     references: { model: 'branches', key: 'id' }

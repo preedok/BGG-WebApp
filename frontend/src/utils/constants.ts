@@ -7,7 +7,8 @@
 // API CONFIGURATION
 // ============================================
 
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+// Use relative path in dev (proxy to backend) when REACT_APP_API_URL not set
+export const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
 export const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
 
 // ============================================
@@ -39,13 +40,14 @@ export const ORDER_STATUSES = {
   CANCELLED: 'cancelled'
 } as const;
 
-export const ORDER_STATUS_LABELS = {
+export const ORDER_STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
-  pending: 'Pending',
+  tentative: 'Tentative',
   confirmed: 'Confirmed',
   processing: 'Processing',
   completed: 'Completed',
-  cancelled: 'Cancelled'
+  cancelled: 'Cancelled',
+  blocked: 'Blocked'
 };
 
 export const ORDER_STATUS_COLORS = {
@@ -62,31 +64,58 @@ export const ORDER_STATUS_COLORS = {
 // ============================================
 
 export const INVOICE_STATUSES = {
-  TENTATIVE: 'tentative',
-  DEFINITE: 'definite',
-  PARTIAL: 'partial',
-  PAID: 'paid',
+  DRAFT: 'draft',
+  TENTATIVE: 'tentative',           // Tagihan DP
+  PARTIAL_PAID: 'partial_paid',     // Pembayaran DP
+  PAID: 'paid',                     // Lunas
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
   OVERDUE: 'overdue',
-  CANCELLED: 'cancelled'
+  CANCELED: 'canceled',
+  REFUNDED: 'refunded',
+  ORDER_UPDATED: 'order_updated',
+  OVERPAID: 'overpaid',
+  OVERPAID_TRANSFERRED: 'overpaid_transferred',
+  OVERPAID_RECEIVED: 'overpaid_received',
+  REFUND_CANCELED: 'refund_canceled',
+  OVERPAID_REFUND_PENDING: 'overpaid_refund_pending'
 } as const;
 
-export const INVOICE_STATUS_LABELS = {
-  tentative: 'Tentative',
-  definite: 'Definite',
-  partial: 'Partial Payment',
-  paid: 'Fully Paid',
+export const INVOICE_STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  tentative: 'Tagihan DP',
+  partial_paid: 'Pembayaran DP',
+  paid: 'Lunas',
+  processing: 'Processing',
+  completed: 'Completed',
   overdue: 'Overdue',
-  cancelled: 'Cancelled'
+  canceled: 'Dibatalkan',
+  refunded: 'Refund Dana',
+  order_updated: 'Order Diupdate',
+  overpaid: 'Kelebihan Bayar',
+  overpaid_transferred: 'Pindahan (Sumber)',
+  overpaid_received: 'Pindahan (Penerima)',
+  refund_canceled: 'Refund Dibatalkan',
+  overpaid_refund_pending: 'Sisa Pengembalian'
 };
 
-export const INVOICE_STATUS_COLORS = {
+export const INVOICE_STATUS_COLORS: Record<string, string> = {
+  draft: 'default',
   tentative: 'default',
-  definite: 'info',
-  partial: 'warning',
+  partial_paid: 'warning',
   paid: 'success',
+  processing: 'info',
+  completed: 'success',
   overdue: 'error',
-  cancelled: 'error'
-} as const;
+  canceled: 'error',
+  refunded: 'default',
+  order_updated: 'warning',
+  overpaid: 'warning',
+  overpaid_transferred: 'info',
+  overpaid_received: 'info',
+  refund_canceled: 'error',
+  overpaid_refund_pending: 'warning'
+};
 
 // ============================================
 // PAYMENT METHODS

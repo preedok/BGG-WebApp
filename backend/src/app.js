@@ -43,9 +43,11 @@ app.get('/health', (req, res) => {
 app.use('/api/v1', require('./routes/v1'));
 
 app.use((req, res) => {
+  console.warn('[404]', req.method, req.originalUrl);
   res.status(404).json({ 
     success: false, 
-    message: 'Route not found' 
+    message: 'Route not found',
+    path: req.method + ' ' + req.originalUrl
   });
 });
 

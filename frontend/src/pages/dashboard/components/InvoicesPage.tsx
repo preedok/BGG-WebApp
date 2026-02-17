@@ -8,6 +8,7 @@ import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatIDR } from '../../../utils';
+import { INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS } from '../../../utils/constants';
 import { invoicesApi } from '../../../services/api';
 
 interface InvoiceRow {
@@ -30,24 +31,43 @@ const InvoicesPage: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null);
   const [viewInvoice, setViewInvoice] = useState<any | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const res = await invoicesApi.list(statusFilter !== 'all' ? { status: statusFilter } : {});
-      if (res.data.success) setInvoices(res.data.data || []);
+      const params: { status?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' } = { limit, page, sort_by: sortBy, sort_order: sortOrder };
+      if (statusFilter !== 'all') params.status = statusFilter;
+      const res = await invoicesApi.list(params);
+      if (res.data.success) {
+        const data = res.data.data || [];
+        setInvoices(data);
+        const p = (res.data as { pagination?: { total: number; page: number; limit: number; totalPages: number } }).pagination;
+        setPagination(p || { total: data.length, page: 1, limit: data.length, totalPages: 1 });
+      } else {
+        setPagination(null);
+      }
     } catch {
       setInvoices([]);
+      setPagination(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInvoices();
+    setPage(1);
   }, [statusFilter]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [statusFilter, page, limit]);
 
   const mapRow = (inv: any): InvoiceRow => ({
     id: inv.id,
@@ -66,42 +86,36 @@ const InvoicesPage: React.FC = () => {
   const filteredInvoices = invoices.map(mapRow);
 
   const stats = [
-    { label: 'Total Invoices', value: invoices.length, icon: <Receipt className="w-5 h-5" />, color: 'from-blue-500 to-cyan-500' },
+    { label: 'Total Invoices', value: pagination?.total ?? invoices.length, icon: <Receipt className="w-5 h-5" />, color: 'from-blue-500 to-cyan-500' },
     { label: 'Paid', value: invoices.filter((i) => i.status === 'paid').length, icon: <CheckCircle className="w-5 h-5" />, color: 'from-emerald-500 to-teal-500' },
     { label: 'Partial', value: invoices.filter((i) => i.status === 'partial_paid').length, icon: <Clock className="w-5 h-5" />, color: 'from-yellow-500 to-orange-500' },
     { label: 'Tentative', value: invoices.filter((i) => i.status === 'tentative').length, icon: <AlertCircle className="w-5 h-5" />, color: 'from-purple-500 to-pink-500' }
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'invoice', label: 'Invoice #', align: 'left' },
+    { id: 'invoice', label: 'Invoice #', align: 'left', sortable: true, sortKey: 'invoice_number' },
     { id: 'order', label: 'Order #', align: 'left' },
     { id: 'owner', label: 'Owner', align: 'left' },
-    { id: 'total', label: 'Total Amount', align: 'right' },
+    { id: 'total', label: 'Total Amount', align: 'right', sortable: true, sortKey: 'total_amount' },
     { id: 'paid', label: 'Paid', align: 'right' },
     { id: 'remaining', label: 'Remaining', align: 'right' },
-    { id: 'status', label: 'Status', align: 'center' },
+    { id: 'status', label: 'Status', align: 'center', sortable: true, sortKey: 'status' },
     { id: 'due_date', label: 'Due Date', align: 'left' },
     { id: 'actions', label: 'Actions', align: 'center' }
   ];
 
-  const getStatusBadge = (status: string): 'success' | 'warning' | 'info' | 'error' | 'default' => {
-    const map: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
-      paid: 'success',
-      partial_paid: 'warning',
-      tentative: 'default',
-      processing: 'info',
-      completed: 'success',
-      overdue: 'error',
-      canceled: 'error'
-    };
-    return map[status] || 'default';
-  };
+  const getStatusBadge = (status: string) => (INVOICE_STATUS_COLORS[status] || 'default') as 'success' | 'warning' | 'info' | 'error' | 'default';
 
   const handleUnblock = async (inv: any) => {
     try {
-      await invoicesApi.unblock(inv.id);
+      const res = await invoicesApi.unblock(inv.id);
       showToast('Invoice diaktifkan kembali', 'success');
+      const updated = res.data?.data;
       setViewInvoice(null);
+      if (updated) {
+        const merged = { ...inv, is_blocked: false, unblocked_at: updated.unblocked_at, auto_cancel_at: updated.auto_cancel_at, Order: updated.Order ? { ...inv.Order, ...updated.Order, status: 'tentative' } : { ...inv.Order, status: 'tentative' } };
+        setInvoices((prev) => prev.map((i) => (i.id === inv.id ? merged : i)));
+      }
       fetchInvoices();
     } catch (e: any) {
       showToast(e.response?.data?.message || 'Gagal unblock', 'error');
@@ -150,15 +164,15 @@ const InvoicesPage: React.FC = () => {
       </div>
 
       <Card>
-        <div className="flex gap-2 mb-6">
-          {['all', 'tentative', 'partial_paid', 'paid'].map((status) => (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {['all', 'tentative', 'partial_paid', 'paid', 'overdue', 'canceled', 'draft'].map((status) => (
             <Button
               key={status}
               variant={statusFilter === status ? 'primary' : 'outline'}
               size="sm"
               onClick={() => setStatusFilter(status)}
             >
-              {status === 'all' ? 'Semua' : status === 'partial_paid' ? 'Partial' : status.charAt(0).toUpperCase() + status.slice(1)}
+              {status === 'all' ? 'Semua' : INVOICE_STATUS_LABELS[status] || status}
             </Button>
           ))}
         </div>
@@ -170,6 +184,16 @@ const InvoicesPage: React.FC = () => {
             columns={tableColumns}
             data={filteredInvoices}
             emptyMessage="Tidak ada invoice"
+            sort={{ columnId: sortBy, order: sortOrder }}
+            onSortChange={(col, order) => { setSortBy(col); setSortOrder(order); setPage(1); }}
+            pagination={pagination ? {
+              total: pagination.total,
+              page: pagination.page,
+              limit: pagination.limit,
+              totalPages: pagination.totalPages,
+              onPageChange: setPage,
+              onLimitChange: (l) => { setLimit(l); setPage(1); }
+            } : undefined}
             renderRow={(invoice: InvoiceRow) => (
               <tr key={invoice.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-semibold text-slate-900">{invoice.invoice_number}</td>
@@ -179,7 +203,7 @@ const InvoicesPage: React.FC = () => {
                 <td className="px-6 py-4 text-right text-emerald-600 font-semibold">{formatIDR(invoice.paid_amount)}</td>
                 <td className="px-6 py-4 text-right text-red-600 font-semibold">{formatIDR(invoice.remaining_amount)}</td>
                 <td className="px-6 py-4 text-center">
-                  <Badge variant={getStatusBadge(invoice.status)}>{invoice.status}</Badge>
+                  <Badge variant={getStatusBadge(invoice.status)}>{INVOICE_STATUS_LABELS[invoice.status] || invoice.status}</Badge>
                   {invoice.is_blocked && <Badge variant="error" className="ml-1">Blocked</Badge>}
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-600">{invoice.due_date}</td>
@@ -214,7 +238,7 @@ const InvoicesPage: React.FC = () => {
               <div><dt className="text-slate-500">Total</dt><dd className="font-semibold">{formatIDR(parseFloat(viewInvoice.total_amount))}</dd></div>
               <div><dt className="text-slate-500">Paid</dt><dd className="font-semibold text-emerald-600">{formatIDR(parseFloat(viewInvoice.paid_amount || 0))}</dd></div>
               <div><dt className="text-slate-500">Remaining</dt><dd className="font-semibold text-red-600">{formatIDR(parseFloat(viewInvoice.remaining_amount))}</dd></div>
-              <div><dt className="text-slate-500">Status</dt><dd><Badge variant={getStatusBadge(viewInvoice.status)}>{viewInvoice.status}</Badge>{viewInvoice.is_blocked && <Badge variant="error" className="ml-1">Blocked</Badge>}</dd></div>
+              <div><dt className="text-slate-500">Status</dt><dd><Badge variant={getStatusBadge(viewInvoice.status)}>{INVOICE_STATUS_LABELS[viewInvoice.status] || viewInvoice.status}</Badge>{viewInvoice.is_blocked && <Badge variant="error" className="ml-1">Blocked</Badge>}</dd></div>
             </dl>
             {viewInvoice.PaymentProofs?.length > 0 && (
               <div className="mt-4">

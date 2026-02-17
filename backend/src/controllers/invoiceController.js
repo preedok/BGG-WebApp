@@ -1,7 +1,13 @@
+const fs = require('fs');
+const path = require('path');
+const { Op } = require('sequelize');
 const asyncHandler = require('express-async-handler');
-const { Invoice, Order, User, Branch, PaymentProof, Notification } = require('../models');
+const sequelize = require('../config/sequelize');
+const { Invoice, InvoiceFile, Order, User, Branch, PaymentProof, Notification, Provinsi, Wilayah } = require('../models');
 const { INVOICE_STATUS, NOTIFICATION_TRIGGER } = require('../constants');
 const { getRulesForBranch } = require('./businessRuleController');
+const { buildInvoicePdfBuffer } = require('../utils/invoicePdf');
+const { SUBDIRS, getDir, invoiceFilename, toUrlPath } = require('../config/uploads');
 
 const generateInvoiceNumber = () => {
   const y = new Date().getFullYear();
@@ -11,6 +17,7 @@ const generateInvoiceNumber = () => {
 
 async function ensureBlockedStatus(invoice) {
   if (invoice.status !== INVOICE_STATUS.TENTATIVE || invoice.is_blocked) return;
+  if (invoice.unblocked_at) return;
   const at = invoice.auto_cancel_at ? new Date(invoice.auto_cancel_at) : null;
   if (at && new Date() > at && parseFloat(invoice.paid_amount) === 0) {
     await invoice.update({ is_blocked: true });
@@ -22,29 +29,232 @@ async function ensureBlockedStatus(invoice) {
 /**
  * GET /api/v1/invoices
  */
+const ALLOWED_SORT = ['invoice_number', 'created_at', 'total_amount', 'status'];
+
+async function resolveBranchFilterList(branch_id, provinsi_id, wilayah_id, user) {
+  if (user?.branch_id && !['super_admin', 'admin_pusat', 'role_accounting'].includes(user?.role)) return { branch_id: user.branch_id };
+  if (branch_id) return { branch_id };
+  if (provinsi_id) {
+    const branches = await Branch.findAll({ where: { provinsi_id, is_active: true }, attributes: ['id'] });
+    const ids = branches.map(b => b.id);
+    return ids.length ? { branch_id: { [Op.in]: ids } } : { branch_id: { [Op.in]: [] } };
+  }
+  if (wilayah_id) {
+    const branches = await Branch.findAll({
+      where: { is_active: true },
+      attributes: ['id'],
+      include: [{ model: Provinsi, as: 'Provinsi', attributes: [], required: true, where: { wilayah_id } }]
+    });
+    const ids = branches.map(b => b.id);
+    return ids.length ? { branch_id: { [Op.in]: ids } } : { branch_id: { [Op.in]: [] } };
+  }
+  return {};
+}
+
 const list = asyncHandler(async (req, res) => {
-  const { status, branch_id, owner_id } = req.query;
+  const { status, branch_id, provinsi_id, wilayah_id, owner_id, order_status, invoice_number, order_number, date_from, date_to, due_status, limit = 25, page = 1, sort_by, sort_order } = req.query;
   const where = {};
   if (status) where.status = status;
-  if (branch_id) where.branch_id = branch_id;
+  const branchFilter = await resolveBranchFilterList(branch_id, provinsi_id, wilayah_id, req.user);
+  if (Object.keys(branchFilter).length) Object.assign(where, branchFilter);
   if (owner_id) where.owner_id = owner_id;
+  if (invoice_number) where.invoice_number = { [Op.iLike]: `%${String(invoice_number).trim()}%` };
+  if (date_from || date_to) {
+    where.issued_at = {};
+    if (date_from) where.issued_at[Op.gte] = new Date(date_from);
+    if (date_to) {
+      const d = new Date(date_to);
+      d.setHours(23, 59, 59, 999);
+      where.issued_at[Op.lte] = d;
+    }
+  }
+  if (due_status) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    if (due_status === 'current') {
+      where.due_date_dp = { [Op.gt]: endOfToday };
+    } else if (due_status === 'due') {
+      where.due_date_dp = { [Op.between]: [startOfToday, endOfToday] };
+    } else if (due_status === 'overdue') {
+      where.due_date_dp = { [Op.lt]: startOfToday };
+      where.remaining_amount = { [Op.gt]: 0 };
+    }
+  }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
   if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
     where.branch_id = req.user.branch_id;
   }
 
-  const invoices = await Invoice.findAll({
+  const orderInclude = { model: Order, as: 'Order', attributes: ['id', 'order_number', 'total_amount', 'currency', 'status', 'created_at'] };
+  if (order_status || order_number) {
+    orderInclude.required = true;
+    orderInclude.where = {};
+    if (order_status) orderInclude.where.status = order_status;
+    if (order_number) orderInclude.where.order_number = { [Op.iLike]: `%${String(order_number).trim()}%` };
+  }
+
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 500);
+  const pg = Math.max(parseInt(page, 10) || 1, 1);
+  const offset = (pg - 1) * lim;
+
+  const sortCol = ALLOWED_SORT.includes(sort_by) ? sort_by : 'created_at';
+  const sortDir = (sort_order || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+  const { count, rows } = await Invoice.findAndCountAll({
     where,
     include: [
-      { model: Order, as: 'Order', attributes: ['id', 'order_number', 'total_amount', 'status'] },
+      orderInclude,
       { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
+      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false },
       { model: PaymentProof, as: 'PaymentProofs', required: false }
     ],
-    order: [['created_at', 'DESC']]
+    order: [[sortCol, sortDir]],
+    limit: lim,
+    offset,
+    distinct: true
   });
 
-  for (const inv of invoices) await ensureBlockedStatus(inv);
-  res.json({ success: true, data: invoices });
+  for (const inv of rows) await ensureBlockedStatus(inv);
+  const totalPages = Math.ceil(count / lim) || 1;
+
+  const [totalAmount, totalPaid, totalRemaining, invoiceRows, orderRows] = await Promise.all([
+    Invoice.sum('total_amount', { where, include: [orderInclude] }),
+    Invoice.sum('paid_amount', { where, include: [orderInclude] }),
+    Invoice.sum('remaining_amount', { where, include: [orderInclude] }),
+    Invoice.findAll({ where, include: [orderInclude], attributes: ['status', 'order_id'], raw: true }),
+    Invoice.findAll({
+      where,
+      include: [{ model: Order, as: 'Order', attributes: ['id', 'status'], required: !!(order_status || order_number), where: order_status || order_number ? (orderInclude.where || {}) : undefined }],
+      attributes: ['order_id'],
+      raw: true
+    })
+  ]);
+
+  const orderIds = [...new Set((orderRows || []).map((r) => r.order_id).filter(Boolean))];
+  const byInvoiceStatus = (invoiceRows || []).reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+  let byOrderStatus = {};
+  if (orderIds.length > 0) {
+    const orders = await Order.findAll({ where: { id: { [Op.in]: orderIds } }, attributes: ['status'], raw: true });
+    byOrderStatus = (orders || []).reduce((acc, r) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  res.json({
+    success: true,
+    data: rows,
+    pagination: { total: count, page: pg, limit: lim, totalPages },
+    summary: {
+      total_invoices: count,
+      total_orders: orderIds.length,
+      total_amount: parseFloat(totalAmount || 0),
+      total_paid: parseFloat(totalPaid || 0),
+      total_remaining: parseFloat(totalRemaining || 0),
+      by_invoice_status: byInvoiceStatus,
+      by_order_status: byOrderStatus
+    }
+  });
+});
+
+/**
+ * GET /api/v1/invoices/summary
+ * Same query params as list (no page/limit). Returns aggregates for Order & Invoice stats.
+ */
+const getSummary = asyncHandler(async (req, res) => {
+  const { status, branch_id, owner_id, order_status, invoice_number, order_number, date_from, date_to, due_status } = req.query;
+  const where = {};
+  if (status) where.status = status;
+  if (branch_id) where.branch_id = branch_id;
+  if (owner_id) where.owner_id = owner_id;
+  if (invoice_number) where.invoice_number = { [Op.iLike]: `%${String(invoice_number).trim()}%` };
+  if (date_from || date_to) {
+    where.issued_at = {};
+    if (date_from) where.issued_at[Op.gte] = new Date(date_from);
+    if (date_to) {
+      const d = new Date(date_to);
+      d.setHours(23, 59, 59, 999);
+      where.issued_at[Op.lte] = d;
+    }
+  }
+  if (due_status) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    if (due_status === 'current') where.due_date_dp = { [Op.gt]: endOfToday };
+    else if (due_status === 'due') where.due_date_dp = { [Op.between]: [startOfToday, endOfToday] };
+    else if (due_status === 'overdue') {
+      where.due_date_dp = { [Op.lt]: startOfToday };
+      where.remaining_amount = { [Op.gt]: 0 };
+    }
+  }
+  if (req.user.role === 'owner') where.owner_id = req.user.id;
+  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
+    where.branch_id = req.user.branch_id;
+  }
+
+  const orderInclude = { model: Order, as: 'Order', attributes: ['id', 'status'] };
+  if (order_status || order_number) {
+    orderInclude.required = true;
+    orderInclude.where = {};
+    if (order_status) orderInclude.where.status = order_status;
+    if (order_number) orderInclude.where.order_number = { [Op.iLike]: `%${String(order_number).trim()}%` };
+  }
+
+  const [totalInvoices, totalAmount, totalPaid, totalRemaining, invoiceRows, orderRows] = await Promise.all([
+    Invoice.count({ where, include: [orderInclude], distinct: true }),
+    Invoice.sum('total_amount', { where, include: [orderInclude] }),
+    Invoice.sum('paid_amount', { where, include: [orderInclude] }),
+    Invoice.sum('remaining_amount', { where, include: [orderInclude] }),
+    Invoice.findAll({
+      where,
+      include: [orderInclude],
+      attributes: ['status', 'order_id'],
+      raw: true
+    }),
+    Invoice.findAll({
+      where,
+      include: [{ model: Order, as: 'Order', attributes: ['id', 'status'], required: !!(order_status || order_number), where: order_status || order_number ? (orderInclude.where || {}) : undefined }],
+      attributes: ['order_id'],
+      raw: true
+    })
+  ]);
+
+  const orderIds = [...new Set((orderRows || []).map((r) => r.order_id).filter(Boolean))];
+  const totalOrders = orderIds.length;
+  const byStatus = (invoiceRows || []).reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+  let byOrderStatus = {};
+  if (orderIds.length > 0) {
+    const orders = await Order.findAll({
+      where: { id: { [Op.in]: orderIds } },
+      attributes: ['status'],
+      raw: true
+    });
+    byOrderStatus = (orders || []).reduce((acc, r) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  res.json({
+    success: true,
+    data: {
+      total_invoices: totalInvoices || 0,
+      total_orders: totalOrders,
+      total_amount: parseFloat(totalAmount || 0),
+      total_paid: parseFloat(totalPaid || 0),
+      total_remaining: parseFloat(totalRemaining || 0),
+      by_invoice_status: byStatus,
+      by_order_status: byOrderStatus
+    }
+  });
 });
 
 /**
@@ -115,6 +325,7 @@ const getById = asyncHandler(async (req, res) => {
     include: [
       { model: Order, as: 'Order', include: ['OrderItems'] },
       { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
+      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false },
       { model: PaymentProof, as: 'PaymentProofs' }
     ]
   });
@@ -123,7 +334,10 @@ const getById = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Akses ditolak' });
   }
   await ensureBlockedStatus(invoice);
-  res.json({ success: true, data: invoice });
+  const rules = await getRulesForBranch(invoice.branch_id);
+  const data = invoice.toJSON();
+  data.currency_rates = rules.currency_rates || {};
+  res.json({ success: true, data });
 });
 
 /**
@@ -133,13 +347,18 @@ const getById = asyncHandler(async (req, res) => {
 const unblock = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findByPk(req.params.id);
   if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
-  if (!['role_invoice', 'super_admin'].includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: 'Hanya role invoice yang dapat unblock' });
+  if (!['invoice_koordinator', 'admin_koordinator', 'admin_pusat', 'super_admin'].includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Tidak berwenang mengaktifkan invoice' });
   }
+  const rules = await getRulesForBranch(invoice.branch_id);
+  const dpGraceHours = Math.max(1, parseInt(rules.dp_grace_hours, 10) || 24);
+  const newAutoCancelAt = new Date();
+  newAutoCancelAt.setHours(newAutoCancelAt.getHours() + dpGraceHours);
   await invoice.update({
     is_blocked: false,
     unblocked_by: req.user.id,
-    unblocked_at: new Date()
+    unblocked_at: new Date(),
+    auto_cancel_at: newAutoCancelAt
   });
   const order = await Order.findByPk(invoice.order_id);
   if (order && order.status === 'blocked') {
@@ -162,14 +381,15 @@ const unblock = asyncHandler(async (req, res) => {
  */
 const verifyPayment = asyncHandler(async (req, res) => {
   const { payment_proof_id, verified, notes } = req.body;
+  const isApproved = verified === true || verified === 'true';
   const proof = await PaymentProof.findByPk(payment_proof_id);
   if (!proof || proof.invoice_id !== req.params.id) return res.status(404).json({ success: false, message: 'Bukti bayar tidak ditemukan' });
-  if (!['admin_cabang', 'role_accounting', 'super_admin'].includes(req.user.role)) {
+  if (!['admin_pusat', 'admin_koordinator', 'role_accounting', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Tidak berwenang verifikasi' });
   }
   const invoice = await Invoice.findByPk(proof.invoice_id);
-  if (verified) {
-    await proof.update({ verified_by: req.user.id, verified_at: new Date(), notes: notes || proof.notes });
+  if (isApproved) {
+    await proof.update({ verified_by: req.user.id, verified_at: new Date(), verified_status: 'verified', notes: notes || proof.notes });
     const newPaid = parseFloat(invoice.paid_amount) + parseFloat(proof.amount);
     const remaining = Math.max(0, parseFloat(invoice.total_amount) - newPaid);
     let newStatus = invoice.status;
@@ -180,6 +400,12 @@ const verifyPayment = asyncHandler(async (req, res) => {
       remaining_amount: remaining,
       status: newStatus
     });
+    if (newStatus === INVOICE_STATUS.PAID) {
+      const order = await Order.findByPk(invoice.order_id);
+      if (order && !['completed', 'cancelled'].includes(order.status)) {
+        await order.update({ status: 'processing' });
+      }
+    }
     await Notification.create({
       user_id: invoice.owner_id,
       trigger: newStatus === INVOICE_STATUS.PAID ? NOTIFICATION_TRIGGER.LUNAS : NOTIFICATION_TRIGGER.DP_RECEIVED,
@@ -187,6 +413,17 @@ const verifyPayment = asyncHandler(async (req, res) => {
       message: `Pembayaran untuk ${invoice.invoice_number} telah diverifikasi.`,
       data: { invoice_id: invoice.id }
     });
+  } else {
+    const wasVerified = proof.verified_status === 'verified' || (proof.verified_at != null);
+    await proof.update({ verified_status: 'rejected', verified_by: null, verified_at: null, notes: notes || proof.notes });
+    if (wasVerified) {
+      const newPaid = Math.max(0, parseFloat(invoice.paid_amount) - parseFloat(proof.amount));
+      const remaining = Math.max(0, parseFloat(invoice.total_amount) - newPaid);
+      let newStatus = INVOICE_STATUS.TENTATIVE;
+      if (remaining <= 0) newStatus = INVOICE_STATUS.PAID;
+      else if (parseFloat(invoice.dp_amount) > 0 && newPaid >= parseFloat(invoice.dp_amount)) newStatus = INVOICE_STATUS.PARTIAL_PAID;
+      await invoice.update({ paid_amount: newPaid, remaining_amount: remaining, status: newStatus });
+    }
   }
   const full = await Invoice.findByPk(invoice.id, { include: [{ model: PaymentProof, as: 'PaymentProofs' }] });
   res.json({ success: true, data: full });
@@ -222,10 +459,56 @@ const handleOverpaid = asyncHandler(async (req, res) => {
   res.json({ success: true, data: full });
 });
 
+/**
+ * GET /api/v1/invoices/:id/pdf
+ * Unduh invoice dalam format PDF. File disimpan ke disk (local) dan metadata ke DB.
+ */
+const getPdf = asyncHandler(async (req, res) => {
+  const invoice = await Invoice.findByPk(req.params.id, {
+    include: [
+      { model: Order, as: 'Order', include: ['OrderItems'] },
+      { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
+      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false }
+    ]
+  });
+  if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
+  if (req.user.role === 'owner' && invoice.owner_id !== req.user.id) {
+    return res.status(403).json({ success: false, message: 'Akses ditolak' });
+  }
+  const data = invoice.toJSON();
+  const buf = await buildInvoicePdfBuffer(data);
+
+  // Simpan ke disk (local - uploads/invoices/)
+  const dir = getDir(SUBDIRS.INVOICES);
+  const fileName = invoiceFilename(invoice.invoice_number, invoice.status);
+  const filePath = path.join(dir, fileName);
+  fs.writeFileSync(filePath, buf, 'binary');
+
+  // Simpan metadata ke database
+  const relativePath = path.join(SUBDIRS.INVOICES, fileName).replace(/\\/g, '/');
+  await InvoiceFile.upsert({
+    invoice_id: invoice.id,
+    order_id: invoice.order_id,
+    status: invoice.status,
+    file_path: relativePath,
+    file_name: fileName,
+    file_size: buf.length,
+    is_example: false,
+    generated_by: req.user?.id
+  }, { conflictFields: ['invoice_id'] });
+
+  const downloadName = `invoice-${invoice.invoice_number}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+  res.send(buf);
+});
+
 module.exports = {
   list,
+  getSummary,
   create,
   getById,
+  getPdf,
   unblock,
   verifyPayment,
   handleOverpaid,

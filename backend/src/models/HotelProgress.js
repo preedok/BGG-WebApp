@@ -29,8 +29,8 @@ const HotelProgress = sequelize.define('HotelProgress', {
   },
   meal_status: {
     type: DataTypes.ENUM('pending', 'confirmed', 'completed'),
-    defaultValue: 'pending',
-    comment: 'Status pekerjaan makan'
+    defaultValue: 'pending'
+    // comment removed: Sequelize generates invalid SQL (COMMENT + USING) for enum alter on PostgreSQL
   },
   check_in_date: { type: DataTypes.DATEONLY },
   check_out_date: { type: DataTypes.DATEONLY },

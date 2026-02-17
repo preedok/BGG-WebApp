@@ -24,6 +24,13 @@ const Branch = sequelize.define('Branch', {
   region: {
     type: DataTypes.STRING(100)
   },
+  provinsi_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: { model: 'provinsi', key: 'id' },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL'
+  },
   manager_name: {
     type: DataTypes.STRING(255)
   },
@@ -35,6 +42,24 @@ const Branch = sequelize.define('Branch', {
   },
   address: {
     type: DataTypes.TEXT
+  },
+  koordinator_provinsi: {
+    type: DataTypes.STRING(255)
+  },
+  koordinator_provinsi_phone: {
+    type: DataTypes.STRING(50)
+  },
+  koordinator_provinsi_email: {
+    type: DataTypes.STRING(255)
+  },
+  koordinator_wilayah: {
+    type: DataTypes.STRING(255)
+  },
+  koordinator_wilayah_phone: {
+    type: DataTypes.STRING(50)
+  },
+  koordinator_wilayah_email: {
+    type: DataTypes.STRING(255)
   },
   is_active: {
     type: DataTypes.BOOLEAN,

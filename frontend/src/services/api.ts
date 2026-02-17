@@ -65,15 +65,17 @@ export const publicApi = {
 };
 
 export const productsApi = {
-  list: (params?: { type?: string; with_prices?: string; branch_id?: string; owner_id?: string; is_package?: string; include_inactive?: string }) => api.get('/products', { params }),
+  list: (params?: { type?: string; with_prices?: string; branch_id?: string; owner_id?: string; is_package?: string; include_inactive?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) => api.get('/products', { params }),
   getById: (id: string) => api.get(`/products/${id}`),
   getPrice: (id: string, params?: { branch_id?: string; owner_id?: string; currency?: string; room_type?: string; with_meal?: string }) => api.get(`/products/${id}/price`, { params }),
   listPrices: (params?: { product_id?: string; branch_id?: string }) => api.get('/products/prices', { params }),
-  create: (body: { type: string; code: string; name: string; description?: string; is_package?: boolean; meta?: object }) => api.post('/products', body),
+  create: (body: { type: string; code?: string; name: string; description?: string; is_package?: boolean; meta?: object }) => api.post('/products', body),
+  createHotel: (body: { name: string; description?: string; meta?: object }) => api.post('/products/hotels', body),
   update: (id: string, body: object) => api.patch(`/products/${id}`, body),
   delete: (id: string) => api.delete(`/products/${id}`),
   createPrice: (body: object) => api.post('/products/prices', body),
-  updatePrice: (id: string, body: object) => api.patch(`/products/prices/${id}`, body)
+  updatePrice: (id: string, body: object) => api.patch(`/products/prices/${id}`, body),
+  deletePrice: (id: string) => api.delete(`/products/prices/${id}`)
 };
 
 export const businessRulesApi = {
@@ -82,7 +84,7 @@ export const businessRulesApi = {
 };
 
 export const ordersApi = {
-  list: (params?: { status?: string; branch_id?: string; owner_id?: string }) => api.get('/orders', { params }),
+  list: (params?: { status?: string; branch_id?: string; owner_id?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc'; date_from?: string; date_to?: string; order_number?: string; provinsi_id?: string; wilayah_id?: string }) => api.get('/orders', { params }),
   getById: (id: string) => api.get(`/orders/${id}`),
   create: (body: object) => api.post('/orders', body),
   update: (id: string, body: object) => api.patch(`/orders/${id}`, body)
@@ -215,8 +217,20 @@ interface VisaDashboardData {
   }>;
 }
 
+export interface InvoicesSummaryData {
+  total_invoices: number;
+  total_orders: number;
+  total_amount: number;
+  total_paid: number;
+  total_remaining: number;
+  by_invoice_status: Record<string, number>;
+  by_order_status: Record<string, number>;
+}
+
 export const invoicesApi = {
-  list: (params?: { status?: string; branch_id?: string; owner_id?: string }) => api.get('/invoices', { params }),
+  list: (params?: { status?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; order_status?: string; invoice_number?: string; order_number?: string; date_from?: string; date_to?: string; due_status?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) => api.get('/invoices', { params }),
+  getSummary: (params?: { status?: string; branch_id?: string; owner_id?: string; order_status?: string; invoice_number?: string; order_number?: string; date_from?: string; date_to?: string; due_status?: string }) =>
+    api.get<{ success: boolean; data: InvoicesSummaryData }>('/invoices/summary', { params }),
   getById: (id: string) => api.get(`/invoices/${id}`),
   getPdf: (id: string) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
   create: (body: { order_id: string; is_super_promo?: boolean }) => api.post('/invoices', body),
@@ -226,11 +240,30 @@ export const invoicesApi = {
   uploadPaymentProof: (id: string, formData: FormData) => api.post(`/invoices/${id}/payment-proofs`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 };
 
+export interface ProvinceItem {
+  id: string | number;
+  kode?: string;
+  nama?: string;
+  name?: string;
+  wilayah_id?: string;
+  wilayah?: string;
+}
+
+export interface KabupatenItem {
+  id: string | number;
+  nama: string;
+}
+
 export const branchesApi = {
-  list: () => api.get<{ success: boolean; data: Branch[] }>('/branches'),
+  list: (params?: { limit?: number; page?: number; include_inactive?: string; search?: string; region?: string; provinsi_id?: string; wilayah_id?: string; city?: string; is_active?: string; sort_by?: string; sort_order?: 'asc' | 'desc' }) => api.get<{ success: boolean; data: Branch[]; pagination?: { total: number; page: number; limit: number; totalPages: number } }>('/branches', { params }),
+  listPublic: (params?: { search?: string; region?: string; limit?: number }) => api.get<{ success: boolean; data: Branch[] }>('/branches/public', { params }),
+  listProvinces: () => api.get<{ success: boolean; data: ProvinceItem[] }>('/branches/provinces'),
+  listWilayah: () => api.get<{ success: boolean; data: Array<{ id: string; name: string }> }>('/branches/wilayah'),
+  listKabupaten: (provinceId: string | number) => api.get<{ success: boolean; data: KabupatenItem[] }>(`/branches/kabupaten/${provinceId}`),
   getById: (id: string) => api.get<{ success: boolean; data: Branch }>(`/branches/${id}`),
   create: (body: BranchCreateBody) => api.post<{ success: boolean; data: Branch; created_admin_account?: any }>('/branches', body),
-  update: (id: string, body: Partial<Branch>) => api.patch<{ success: boolean; data: Branch }>(`/branches/${id}`, body)
+  createBulkByProvince: (provinceId: string | number) => api.post<{ success: boolean; data: Branch[]; message: string; created: number }>('/branches/bulk-by-province', { province_id: provinceId }),
+  update: (id: string, body: Partial<Branch> & { admin_account?: { name?: string; email?: string; password?: string } }) => api.patch<{ success: boolean; data: Branch }>(`/branches/${id}`, body)
 };
 export interface Branch {
   id: string;
@@ -242,13 +275,21 @@ export interface Branch {
   phone?: string;
   email?: string;
   address?: string;
+  koordinator_provinsi?: string;
+  koordinator_provinsi_phone?: string;
+  koordinator_provinsi_email?: string;
+  koordinator_wilayah?: string;
+  koordinator_wilayah_phone?: string;
+  koordinator_wilayah_email?: string;
   is_active?: boolean;
 }
 export interface BranchCreateBody {
-  code: string;
-  name: string;
-  city: string;
+  code?: string;
+  name?: string;
+  city?: string;
   region?: string;
+  province_id?: string | number;
+  kabupaten_id?: string | number;
   manager_name?: string;
   phone?: string;
   email?: string;
@@ -262,20 +303,28 @@ export interface UserListItem {
   name: string;
   role: string;
   branch_id: string | null;
+  region: string | null;
   company_name: string | null;
   is_active: boolean;
   created_at: string;
   Branch?: { id: string; code: string; name: string } | null;
 }
 export const adminPusatApi = {
-  getDashboard: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
+  getDashboard: (params?: { branch_id?: string; date_from?: string; date_to?: string; status?: string; provinsi_id?: string; wilayah_id?: string }) =>
     api.get<{ success: boolean; data: AdminPusatDashboardData }>('/admin-pusat/dashboard', { params }),
   getCombinedRecap: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
     api.get<{ success: boolean; data: AdminPusatCombinedRecapData }>('/admin-pusat/combined-recap', { params }),
-  listUsers: (params?: { role?: string; branch_id?: string; is_active?: string }) =>
-    api.get<{ success: boolean; data: UserListItem[] }>('/admin-pusat/users', { params }),
-  createUser: (body: { name: string; email: string; password: string; role: string; branch_id?: string }) =>
+  exportRecapExcel: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
+    api.get('/admin-pusat/export-recap-excel', { params, responseType: 'blob' }),
+  exportRecapPdf: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
+    api.get('/admin-pusat/export-recap-pdf', { params, responseType: 'blob' }),
+  listUsers: (params?: { role?: string; branch_id?: string; is_active?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) =>
+    api.get<{ success: boolean; data: UserListItem[]; pagination?: { total: number; page: number; limit: number; totalPages: number } }>('/admin-pusat/users', { params }),
+  createUser: (body: { name: string; email: string; password: string; role: string; branch_id?: string; region?: string }) =>
     api.post<{ success: boolean; data: any }>('/admin-pusat/users', body),
+  updateUser: (id: string, body: { name?: string; email?: string; password?: string; is_active?: boolean }) =>
+    api.patch<{ success: boolean; data: any }>(`/admin-pusat/users/${id}`, body),
+  deleteUser: (id: string) => api.delete<{ success: boolean; message?: string }>(`/admin-pusat/users/${id}`),
   setProductAvailability: (productId: string, body: { quantity?: number; meta?: object }) =>
     api.put<{ success: boolean; data: any }>(`/admin-pusat/products/${productId}/availability`, body),
   listFlyers: (params?: { type?: string; product_id?: string; is_published?: string }) =>
@@ -290,7 +339,14 @@ export const adminPusatApi = {
 };
 export interface AdminPusatDashboardData {
   branches: Branch[];
-  orders: { total: number; by_status: Record<string, number>; by_branch: Array<{ branch_id: string; branch_name: string; code: string; count: number; revenue: number }>; total_revenue: number };
+  orders: {
+    total: number;
+    by_status: Record<string, number>;
+    by_branch: Array<{ branch_id: string; branch_name: string; code: string; count: number; revenue: number }>;
+    by_wilayah: Array<{ wilayah_id: string | null; wilayah_name: string; count: number; revenue: number }>;
+    by_provinsi: Array<{ provinsi_id: string | null; provinsi_name: string; count: number; revenue: number }>;
+    total_revenue: number;
+  };
   invoices: { total: number; by_status: Record<string, number> };
   owners_total: number;
   orders_recent: any[];
@@ -326,45 +382,328 @@ export interface FlyerTemplate {
 }
 
 export const accountingApi = {
-  getDashboard: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
+  getDashboard: (params?: { branch_id?: string; provinsi_id?: string; wilayah_id?: string; date_from?: string; date_to?: string }) =>
     api.get<{ success: boolean; data: AccountingDashboardData }>('/accounting/dashboard', { params }),
-  getAgingReport: (params?: { branch_id?: string }) =>
+  getDashboardKpi: (params?: { branch_id?: string; wilayah_id?: string; date_from?: string; date_to?: string }) =>
+    api.get<{ success: boolean; data: AccountingKpiData }>('/accounting/dashboard-kpi', { params }),
+  getChartOfAccounts: (params?: { active_only?: string; account_type?: string; level?: number; is_header?: string; parent_id?: string | null; search?: string }) =>
+    api.get<{ success: boolean; data: ChartOfAccountItem[] }>('/accounting/chart-of-accounts', { params }),
+  getChartOfAccountById: (id: string) =>
+    api.get<{ success: boolean; data: ChartOfAccountItem }>(`/accounting/chart-of-accounts/${id}`),
+  createChartOfAccount: (body: { code: string; name: string; account_type: string; parent_id?: string | null; is_header?: boolean; currency?: string; sort_order?: number }) =>
+    api.post<{ success: boolean; data: ChartOfAccountItem; message: string }>('/accounting/chart-of-accounts', body),
+  updateChartOfAccount: (id: string, body: { name?: string; account_type?: string; is_header?: boolean; currency?: string; sort_order?: number; is_active?: boolean }) =>
+    api.patch<{ success: boolean; data: ChartOfAccountItem; message: string }>(`/accounting/chart-of-accounts/${id}`, body),
+  deleteChartOfAccount: (id: string) =>
+    api.delete<{ success: boolean; message: string }>(`/accounting/chart-of-accounts/${id}`),
+  getFiscalYears: (params?: { is_closed?: string; search?: string }) =>
+    api.get<{ success: boolean; data: FiscalYearItem[] }>('/accounting/fiscal-years', { params }),
+  getFiscalYearById: (id: string) =>
+    api.get<{ success: boolean; data: FiscalYearItem }>(`/accounting/fiscal-years/${id}`),
+  createFiscalYear: (body: { code: string; name: string; start_date: string; end_date: string }) =>
+    api.post<{ success: boolean; data: FiscalYearItem; message: string }>('/accounting/fiscal-years', body),
+  lockAllPeriods: (id: string) =>
+    api.post<{ success: boolean; data: FiscalYearItem; message: string }>(`/accounting/fiscal-years/${id}/lock-all`),
+  closeFiscalYear: (id: string) =>
+    api.post<{ success: boolean; data: FiscalYearItem; message: string }>(`/accounting/fiscal-years/${id}/close`),
+  getAccountingPeriods: (params?: { fiscal_year_id?: string; is_locked?: string }) =>
+    api.get<{ success: boolean; data: AccountingPeriodItem[] }>('/accounting/periods', { params }),
+  lockPeriod: (id: string) =>
+    api.post<{ success: boolean; data: AccountingPeriodItem; message: string }>(`/accounting/periods/${id}/lock`),
+  unlockPeriod: (id: string) =>
+    api.post<{ success: boolean; data: AccountingPeriodItem; message: string }>(`/accounting/periods/${id}/unlock`),
+  getAccountMappings: () =>
+    api.get<{ success: boolean; data: AccountMappingItem[] }>('/accounting/account-mappings'),
+  listAccountingOwners: (params?: { branch_id?: string; provinsi_id?: string; wilayah_id?: string }) =>
+    api.get<{ success: boolean; data: Array<{ id: string; name: string }> }>('/accounting/owners', { params }),
+  getAgingReport: (params?: { branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; date_from?: string; date_to?: string; due_from?: string; due_to?: string; search?: string; page?: number; limit?: number; bucket?: string }) =>
     api.get<{ success: boolean; data: AccountingAgingData }>('/accounting/aging', { params }),
+  exportAgingExcel: (params?: { branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; date_from?: string; date_to?: string; due_from?: string; due_to?: string; search?: string }) =>
+    api.get('/accounting/export-aging-excel', { params, responseType: 'blob' }),
+  exportAgingPdf: (params?: { branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; date_from?: string; date_to?: string; due_from?: string; due_to?: string; search?: string }) =>
+    api.get('/accounting/export-aging-pdf', { params, responseType: 'blob' }),
   getPaymentsList: (params?: { branch_id?: string; verified?: string; date_from?: string; date_to?: string }) =>
     api.get<{ success: boolean; data: any[] }>('/accounting/payments', { params }),
   listInvoices: (params?: { status?: string; branch_id?: string }) =>
     api.get<{ success: boolean; data: any[] }>('/accounting/invoices', { params }),
   listOrders: (params?: { branch_id?: string; status?: string; limit?: number }) =>
     api.get<{ success: boolean; data: any[] }>('/accounting/orders', { params }),
-  getFinancialReport: (params?: { period?: string; year?: string; month?: string; date_from?: string; date_to?: string }) =>
+  getFinancialReport: (params?: { period?: string; year?: string; month?: string; date_from?: string; date_to?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; product_type?: string; search?: string; min_amount?: number; max_amount?: number; page?: number; limit?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) =>
     api.get<{ success: boolean; data: AccountingFinancialReportData }>('/accounting/financial-report', { params }),
-  getReconciliation: (params?: { reconciled?: string; date_from?: string; date_to?: string }) =>
+  exportFinancialExcel: (params?: { period?: string; year?: string; month?: string; date_from?: string; date_to?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; product_type?: string; search?: string; min_amount?: number; max_amount?: number }) =>
+    api.get('/accounting/export-financial-excel', { params, responseType: 'blob' }),
+  exportFinancialPdf: (params?: { period?: string; year?: string; month?: string; date_from?: string; date_to?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; product_type?: string; search?: string; min_amount?: number; max_amount?: number }) =>
+    api.get('/accounting/export-financial-pdf', { params, responseType: 'blob' }),
+  getReconciliation: (params?: { reconciled?: string; date_from?: string; date_to?: string; branch_id?: string }) =>
     api.get<{ success: boolean; data: any[] }>('/accounting/reconciliation', { params }),
   reconcilePayment: (id: string) =>
-    api.post<{ success: boolean; data: any }>(`/accounting/payments/${id}/reconcile`)
+    api.post<{ success: boolean; data: any }>(`/accounting/payments/${id}/reconcile`),
+  payroll: {
+    getSettings: (params?: { branch_id?: string }) => api.get<{ success: boolean; data: PayrollSettingData }>('/accounting/payroll/settings', { params }),
+    updateSettings: (body: { branch_id?: string; method?: string; payroll_day_of_month?: number; run_time?: string; is_active?: boolean; company_name_slip?: string; company_address_slip?: string }) =>
+      api.put<{ success: boolean; data: PayrollSettingData; message: string }>('/accounting/payroll/settings', body),
+    listEmployees: (params?: { branch_id?: string }) => api.get<{ success: boolean; data: PayrollEmployeeItem[] }>('/accounting/payroll/employees', { params }),
+    getEmployeeSalary: (userId: string) => api.get<{ success: boolean; data: EmployeeSalaryData }>(`/accounting/payroll/employees/${userId}/salary`),
+    upsertEmployeeSalary: (userId: string, body: { base_salary: number; allowances?: { name: string; amount: number }[]; deductions?: { name: string; amount: number }[]; effective_from?: string; effective_to?: string; notes?: string }) =>
+      api.put<{ success: boolean; data: EmployeeSalaryData; message: string }>(`/accounting/payroll/employees/${userId}/salary`, body),
+    listRuns: (params?: { branch_id?: string; period_year?: number; period_month?: number; status?: string; page?: number; limit?: number }) =>
+      api.get<{ success: boolean; data: PayrollRunData[]; pagination: { total: number; page: number; limit: number; totalPages: number } }>('/accounting/payroll/runs', { params }),
+    createRun: (body: { period_month: number; period_year: number; method?: string; branch_id?: string }) =>
+      api.post<{ success: boolean; data: PayrollRunData; message: string }>('/accounting/payroll/runs', body),
+    getRun: (id: string) => api.get<{ success: boolean; data: PayrollRunData }>(`/accounting/payroll/runs/${id}`),
+    updateRun: (id: string, body: { items?: { id: string; base_salary?: number; allowances?: { name: string; amount: number }[]; deductions?: { name: string; amount: number }[]; notes?: string }[] }) =>
+      api.patch<{ success: boolean; data: PayrollRunData; message: string }>(`/accounting/payroll/runs/${id}`, body),
+    finalizeRun: (id: string) => api.post<{ success: boolean; data: PayrollRunData; message: string }>(`/accounting/payroll/runs/${id}/finalize`),
+    getSlipPdf: (runId: string, itemId: string) => api.get(`/accounting/payroll/runs/${runId}/items/${itemId}/slip`, { responseType: 'blob' }),
+    getMySlips: () => api.get<{ success: boolean; data: MySlipItem[] }>('/accounting/payroll/my-slips'),
+    getMySlipPdf: (itemId: string) => api.get(`/accounting/payroll/my-slips/${itemId}/slip`, { responseType: 'blob' })
+  }
 };
+export interface PayrollSettingData {
+  id: string;
+  branch_id?: string;
+  method: string;
+  payroll_day_of_month?: number;
+  run_time?: string;
+  is_active: boolean;
+  company_name_slip?: string;
+  company_address_slip?: string;
+  Branch?: { id: string; code: string; name: string };
+}
+export interface EmployeeSalaryData {
+  id: string;
+  user_id: string;
+  base_salary: number;
+  allowances: { name?: string; amount?: number }[];
+  deductions: { name?: string; amount?: number }[];
+  effective_from?: string;
+  effective_to?: string;
+  notes?: string;
+}
+export interface PayrollEmployeeItem {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  branch_id?: string;
+  Branch?: { id: string; code: string; name: string };
+  salary_template?: EmployeeSalaryData | null;
+}
+export interface PayrollItemData {
+  id: string;
+  user_id: string;
+  base_salary: number;
+  allowances: { name?: string; amount?: number }[];
+  deductions: { name?: string; amount?: number }[];
+  gross: number;
+  total_deductions: number;
+  net: number;
+  slip_file_path?: string;
+  slip_generated_at?: string;
+  notes?: string;
+  User?: { id: string; name: string; email?: string; role?: string };
+}
+export interface PayrollRunData {
+  id: string;
+  period_month: number;
+  period_year: number;
+  status: string;
+  method: string;
+  branch_id?: string;
+  total_amount: number;
+  created_by?: string;
+  processed_at?: string;
+  finalized_at?: string;
+  Branch?: { id: string; code: string; name: string };
+  CreatedBy?: { id: string; name: string };
+  PayrollItems?: PayrollItemData[];
+}
+export interface MySlipItem {
+  id: string;
+  payroll_run_id: string;
+  period_month: number;
+  period_year: number;
+  net: number;
+  slip_generated_at: string;
+}
 export interface AccountingFinancialReportData {
   period: { start: string; end: string };
   total_revenue: number;
-  by_branch: Array<{ branch_id: string; branch_name: string; revenue: number }>;
+  by_branch: Array<{ branch_id: string; branch_name: string; revenue: number; invoice_count?: number }>;
+  by_wilayah?: Array<{ wilayah_id: string; wilayah_name: string; revenue: number; invoice_count?: number }>;
+  by_provinsi?: Array<{ provinsi_id: string; provinsi_name: string; revenue: number; invoice_count?: number }>;
+  by_owner: Array<{ owner_id: string; owner_name: string; revenue: number; invoice_count?: number }>;
+  by_product_type: Array<{ type: string; revenue: number }>;
+  by_period?: Array<{ period: string; revenue: number; invoice_count?: number }>;
   invoice_count: number;
+  invoices: Array<{
+    id: string;
+    invoice_number: string;
+    order_number?: string;
+    owner_name?: string;
+    branch_name?: string;
+    total_amount: number;
+    paid_amount: number;
+    remaining_amount: number;
+    status: string;
+    order_status?: string;
+    issued_at?: string;
+  }>;
+  pagination?: { total: number; page: number; limit: number; totalPages: number };
+  previous_period?: {
+    start: string;
+    end: string;
+    revenue: number;
+    invoice_count: number;
+    growth_percent: string | null;
+  };
 }
 export interface AccountingDashboardData {
-  branches: { id: string; code: string; name: string }[];
+  branches: { id: string; code: string; name: string; Provinsi?: { id: string; name: string; Wilayah?: { id: string; name: string } } }[];
   summary: {
     total_invoices: number;
     total_receivable: number;
     total_paid: number;
     by_status: Record<string, number>;
     by_branch: Array<{ branch_id: string; branch_name: string; code: string; count: number; receivable: number; paid: number }>;
+    by_provinsi?: Array<{ provinsi_id: string; provinsi_name: string; count: number; receivable: number; paid: number }>;
+    by_wilayah?: Array<{ wilayah_id: string; wilayah_name: string; count: number; receivable: number; paid: number }>;
   };
   invoices_recent: any[];
 }
+export interface AccountingKpiData {
+  total_revenue: number;
+  total_receivable: number;
+  by_wilayah: Array<{ wilayah_id: string; name: string; revenue: number; receivable: number }>;
+  by_product: Record<string, number>;
+  branches: { id: string; code: string; name: string }[];
+}
+export interface ChartOfAccountItem {
+  id: string;
+  parent_id?: string | null;
+  code: string;
+  name: string;
+  account_type: string;
+  level: number;
+  is_header: boolean;
+  currency: string;
+  is_active: boolean;
+  sort_order?: number;
+  Parent?: { id: string; code: string; name: string };
+  Children?: ChartOfAccountItem[];
+}
+export interface FiscalYearItem {
+  id: string;
+  code: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  is_closed: boolean;
+  closed_at?: string | null;
+  closed_by?: string | null;
+  Periods?: AccountingPeriodItem[];
+}
+export interface AccountingPeriodItem {
+  id: string;
+  fiscal_year_id: string;
+  period_number: number;
+  start_date: string;
+  end_date: string;
+  is_locked: boolean;
+  locked_at?: string | null;
+  locked_by?: string | null;
+  FiscalYear?: { id: string; code: string; name: string; is_closed?: boolean };
+}
+export interface AccountMappingItem {
+  id: string;
+  mapping_type: string;
+  DebitAccount?: { id: string; code: string; name: string };
+  CreditAccount?: { id: string; code: string; name: string };
+}
 export interface AccountingAgingData {
   buckets: { current: any[]; days_1_30: any[]; days_31_60: any[]; days_61_plus: any[] };
+  bucket_counts?: { current: number; days_1_30: number; days_31_60: number; days_61_plus: number };
+  items?: any[];
+  pagination?: { total: number; page: number; limit: number; totalPages: number };
   totals: { current: number; days_1_30: number; days_31_60: number; days_61_plus: number };
   total_outstanding: number;
 }
+
+export type ReportType = 'revenue' | 'orders' | 'partners' | 'jamaah' | 'financial' | 'logs';
+export type ReportGroupBy = 'day' | 'week' | 'month' | 'quarter' | 'year';
+export type ReportPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all';
+
+export interface ReportsFiltersData {
+  branches: { id: string; code: string; name: string; provinsi_id?: string | null }[];
+  wilayah: { id: string; name: string }[];
+  provinsi: { id: string; name: string; kode?: string; wilayah_id?: string; Wilayah?: { id: string; name: string } }[];
+}
+
+export interface ReportsAnalyticsData {
+  report_type: string;
+  period?: { start: string; end: string } | null;
+  summary: Record<string, number>;
+  series: Array<{ period: string; count?: number; revenue?: number; jamaah?: number }>;
+  breakdown: {
+    by_status?: Record<string, number>;
+    by_branch?: Array<{ branch_id: string; branch_name?: string; code?: string; count?: number; revenue?: number; invoice_count?: number; jamaah?: number }>;
+    by_wilayah?: Array<{ wilayah_id: string; wilayah_name?: string; count?: number; revenue?: number; invoice_count?: number }>;
+    by_provinsi?: Array<{ provinsi_id: string; provinsi_name?: string; count?: number; revenue?: number; invoice_count?: number }>;
+    by_owner?: Array<{ owner_id: string; owner_name?: string; count?: number; revenue?: number; invoice_count?: number }>;
+    by_role?: Record<string, number>;
+    by_source?: Record<string, number>;
+    by_level?: Record<string, number>;
+  };
+  rows: any[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export const reportsApi = {
+  getFilters: () =>
+    api.get<{ success: boolean; data: ReportsFiltersData }>('/reports/filters'),
+  getAnalytics: (params?: {
+    report_type?: ReportType;
+    date_from?: string;
+    date_to?: string;
+    period?: ReportPeriod;
+    branch_id?: string;
+    wilayah_id?: string;
+    provinsi_id?: string;
+    group_by?: ReportGroupBy;
+    role?: string;
+    page?: number;
+    limit?: number;
+    source?: string;
+    level?: string;
+  }) =>
+    api.get<{ success: boolean; data: ReportsAnalyticsData }>('/reports/analytics', { params }),
+  exportExcel: (params?: {
+    report_type?: ReportType;
+    date_from?: string;
+    date_to?: string;
+    period?: ReportPeriod;
+    branch_id?: string;
+    wilayah_id?: string;
+    provinsi_id?: string;
+    role?: string;
+    source?: string;
+    level?: string;
+  }) =>
+    api.get('/reports/export-excel', { params, responseType: 'blob' }),
+  exportPdf: (params?: {
+    report_type?: ReportType;
+    date_from?: string;
+    date_to?: string;
+    period?: ReportPeriod;
+    branch_id?: string;
+    wilayah_id?: string;
+    provinsi_id?: string;
+    role?: string;
+    source?: string;
+    level?: string;
+  }) =>
+    api.get('/reports/export-pdf', { params, responseType: 'blob' })
+};
 
 export const adminCabangApi = {
   getDashboard: () => api.get<{ success: boolean; data: AdminCabangDashboardData }>('/admin-cabang/dashboard'),
@@ -374,7 +713,7 @@ export const adminCabangApi = {
 };
 
 export const ownersApi = {
-  register: (body: { email: string; password: string; name: string; phone?: string; company_name?: string; address?: string; operational_region?: string; whatsapp?: string; npwp?: string }) =>
+  register: (body: { email: string; password: string; name: string; phone?: string; company_name?: string; address?: string; operational_region?: string; preferred_branch_id?: string; whatsapp?: string; npwp?: string }) =>
     api.post<{ success: boolean; message?: string; data?: { user: any; owner_status: string } }>('/owners/register', body),
   list: (params?: { status?: string; branch_id?: string }) => api.get<{ success: boolean; data: OwnerProfile[] }>('/owners', { params }),
   assignBranch: (ownerId: string, branchId: string) => api.patch(`/owners/${ownerId}/assign-branch`, { branch_id: branchId }),

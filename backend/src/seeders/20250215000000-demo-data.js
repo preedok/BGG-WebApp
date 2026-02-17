@@ -15,11 +15,11 @@ module.exports = {
     const now = new Date();
     const hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
-    // 3 cabang: Jakarta, Surabaya, Bandung (untuk testing semua role)
+    // 3 cabang: Jakarta, Surabaya, Bandung (Bintang Global Group - nama cabang, wilayah, manager, kontak, koordinator)
     await queryInterface.bulkInsert('branches', [
-      { id: BRANCH_JKT, code: 'JKT', name: 'Kantor Pusat Jakarta', city: 'Jakarta', region: 'DKI Jakarta', manager_name: 'Manager Pusat', phone: '+62 21 8094 5678', email: 'pusat@bintangglobal.com', address: 'Jl. Sudirman No. 1', is_active: true, created_at: now, updated_at: now },
-      { id: BRANCH_SBY, code: 'SBY', name: 'Cabang Surabaya', city: 'Surabaya', region: 'Jawa Timur', manager_name: 'Manager Surabaya', phone: '+62 31 5687 4321', email: 'surabaya@bintangglobal.com', address: 'Jl. HR Muhammad No. 10', is_active: true, created_at: now, updated_at: now },
-      { id: BRANCH_BDG, code: 'BDG', name: 'Cabang Bandung', city: 'Bandung', region: 'Jawa Barat', manager_name: 'Manager Bandung', phone: '+62 22 1234 5678', email: 'bandung@bintangglobal.com', address: 'Jl. Dago No. 5', is_active: true, created_at: now, updated_at: now }
+      { id: BRANCH_JKT, code: 'JKT', name: 'Bintang Global Group Cabang Jakarta', city: 'Jakarta', region: 'DKI Jakarta', manager_name: 'Ahmad Rizki', phone: '+62 21 8094 5678', email: 'pusat@bintangglobal.com', address: 'Jl. Sudirman No. 1', koordinator_provinsi: 'Budi Santoso', koordinator_provinsi_phone: '+62 812 3456 7890', koordinator_provinsi_email: 'budi.santoso@bintangglobal.com', koordinator_wilayah: 'Dewi Kartika', koordinator_wilayah_phone: '+62 813 9876 5432', koordinator_wilayah_email: 'dewi.kartika@bintangglobal.com', is_active: true, created_at: now, updated_at: now },
+      { id: BRANCH_SBY, code: 'SBY', name: 'Bintang Global Group Cabang Surabaya', city: 'Surabaya', region: 'Jawa Timur', manager_name: 'Siti Rahayu', phone: '+62 31 5687 4321', email: 'surabaya@bintangglobal.com', address: 'Jl. HR Muhammad No. 10', koordinator_provinsi: 'Hendra Wijaya', koordinator_provinsi_phone: '+62 821 1111 2222', koordinator_provinsi_email: 'hendra.wijaya@bintangglobal.com', koordinator_wilayah: 'Rina Melati', koordinator_wilayah_phone: '+62 822 3333 4444', koordinator_wilayah_email: 'rina.melati@bintangglobal.com', is_active: true, created_at: now, updated_at: now },
+      { id: BRANCH_BDG, code: 'BDG', name: 'Bintang Global Group Cabang Bandung', city: 'Bandung', region: 'Jawa Barat', manager_name: 'Fajar Nugroho', phone: '+62 22 1234 5678', email: 'bandung@bintangglobal.com', address: 'Jl. Dago No. 5', koordinator_provinsi: 'Ani Lestari', koordinator_provinsi_phone: '+62 823 5555 6666', koordinator_provinsi_email: 'ani.lestari@bintangglobal.com', koordinator_wilayah: 'Bambang Prasetyo', koordinator_wilayah_phone: '+62 824 7777 8888', koordinator_wilayah_email: 'bambang.prasetyo@bintangglobal.com', is_active: true, created_at: now, updated_at: now }
     ]).catch(e => logErr('branches', e));
 
     // Semua role + 3 owner (minimal 3 contoh untuk testing)

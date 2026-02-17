@@ -46,6 +46,11 @@ const PaymentProof = sequelize.define('PaymentProof', {
   verified_at: {
     type: DataTypes.DATE
   },
+  verified_status: {
+    type: DataTypes.STRING(20),
+    defaultValue: 'pending',
+    comment: 'pending | verified | rejected'
+  },
   notes: {
     type: DataTypes.TEXT
   },

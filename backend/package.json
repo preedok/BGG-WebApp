@@ -13,11 +13,18 @@
     "migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "seed": "sequelize-cli db:seed:all",
     "seed:undo": "sequelize-cli db:seed:undo:all",
+    "seed:branches": "sequelize-cli db:seed --seed 20250217000000-branches-indonesia.js",
+    "seed:branches:undo": "sequelize-cli db:seed:undo --seed 20250217000000-branches-indonesia.js",
+    "seed:examples-25": "sequelize-cli db:seed --seed 20250217000005-example-25-invoices.js",
+    "seed:examples-25:undo": "sequelize-cli db:seed:undo --seed 20250217000005-example-25-invoices.js",
+    "seed:accounting": "sequelize-cli db:seed --seed 20250217000010-accounting-defaults.js",
+    "seed:accounting:undo": "sequelize-cli db:seed:undo --seed 20250217000010-accounting-defaults.js",
     "db:create": "sequelize-cli db:create",
     "db:drop": "sequelize-cli db:drop",
     "db:update": "npm run migrate && node scripts/sync-database.js && npm run seed",
     "db:recreate": "node scripts/recreate-database.js && npm run db:update",
-    "db:sync": "node scripts/sync-database.js"
+    "db:sync": "node scripts/sync-database.js",
+    "generate:payment-proofs": "node scripts/generate-payment-proof-examples.js"
   },
   "dependencies": {
     "express": "^4.19.2",

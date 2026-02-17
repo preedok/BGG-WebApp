@@ -13,12 +13,19 @@ const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rules, setRules] = useState<Record<string, any>>({});
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    company_name: string;
+    company_address: string;
+    SAR_TO_IDR: string | number;
+    USD_TO_IDR: string | number;
+    notification_order: boolean;
+    notification_payment: boolean;
+    notification_invoice: boolean;
+  }>({
     company_name: '',
     company_address: '',
     SAR_TO_IDR: 4200,
     USD_TO_IDR: 15500,
-    IDR_TO_SAR: 0.000238,
     notification_order: true,
     notification_payment: true,
     notification_invoice: true
@@ -44,7 +51,6 @@ const SettingsPage: React.FC = () => {
             company_address: data.company_address ?? f.company_address,
             SAR_TO_IDR: currency.SAR_TO_IDR ?? f.SAR_TO_IDR,
             USD_TO_IDR: currency.USD_TO_IDR ?? f.USD_TO_IDR,
-            IDR_TO_SAR: currency.IDR_TO_SAR ?? f.IDR_TO_SAR,
             notification_order: data.notification_order === 'true' || data.notification_order === true,
             notification_payment: data.notification_payment === 'true' || data.notification_payment === true,
             notification_invoice: data.notification_invoice === 'true' || data.notification_invoice === true
@@ -87,9 +93,8 @@ const SettingsPage: React.FC = () => {
       await businessRulesApi.set({
         rules: {
           currency_rates: {
-            SAR_TO_IDR: Number(form.SAR_TO_IDR),
-            USD_TO_IDR: Number(form.USD_TO_IDR),
-            IDR_TO_SAR: Number(form.IDR_TO_SAR)
+            SAR_TO_IDR: form.SAR_TO_IDR === '' ? 0 : Number(form.SAR_TO_IDR),
+            USD_TO_IDR: form.USD_TO_IDR === '' ? 0 : Number(form.USD_TO_IDR)
           }
         }
       });
@@ -202,8 +207,8 @@ const SettingsPage: React.FC = () => {
                     <label className="block text-sm font-semibold text-slate-700 mb-2">SAR → IDR (1 SAR = ? IDR)</label>
                     <input
                       type="number"
-                      value={form.SAR_TO_IDR}
-                      onChange={(e) => setForm((f) => ({ ...f, SAR_TO_IDR: Number(e.target.value) || 0 }))}
+                      value={form.SAR_TO_IDR === '' ? '' : form.SAR_TO_IDR}
+                      onChange={(e) => setForm((f) => ({ ...f, SAR_TO_IDR: e.target.value === '' ? '' : Number(e.target.value) || 0 }))}
                       disabled={!canEdit}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
                     />
@@ -212,19 +217,8 @@ const SettingsPage: React.FC = () => {
                     <label className="block text-sm font-semibold text-slate-700 mb-2">USD → IDR (1 USD = ? IDR)</label>
                     <input
                       type="number"
-                      value={form.USD_TO_IDR}
-                      onChange={(e) => setForm((f) => ({ ...f, USD_TO_IDR: Number(e.target.value) || 0 }))}
-                      disabled={!canEdit}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
-                    />
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-lg">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">IDR → SAR (1 IDR = ? SAR)</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={form.IDR_TO_SAR}
-                      onChange={(e) => setForm((f) => ({ ...f, IDR_TO_SAR: Number(e.target.value) || 0 }))}
+                      value={form.USD_TO_IDR === '' ? '' : form.USD_TO_IDR}
+                      onChange={(e) => setForm((f) => ({ ...f, USD_TO_IDR: e.target.value === '' ? '' : Number(e.target.value) || 0 }))}
                       disabled={!canEdit}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
                     />

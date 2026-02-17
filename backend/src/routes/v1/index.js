@@ -1,5 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const { auth, requireRole } = require('../../middleware/auth');
+const { ROLES } = require('../../constants');
+const productController = require('../../controllers/productController');
+const adminPusatController = require('../../controllers/adminPusatController');
+const accountingController = require('../../controllers/accountingController');
+const superAdminController = require('../../controllers/superAdminController');
 
 router.get('/', (req, res) => {
   res.json({
@@ -25,15 +31,18 @@ router.use('/owners', require('./owners'));
 router.use('/branches', require('./branches'));
 router.use('/orders', require('./orders'));
 router.use('/invoices', require('./invoices'));
+router.post('/products/hotels', auth, requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT), productController.createHotel);
 router.use('/products', require('./products'));
 router.use('/business-rules', require('./businessRules'));
 router.use('/hotel', require('./hotel'));
 router.use('/ticket', require('./ticket'));
 router.use('/visa', require('./visa'));
 router.use('/bus', require('./bus'));
-router.use('/admin-cabang', require('./adminCabang'));
+router.use('/koordinator', require('./koordinator'));
+router.delete('/admin-pusat/users/:id', auth, requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT), adminPusatController.deleteUser);
 router.use('/admin-pusat', require('./adminPusat'));
 router.use('/accounting', require('./accounting'));
+router.use('/reports', require('./reports'));
 router.use('/super-admin', require('./superAdmin'));
 
 module.exports = router;
