@@ -140,12 +140,9 @@ export const PAYMENT_METHOD_LABELS = {
 export const USER_ROLES = {
   SUPER_ADMIN: 'super_admin',
   ADMIN_PUSAT: 'admin_pusat',
-  ADMIN_CABANG: 'admin_cabang',
   ROLE_INVOICE: 'role_invoice',
-  ROLE_VISA: 'role_visa',
   ROLE_HOTEL: 'role_hotel',
   ROLE_BUS: 'role_bus',
-  ROLE_TICKET: 'role_ticket',
   ROLE_ACCOUNTING: 'role_accounting',
   OWNER: 'owner'
 } as const;
@@ -281,18 +278,14 @@ export const ROUTES = {
   BUS: '/dashboard/bus',
   PACKAGES: '/dashboard/packages',
   ORDERS: '/dashboard/orders-invoices',
-  INVOICES: '/dashboard/invoices',
+  INVOICES: '/dashboard/orders-invoices',
   USERS: '/dashboard/users',
   BRANCHES: '/dashboard/branches',
   REPORTS: '/dashboard/reports',
   SETTINGS: '/dashboard/settings',
   PROFILE: '/dashboard/profile',
-  SUPER_ADMIN_MONITORING: '/dashboard/super-admin/monitoring',
-  SUPER_ADMIN_ORDER_STATS: '/dashboard/super-admin/order-statistics',
   SUPER_ADMIN_LOGS: '/dashboard/super-admin/logs',
-  SUPER_ADMIN_MAINTENANCE: '/dashboard/super-admin/maintenance',
-  SUPER_ADMIN_LANGUAGE: '/dashboard/super-admin/language',
-  SUPER_ADMIN_DEPLOY: '/dashboard/super-admin/deploy'
+  SUPER_ADMIN_MAINTENANCE: '/dashboard/super-admin/maintenance'
 } as const;
 
 // Chart colors for donut/pie (Recharts)

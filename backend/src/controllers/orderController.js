@@ -1,10 +1,11 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
-const { Order, OrderItem, User, Branch, Provinsi, OwnerProfile, Invoice } = require('../models');
+const { Order, OrderItem, User, Branch, Provinsi, OwnerProfile, Invoice, Notification } = require('../models');
 const { getRulesForBranch } = require('./businessRuleController');
+const { NOTIFICATION_TRIGGER } = require('../constants');
 const { getEffectivePrice } = require('./productController');
 const { ORDER_ITEM_TYPE, ROOM_CAPACITY } = require('../constants');
-const { syncInvoiceFromOrder } = require('./invoiceController');
+const { syncInvoiceFromOrder, createInvoiceForOrder } = require('./invoiceController');
 const { getBranchIdsForWilayah } = require('../utils/wilayahScope');
 
 const generateOrderNumber = () => {
@@ -120,18 +121,18 @@ const create = asyncHandler(async (req, res) => {
   // Gunakan branch_id dari body hanya jika benar-benar string non-kosong (body tanpa branch_id = undefined)
   const bodyBranchOk = typeof branch_id === 'string' && branch_id.trim() !== '';
   let effectiveBranchId = bodyBranchOk ? branch_id.trim() : (req.user.branch_id || null);
-  
+  const isInvoiceRole = ['invoice_koordinator', 'role_invoice_saudi'].includes(req.user.role);
+
   // Untuk owner: ambil assigned_branch_id dari OwnerProfile jika belum ada branch_id
   if (req.user.role === 'owner' && !effectiveBranchId) {
     try {
-      const profile = await OwnerProfile.findOne({ 
+      const profile = await OwnerProfile.findOne({
         where: { user_id: req.user.id },
         attributes: ['assigned_branch_id'],
-        raw: true 
+        raw: true
       });
       if (profile && profile.assigned_branch_id) {
         const assigned = profile.assigned_branch_id;
-        // Pastikan assigned_branch_id adalah UUID string yang valid
         const assignedStr = typeof assigned === 'string' ? assigned.trim() : String(assigned).trim();
         if (assignedStr && assignedStr !== 'null' && assignedStr !== 'undefined' && assignedStr.length >= 10) {
           effectiveBranchId = assignedStr;
@@ -139,7 +140,23 @@ const create = asyncHandler(async (req, res) => {
       }
     } catch (err) {
       console.error('Error fetching owner profile:', err);
-      // Jika error saat ambil profile, tetap lanjut dengan effectiveBranchId yang ada (null)
+    }
+  }
+
+  // Role invoice (koordinator/saudi): jika kirim owner_id tanpa branch_id, ambil cabang dari owner tersebut
+  if (isInvoiceRole && effectiveOwnerId && !effectiveBranchId) {
+    try {
+      const profile = await OwnerProfile.findOne({
+        where: { user_id: effectiveOwnerId },
+        attributes: ['assigned_branch_id'],
+        raw: true
+      });
+      if (profile && profile.assigned_branch_id) {
+        const assignedStr = String(profile.assigned_branch_id).trim();
+        if (assignedStr.length >= 10) effectiveBranchId = assignedStr;
+      }
+    } catch (err) {
+      console.error('Error fetching owner profile for invoice role:', err);
     }
   }
   
@@ -161,12 +178,12 @@ const create = asyncHandler(async (req, res) => {
       effectiveBranchId,
       branchIdStr
     });
-    return res.status(400).json({
-      success: false,
-      message: req.user.role === 'owner'
-        ? 'Owner belum di-assign cabang. Hubungi admin/koordinator untuk assign cabang.'
-        : 'Branch/cabang wajib. Pilih cabang atau pastikan akun owner sudah di-assign cabang.'
-    });
+    const msg = req.user.role === 'owner'
+      ? 'Owner belum di-assign cabang. Hubungi admin/koordinator untuk assign cabang.'
+      : isInvoiceRole
+        ? 'Owner yang dipilih belum memiliki cabang. Pilih owner lain atau hubungi admin untuk menetapkan cabang.'
+        : 'Branch/cabang wajib. Pilih cabang atau pastikan akun owner sudah di-assign cabang.';
+    return res.status(400).json({ success: false, message: msg });
   }
   
   console.log('Order create - using branch_id:', finalBranchId, 'for user:', req.user.id, 'role:', req.user.role);
@@ -271,6 +288,23 @@ const create = asyncHandler(async (req, res) => {
     await OrderItem.create({ ...it, order_id: order.id });
   }
 
+  const orderForInvoice = await Order.findByPk(order.id, {
+    attributes: ['id', 'order_number', 'owner_id', 'branch_id', 'total_amount']
+  });
+  if (orderForInvoice) {
+    try {
+      const opts = {};
+      if (req.body.dp_percentage != null) opts.dp_percentage = req.body.dp_percentage;
+      if (req.body.dp_amount != null) opts.dp_amount = req.body.dp_amount;
+      const inv = await createInvoiceForOrder(orderForInvoice, opts);
+      if (inv) {
+        console.log('Auto-created invoice', inv.invoice_number, 'for order', order.order_number);
+      }
+    } catch (invErr) {
+      console.error('Auto-create invoice after order create failed:', invErr);
+    }
+  }
+
   const full = await Order.findByPk(order.id, {
     include: [{ model: OrderItem, as: 'OrderItems' }]
   });
@@ -317,11 +351,17 @@ const update = asyncHandler(async (req, res) => {
     const busPenaltyIdr = rules.bus_penalty_idr ?? 500000;
     await OrderItem.destroy({ where: { order_id: order.id } });
     let subtotal = 0, totalJamaah = 0, penaltyAmount = 0;
+    const isOwner = req.user.role === 'owner';
     for (const it of items) {
       const qty = parseInt(it.quantity, 10) || 1;
-      let unitPrice = parseFloat(it.unit_price);
-      if (unitPrice == null || isNaN(unitPrice) && it.product_id) {
+      let unitPrice;
+      if (isOwner) {
         unitPrice = await getEffectivePrice(it.product_id, order.branch_id, order.owner_id, it.meta || {}, it.currency || 'IDR') || 0;
+      } else {
+        unitPrice = parseFloat(it.unit_price);
+        if (unitPrice == null || isNaN(unitPrice)) {
+          unitPrice = await getEffectivePrice(it.product_id, order.branch_id, order.owner_id, it.meta || {}, it.currency || 'IDR') || 0;
+        }
       }
       const st = qty * (unitPrice || 0);
       subtotal += st;
@@ -378,4 +418,40 @@ const destroy = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Order dibatalkan', data: order });
 });
 
-module.exports = { list, create, getById, update, destroy };
+/**
+ * POST /api/v1/orders/:id/send-result
+ * Kirim notifikasi hasil order ke owner. Scope: koordinator (order wilayahnya).
+ */
+const sendOrderResult = asyncHandler(async (req, res) => {
+  const { id: orderId } = req.params;
+  const { channel } = req.body || {};
+  const order = await Order.findByPk(orderId, {
+    include: [{ model: User, as: 'User', attributes: ['id', 'name', 'email'] }]
+  });
+  if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
+
+  const role = req.user.role;
+  let allowed = false;
+  if (['admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator'].includes(role) && req.user.wilayah_id) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    if (branchIds.includes(order.branch_id)) allowed = true;
+  }
+  if (!allowed) {
+    return res.status(403).json({ success: false, message: 'Order tidak dalam scope Anda' });
+  }
+
+  await Notification.create({
+    user_id: order.owner_id,
+    trigger: NOTIFICATION_TRIGGER.ORDER_COMPLETED,
+    title: 'Order selesai',
+    message: `Order ${order.order_number} telah selesai. Hasil order dapat diunduh/dilihat di aplikasi.`,
+    data: { order_id: order.id, order_number: order.order_number },
+    channel_in_app: true,
+    channel_email: channel === 'email' || channel === 'both',
+    channel_whatsapp: channel === 'whatsapp' || channel === 'both'
+  });
+
+  res.json({ success: true, message: 'Notifikasi telah dikirim ke owner.', data: { order_id: order.id } });
+});
+
+module.exports = { list, create, getById, update, destroy, sendOrderResult };

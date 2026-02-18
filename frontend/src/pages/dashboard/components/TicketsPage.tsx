@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plane, Settings, Building2, Save, Edit2, Trash2 } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { businessRulesApi, branchesApi } from '../../../services/api';
@@ -74,7 +76,7 @@ const TicketsPage: React.FC = () => {
       if (rates && typeof rates === 'object') setCurrencyRates({ SAR_TO_IDR: rates.SAR_TO_IDR ?? 4200, USD_TO_IDR: rates.USD_TO_IDR ?? 15500 });
     }).catch(() => {});
   }, []);
-  const isBranch = user?.role === 'admin_cabang';
+  const isBranch = false;
   const canConfig = isPusat || isBranch;
 
   const branchIdForApi = isBranch && user?.branch_id
@@ -214,7 +216,7 @@ const TicketsPage: React.FC = () => {
     return Number.isNaN(n) ? 0 : n;
   };
 
-  if (user?.role === 'role_ticket') {
+  if (user?.role === 'tiket_koordinator') {
     return <TicketWorkPage />;
   }
 
@@ -360,24 +362,14 @@ const TicketsPage: React.FC = () => {
                           <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_super_air_jet_idr)}</td>
                           <td className="py-3 px-4 text-right text-slate-700">{formatPrice(row.ticket_garuda_idr)}</td>
                           <td className="py-3 px-4">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => onEditBranch(row)}
-                                className="p-2 rounded-lg text-sky-600 hover:bg-sky-50 transition-colors"
-                                title="Ubah"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteBranch(row.branchId)}
-                                disabled={deletingId === row.branchId}
-                                className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                                title="Hapus"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                            <div className="flex justify-center">
+                              <ActionsMenu
+                                align="right"
+                                items={[
+                                  { id: 'edit', label: 'Ubah', icon: <Edit2 className="w-4 h-4" />, onClick: () => onEditBranch(row) },
+                                  { id: 'delete', label: 'Hapus', icon: <Trash2 className="w-4 h-4" />, onClick: () => handleDeleteBranch(row.branchId), danger: true, disabled: deletingId === row.branchId },
+                                ] as ActionsMenuItem[]}
+                              />
                             </div>
                           </td>
                         </tr>

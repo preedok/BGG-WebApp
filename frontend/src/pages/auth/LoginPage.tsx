@@ -60,96 +60,84 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grid' width='60' height='60' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 10 0 L 0 0 0 10' fill='none' stroke='white' stroke-opacity='0.1' stroke-width='1'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grid)'/%3E%3C/svg%3E")`
-        }} />
-      </div>
+    <div className="min-h-screen travel-hero-bg flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-200/40 via-transparent to-transparent" />
 
-      <div className="relative min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="flex items-center justify-center space-x-3 mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center">
-              <Globe className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Bintang Global</h1>
-              <p className="text-slate-400 text-sm">Travel Management System</p>
-            </div>
+      <div className="relative w-full max-w-md">
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-travel mb-4">
+            <Globe className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
           </div>
-
-          <Card className="backdrop-blur-xl bg-white/10 border-2 border-white/20 shadow-2xl">
-            <h2 className="text-xl font-bold text-white mb-2">Masuk</h2>
-            <p className="text-slate-300 text-sm mb-6">Gunakan email dan password akun Anda</p>
-
-            {error && (
-              <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-200">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">Email</label>
-                <div className="relative">
-                  <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="nama@email.com"
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">Password</label>
-                <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
-                    disabled={isSubmitting}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-700 hover:to-teal-700"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <LogIn className="w-5 h-5" />
-                  {isSubmitting ? 'Memproses...' : 'Masuk'}
-                </span>
-              </Button>
-            </form>
-
-            <p className="mt-6 text-center text-slate-300 text-sm">
-              Belum punya akun?{' '}
-              <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-semibold">
-                Daftar sebagai Partner Owner
-              </Link>
-            </p>
-          </Card>
+          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Bintang Global</h1>
+          <p className="text-primary-600 font-medium mt-1">Umroh & Travel</p>
         </div>
+
+        <Card className="shadow-travel-lg border border-stone-200/80">
+          <h2 className="text-xl font-bold text-stone-900 mb-1">Masuk ke akun Anda</h2>
+          <p className="text-stone-500 text-sm mb-6">Gunakan email dan password yang terdaftar</p>
+
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Email</label>
+              <div className="relative">
+                <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="nama@email.com"
+                  className="w-full pl-10 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Password</label>
+              <div className="relative">
+                <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-12 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <Button type="submit" disabled={isSubmitting} className="w-full py-3">
+              <span className="flex items-center justify-center gap-2">
+                <LogIn className="w-5 h-5" />
+                {isSubmitting ? 'Memproses...' : 'Masuk'}
+              </span>
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-stone-600 text-sm">
+            Belum punya akun?{' '}
+            <Link to="/register" className="text-primary-600 hover:text-primary-700 font-semibold">
+              Daftar sebagai Partner Owner
+            </Link>
+          </p>
+        </Card>
       </div>
     </div>
   );

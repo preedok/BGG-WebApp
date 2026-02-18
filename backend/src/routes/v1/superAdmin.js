@@ -13,7 +13,6 @@ router.use(auth);
 router.use(requireRole(ROLES.SUPER_ADMIN));
 
 router.get('/monitoring', superAdminController.getMonitoring);
-router.get('/order-statistics', superAdminController.getOrderStatistics);
 router.get('/logs', superAdminController.getLogs);
 router.post('/logs', superAdminController.createLog);
 router.get('/maintenance', superAdminController.listMaintenance);
@@ -22,8 +21,6 @@ router.patch('/maintenance/:id', superAdminController.updateMaintenance);
 router.delete('/maintenance/:id', superAdminController.deleteMaintenance);
 router.get('/settings', superAdminController.getSettings);
 router.put('/settings', superAdminController.updateSettings);
-router.get('/templates', superAdminController.listTemplates);
-router.post('/templates/:id/activate', superAdminController.activateTemplate);
 router.get('/export-monitoring-excel', superAdminController.exportMonitoringExcel);
 router.get('/export-monitoring-pdf', superAdminController.exportMonitoringPdf);
 router.get('/export-logs-excel', superAdminController.exportLogsExcel);

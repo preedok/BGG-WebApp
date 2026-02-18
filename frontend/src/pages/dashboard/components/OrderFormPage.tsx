@@ -6,7 +6,7 @@ import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { productsApi, ordersApi, businessRulesApi, branchesApi } from '../../../services/api';
+import { productsApi, ordersApi, businessRulesApi, branchesApi, ownersApi } from '../../../services/api';
 import { formatIDR, formatSAR, formatUSD } from '../../../utils';
 import { fillFromSource } from '../../../utils/currencyConversion';
 
@@ -86,6 +86,18 @@ const roomCapacity = (roomType: RoomTypeId | undefined): number => {
   return r ? r.capacity : 0;
 };
 
+/** Hanya owner dan invoice_koordinator yang boleh tambah/edit/hapus order. Role lain hanya lihat di Order & Invoice. */
+const canCreateOrEditOrder = (role: string | undefined) => role === 'owner' || role === 'invoice_koordinator';
+
+/** Item daftar owner dari API (termasuk AssignedBranch untuk ambil cabang) */
+interface OwnerListItem {
+  id: string;
+  user_id: string;
+  assigned_branch_id?: string;
+  User?: { id: string; name?: string; company_name?: string };
+  AssignedBranch?: { id: string; code: string; name: string };
+}
+
 const OrderFormPage: React.FC = () => {
   const { id: orderId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -94,6 +106,13 @@ const OrderFormPage: React.FC = () => {
   const isEdit = Boolean(orderId);
   /** Harga satuan hanya boleh diedit oleh role invoice dan admin; owner tidak bisa mengubah harga */
   const canEditPrice = ['invoice_koordinator', 'role_invoice_saudi', 'super_admin', 'admin_pusat', 'admin_koordinator'].includes(user?.role ?? '');
+
+  /** Redirect ke Order & Invoice jika role tidak boleh aksi order (tambah/edit) */
+  useEffect(() => {
+    if (user && !canCreateOrEditOrder(user.role)) {
+      navigate('/dashboard/orders-invoices', { replace: true });
+    }
+  }, [user, navigate]);
 
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -107,14 +126,21 @@ const OrderFormPage: React.FC = () => {
   /** Daftar cabang untuk dropdown (saat buat order baru); pilihan cabang saat user tidak punya branch_id */
   const [branches, setBranches] = useState<{ id: string; code: string; name: string }[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  /** Untuk invoice_koordinator / role_invoice_saudi: pilih owner sesuai wilayah (cabang) saat buat order baru */
+  const [ownersList, setOwnersList] = useState<OwnerListItem[]>([]);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>('');
 
-  const branchId = order?.branch_id || selectedBranchId || user?.branch_id || undefined;
-  const ownerId = user?.id || order?.owner_id;
-
-  /** Owner tidak pilih cabang — backend pakai assigned_branch_id dari profil. Dropdown cabang hanya untuk non-owner (admin dll). */
+  /** Role invoice: tidak pilih cabang; cabang diambil dari owner yang dipilih. Role lain: branch dari order / dropdown / user */
   const isOwner = user?.role === 'owner';
+  const canSelectOwner = !isEdit && ['invoice_koordinator', 'role_invoice_saudi'].includes(user?.role ?? '');
+  const selectedOwnerProfile = canSelectOwner && selectedOwnerId ? ownersList.find((o) => (o.User?.id ?? o.user_id) === selectedOwnerId) : null;
+  const branchIdFromOwner = selectedOwnerProfile?.AssignedBranch?.id ?? selectedOwnerProfile?.assigned_branch_id ?? null;
+  const branchId = order?.branch_id || (canSelectOwner ? branchIdFromOwner : null) || selectedBranchId || user?.branch_id || undefined;
+  const ownerId = isOwner ? user?.id : (isEdit ? order?.owner_id : canSelectOwner ? selectedOwnerId : undefined) ?? order?.owner_id ?? user?.id;
+
+  /** Daftar cabang hanya untuk role yang bukan invoice (invoice cukup pilih owner sesuai wilayah) */
   useEffect(() => {
-    if (!isEdit && !isOwner) {
+    if (!isEdit && !isOwner && !canSelectOwner) {
       branchesApi.list({ limit: 500 }).then((res) => {
         const data = (res.data as { data?: { id: string; code: string; name: string }[] })?.data ?? [];
         const list = Array.isArray(data) ? data : [];
@@ -126,11 +152,29 @@ const OrderFormPage: React.FC = () => {
         });
       }).catch(() => setBranches([]));
     }
-  }, [isEdit, isOwner, user?.branch_id]);
+  }, [isEdit, isOwner, canSelectOwner, user?.branch_id]);
 
   useEffect(() => {
     if (isEdit && order?.branch_id) setSelectedBranchId(order.branch_id);
   }, [isEdit, order?.branch_id]);
+
+  /** Muat daftar owner sesuai wilayah untuk invoice_koordinator / role_invoice_saudi (tanpa pilih cabang) */
+  useEffect(() => {
+    if (!canSelectOwner) {
+      setOwnersList([]);
+      return;
+    }
+    ownersApi.list({}).then((res) => {
+      const raw = (res.data as { success?: boolean; data?: unknown })?.data;
+      const data = Array.isArray(raw) ? (raw as OwnerListItem[]) : [];
+      setOwnersList(data);
+      setSelectedOwnerId((prev) => {
+        const first = data[0];
+        const firstId = first?.User?.id ?? first?.user_id;
+        return firstId && !prev ? firstId : prev;
+      });
+    }).catch(() => setOwnersList([]));
+  }, [canSelectOwner]);
 
   useEffect(() => {
     const params = branchId ? { branch_id: branchId } : undefined;
@@ -439,8 +483,16 @@ const OrderFormPage: React.FC = () => {
       showToast('Minimal satu item dengan produk dan qty > 0', 'warning');
       return;
     }
-    if (!isEdit && !branchId && !isOwner) {
+    if (!isEdit && !isOwner && !canSelectOwner && !branchId) {
       showToast('Pilih cabang di atas untuk membuat order.', 'warning');
+      return;
+    }
+    if (canSelectOwner && !selectedOwnerId) {
+      showToast('Pilih owner untuk order ini.', 'warning');
+      return;
+    }
+    if (canSelectOwner && selectedOwnerId && !branchIdFromOwner) {
+      showToast('Owner yang dipilih belum memiliki cabang. Pilih owner lain.', 'warning');
       return;
     }
     const sarToIdr = currencyRates.SAR_TO_IDR || 4200;
@@ -497,18 +549,15 @@ const OrderFormPage: React.FC = () => {
         .finally(() => setSaving(false));
     } else {
       const body: Record<string, unknown> = { ...payload };
-      // Untuk owner: jangan kirim branch_id, biarkan backend ambil dari OwnerProfile
-      // Untuk non-owner: kirim branch_id jika ada (dari dropdown atau user.branch_id)
-      if (!isOwner && branchId) {
-        body.branch_id = branchId;
-      }
+      // Owner: backend ambil cabang dari OwnerProfile. Invoice role: backend ambil cabang dari owner yang dipilih.
+      if (!isOwner && !canSelectOwner && branchId) body.branch_id = branchId;
       if (ownerId && user?.role !== 'owner') body.owner_id = ownerId;
       ordersApi
         .create(body)
         .then((res) => {
           const data = (res.data as { data?: { id: string } })?.data;
           showToast('Order berhasil dibuat', 'success');
-          navigate(data?.id ? '/dashboard/orders-invoices' : '/dashboard/orders-invoices');
+          navigate('/dashboard/orders-invoices', { state: { refreshList: true } });
         })
         .catch((err) => showToast(err.response?.data?.message || 'Gagal membuat order', 'error'))
         .finally(() => setSaving(false));
@@ -537,12 +586,15 @@ const OrderFormPage: React.FC = () => {
 
       <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {!isEdit && !isOwner && branches.length > 0 && (
+          {!isEdit && !isOwner && !canSelectOwner && branches.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-sm font-medium text-slate-700">Cabang</label>
               <select
                 value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedBranchId(e.target.value);
+                  setSelectedOwnerId('');
+                }}
                 className="border border-slate-300 rounded-lg px-3 py-2 text-sm min-w-[200px] focus:ring-2 focus:ring-emerald-500"
                 required
               >
@@ -552,6 +604,25 @@ const OrderFormPage: React.FC = () => {
                 ))}
               </select>
               <span className="text-xs text-slate-500">Wajib untuk membuat order</span>
+            </div>
+          )}
+          {canSelectOwner && (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Owner</label>
+              <select
+                value={selectedOwnerId}
+                onChange={(e) => setSelectedOwnerId(e.target.value)}
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm min-w-[200px] focus:ring-2 focus:ring-emerald-500"
+                required
+              >
+                <option value="">Pilih owner</option>
+                {ownersList.map((o) => {
+                  const uid = o.User?.id ?? o.user_id;
+                  const label = o.User?.company_name || o.User?.name || uid;
+                  return <option key={o.id} value={uid}>{label}</option>;
+                })}
+              </select>
+              <span className="text-xs text-slate-500">Owner sesuai wilayah Anda. Order dan cabang mengikuti owner yang dipilih.</span>
             </div>
           )}
           {loadingProducts ? (

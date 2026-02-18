@@ -5,7 +5,7 @@ const { ROLES } = require('../../constants');
 const visaController = require('../../controllers/visaController');
 
 router.use(auth);
-router.use(requireRole(ROLES.ROLE_VISA));
+router.use(requireRole(ROLES.VISA_KOORDINATOR));
 
 router.get('/dashboard', visaController.getDashboard);
 router.get('/export-excel', visaController.exportExcel);

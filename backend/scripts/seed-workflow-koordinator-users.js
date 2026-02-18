@@ -49,10 +49,9 @@ async function main() {
   await sequelize.query('UPDATE payroll_runs SET created_by = NULL WHERE created_by IS NOT NULL').catch(() => {});
   await sequelize.query('DELETE FROM payroll_items').catch(() => {});
   await sequelize.query('DELETE FROM employee_salaries').catch(() => {});
-  await sequelize.query('UPDATE refunds SET created_by = NULL, processed_by = NULL WHERE created_by IS NOT NULL OR processed_by IS NOT NULL').catch(() => {});
+  await sequelize.query('UPDATE refunds SET requested_by = NULL, approved_by = NULL WHERE requested_by IS NOT NULL OR approved_by IS NOT NULL').catch(() => {});
   await sequelize.query('UPDATE invoice_files SET generated_by = NULL WHERE generated_by IS NOT NULL').catch(() => {});
   await sequelize.query('UPDATE maintenance_notices SET created_by = NULL WHERE created_by IS NOT NULL').catch(() => {});
-  await sequelize.query('UPDATE flyer_templates SET created_by = NULL WHERE created_by IS NOT NULL').catch(() => {});
   await sequelize.query('UPDATE product_availability SET updated_by = NULL WHERE updated_by IS NOT NULL').catch(() => {});
   // Semua kolom yang referensi users (pastikan nama tabel/kolom sesuai DB)
   const userFkTables = [

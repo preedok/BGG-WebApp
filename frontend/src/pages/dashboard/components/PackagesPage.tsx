@@ -3,6 +3,8 @@ import { Package, Plus, Edit, Trash2, XCircle } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Button from '../../../components/common/Button';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -387,26 +389,15 @@ const PackagesPage: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex justify-center">
                     {canCreatePackage && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(pkg)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          title="Update"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(pkg)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
+                      <ActionsMenu
+                        align="right"
+                        items={[
+                          { id: 'edit', label: 'Edit', icon: <Edit className="w-4 h-4" />, onClick: () => openEdit(pkg) },
+                          { id: 'delete', label: 'Hapus', icon: <Trash2 className="w-4 h-4" />, onClick: () => handleDelete(pkg), danger: true },
+                        ] as ActionsMenuItem[]}
+                      />
                     )}
                   </div>
                 </td>

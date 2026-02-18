@@ -5,6 +5,8 @@ import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { adminPusatApi, branchesApi, UserListItem } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -96,7 +98,7 @@ const UsersPage: React.FC = () => {
 
   if (!canListUsers) {
     return (
-      <div className="rounded-lg bg-amber-50 p-4 text-amber-800">
+      <div className="rounded-travel bg-primary-50 border border-primary-200 p-4 text-primary-800">
         <p>Daftar user hanya dapat diakses oleh Super Admin dan Admin Pusat.</p>
       </div>
     );
@@ -120,56 +122,53 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Manajemen User</h1>
-          <p className="text-slate-600 mt-1">Daftar user dari database – tambah akun via Admin Pusat / Admin Cabang</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Manajemen User</h1>
+          <p className="text-stone-600 mt-1">Daftar user – tambah akun via Admin Pusat / Admin Cabang</p>
         </div>
         <Button variant="primary"><Plus className="w-5 h-5 mr-2" />Tambah User</Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
-          <Card key={i} hover>
+          <Card key={i} hover className="travel-card">
             <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} text-white`}>
+              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} text-white shadow-card`}>
                 <UsersIcon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-slate-600">{stat.label}</p>
-                <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                <p className="text-sm text-stone-600">{stat.label}</p>
+                <p className="text-2xl font-bold text-stone-900">{stat.value}</p>
               </div>
             </div>
           </Card>
         ))}
       </div>
 
-      <Card>
+      <Card className="travel-card">
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
             <input
               type="text"
               placeholder="Cari nama atau email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              className="w-full pl-10 pr-4 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            className="px-4 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="all">Semua Role</option>
             <option value="super_admin">Super Admin</option>
             <option value="admin_pusat">Admin Pusat</option>
-            <option value="admin_cabang">Admin Cabang</option>
             <option value="owner">Owner</option>
             <option value="invoice_koordinator">Invoice Koordinator</option>
             <option value="role_invoice_saudi">Invoice Saudi</option>
-            <option value="role_visa">Visa</option>
-            <option value="role_ticket">Tiket</option>
             <option value="role_hotel">Hotel</option>
             <option value="role_bus">Bus</option>
             <option value="role_accounting">Accounting</option>
@@ -178,7 +177,7 @@ const UsersPage: React.FC = () => {
             <select
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
-              className="px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 min-w-[180px]"
+              className="px-4 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary-500 min-w-[180px]"
               title="Filter cabang"
             >
               <option value="">Semua cabang</option>
@@ -206,7 +205,7 @@ const UsersPage: React.FC = () => {
             <tr key={user.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
                     {user.name.charAt(0)}
                   </div>
                   <div>
@@ -237,10 +236,15 @@ const UsersPage: React.FC = () => {
                 </Badge>
               </td>
               <td className="px-6 py-4">
-                <div className="flex items-center justify-center gap-2">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Lihat"><Eye className="w-4 h-4" /></button>
-                  <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Edit"><Edit className="w-4 h-4" /></button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Hapus"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex justify-center">
+                  <ActionsMenu
+                    align="right"
+                    items={[
+                      { id: 'view', label: 'Lihat', icon: <Eye className="w-4 h-4" />, onClick: () => {} },
+                      { id: 'edit', label: 'Edit', icon: <Edit className="w-4 h-4" />, onClick: () => {} },
+                      { id: 'delete', label: 'Hapus', icon: <Trash2 className="w-4 h-4" />, onClick: () => {}, danger: true },
+                    ] as ActionsMenuItem[]}
+                  />
                 </div>
               </td>
             </tr>

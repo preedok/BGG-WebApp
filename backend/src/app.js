@@ -6,7 +6,7 @@ const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const { UPLOAD_ROOT, SUBDIRS, getDir } = require('./config/uploads');
 
-// Pastikan folder uploads dan subfolder ada saat startup
+// Pastikan folder uploads (workflow inti) ada saat startup
 try {
   getDir(SUBDIRS.MOU);
   getDir(SUBDIRS.PAYMENT_PROOFS);
@@ -14,7 +14,8 @@ try {
   getDir(SUBDIRS.MANIFEST_TICKET);
   getDir(SUBDIRS.VISA_DOCS);
   getDir(SUBDIRS.TICKET_DOCS);
-  getDir(SUBDIRS.FLYER);
+  getDir(SUBDIRS.INVOICES);
+  getDir(SUBDIRS.PAYROLL_SLIPS);
 } catch (e) { /* ignore */ }
 
 const app = express();

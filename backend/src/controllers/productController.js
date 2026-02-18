@@ -305,15 +305,14 @@ const createPrice = asyncHandler(async (req, res) => {
   const { product_id, branch_id, owner_id, currency, amount, amount_idr, amount_sar, amount_usd, meta, effective_from, effective_until } = req.body;
   if (!product_id) return res.status(400).json({ success: false, message: 'product_id wajib' });
 
-  const canSetBranch = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG].includes(req.user.role);
-  const canSetOwner = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.ADMIN_CABANG, ROLES.INVOICE_KOORDINATOR, ROLES.ROLE_INVOICE_SAUDI].includes(req.user.role);
+  const canSetBranch = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT].includes(req.user.role);
+  const canSetOwner = [ROLES.SUPER_ADMIN, ROLES.ADMIN_PUSAT, ROLES.INVOICE_KOORDINATOR, ROLES.ROLE_INVOICE_SAUDI].includes(req.user.role);
 
   let finalBranchId = branch_id || null;
   let finalOwnerId = owner_id || null;
 
   if (finalBranchId && !canSetBranch) finalBranchId = null;
   if (finalOwnerId && !canSetOwner) finalOwnerId = null;
-  if (req.user.role === ROLES.ADMIN_CABANG && finalBranchId !== req.user.branch_id) finalBranchId = req.user.branch_id;
   if ((req.user.role === ROLES.INVOICE_KOORDINATOR || req.user.role === ROLES.ROLE_INVOICE_SAUDI) && finalBranchId !== req.user.branch_id) finalBranchId = req.user.branch_id;
 
   const metaObj = meta && typeof meta === 'object' ? meta : {};

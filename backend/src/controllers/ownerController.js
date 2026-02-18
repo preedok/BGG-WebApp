@@ -98,17 +98,23 @@ const getMyProfile = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/v1/owners (Admin Pusat / Super Admin / Admin Koordinator)
- * Admin Koordinator: hanya owner yang assigned ke cabang di wilayah mereka, atau DEPOSIT_VERIFIED.
+ * GET /api/v1/owners (Admin Pusat / Super Admin / Koordinator / Accounting)
+ * Query: status, branch_id, wilayah_id (untuk Admin Pusat/Super Admin filter per wilayah).
+ * Koordinator: hanya owner yang assigned ke cabang di wilayah mereka, atau DEPOSIT_VERIFIED.
  */
 const list = asyncHandler(async (req, res) => {
-  const { status, branch_id } = req.query;
+  const { status, branch_id, wilayah_id: queryWilayahId } = req.query;
   const where = {};
   if (status) where.status = status;
 
   const isKoordinator = isKoordinatorRole(req.user.role);
-  const wilayahId = req.user.wilayah_id;
-  const branchIdsWilayah = isKoordinator && wilayahId ? await getBranchIdsForWilayah(wilayahId) : null;
+  const userWilayahId = req.user.wilayah_id;
+  let branchIdsWilayah = null;
+  if (isKoordinator && userWilayahId) {
+    branchIdsWilayah = await getBranchIdsForWilayah(userWilayahId);
+  } else if (queryWilayahId) {
+    branchIdsWilayah = await getBranchIdsForWilayah(queryWilayahId);
+  }
   const filterBranchId = branch_id || (isKoordinator ? null : null);
 
   const profiles = await OwnerProfile.findAll({
@@ -120,8 +126,10 @@ const list = asyncHandler(async (req, res) => {
     ]
   });
   let list_ = profiles;
-  if (isKoordinator && branchIdsWilayah && branchIdsWilayah.length > 0) {
-    list_ = profiles.filter(p => p.assigned_branch_id && branchIdsWilayah.includes(p.assigned_branch_id) || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
+  if (isKoordinator && userWilayahId && branchIdsWilayah && branchIdsWilayah.length > 0) {
+    list_ = profiles.filter(p => (p.assigned_branch_id && branchIdsWilayah.includes(p.assigned_branch_id)) || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
+  } else if (queryWilayahId && branchIdsWilayah && branchIdsWilayah.length > 0) {
+    list_ = profiles.filter(p => (p.assigned_branch_id && branchIdsWilayah.includes(p.assigned_branch_id)) || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
   } else if (filterBranchId) {
     list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId);
   }

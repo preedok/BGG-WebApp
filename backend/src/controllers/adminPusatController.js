@@ -17,8 +17,7 @@ const {
   TicketProgress,
   BusProgress,
   Product,
-  ProductAvailability,
-  FlyerTemplate
+  ProductAvailability
 } = require('../models');
 const { ROLES, ORDER_ITEM_TYPE } = require('../constants');
 
@@ -157,210 +156,6 @@ const getDashboard = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/v1/admin-pusat/combined-recap
- * Rekap gabungan seluruh proses pekerjaan dan orderan di semua cabang. Filter: branch_id, date_from, date_to.
- */
-const getCombinedRecap = asyncHandler(async (req, res) => {
-  const { branch_id, date_from, date_to } = req.query;
-  const whereOrder = {};
-  if (branch_id) whereOrder.branch_id = branch_id;
-  if (date_from || date_to) {
-    whereOrder.created_at = {};
-    if (date_from) whereOrder.created_at[Op.gte] = new Date(date_from);
-    if (date_to) {
-      const d = new Date(date_to);
-      d.setHours(23, 59, 59, 999);
-      whereOrder.created_at[Op.lte] = d;
-    }
-  }
-
-  const orders = await Order.findAll({
-    where: whereOrder,
-    include: [
-      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] },
-      { model: User, as: 'User', attributes: ['id', 'name'] },
-      {
-        model: OrderItem,
-        as: 'OrderItems',
-        include: [
-          { model: HotelProgress, as: 'HotelProgress', required: false },
-          { model: VisaProgress, as: 'VisaProgress', required: false },
-          { model: TicketProgress, as: 'TicketProgress', required: false },
-          { model: BusProgress, as: 'BusProgress', required: false }
-        ]
-      }
-    ],
-    order: [['created_at', 'DESC']]
-  });
-
-  const invoices = await Invoice.findAll({
-    where: branch_id ? { branch_id } : {},
-    include: [{ model: Order, as: 'Order', attributes: ['id', 'order_number'] }]
-  });
-
-  const recap = {
-    total_orders: orders.length,
-    total_invoices: invoices.length,
-    orders_by_branch: {},
-    orders_by_status: {},
-    items_hotel: 0,
-    items_visa: 0,
-    items_ticket: 0,
-    items_bus: 0
-  };
-
-  orders.forEach(o => {
-    const j = o.toJSON();
-    recap.orders_by_status[j.status] = (recap.orders_by_status[j.status] || 0) + 1;
-    const bid = j.branch_id || 'none';
-    recap.orders_by_branch[bid] = (recap.orders_by_branch[bid] || 0) + 1;
-    (j.OrderItems || []).forEach(item => {
-      if (item.type === ORDER_ITEM_TYPE.HOTEL) recap.items_hotel += 1;
-      if (item.type === ORDER_ITEM_TYPE.VISA) recap.items_visa += 1;
-      if (item.type === ORDER_ITEM_TYPE.TICKET) recap.items_ticket += 1;
-      if (item.type === ORDER_ITEM_TYPE.BUS) recap.items_bus += 1;
-    });
-  });
-
-  res.json({
-    success: true,
-    data: {
-      recap,
-      orders: orders.slice(0, 50),
-      branches: await Branch.findAll({ where: { is_active: true }, attributes: ['id', 'code', 'name'] })
-    }
-  });
-});
-
-/**
- * GET /api/v1/admin-pusat/export-recap-excel?branch_id=&date_from=&date_to=
- */
-const exportRecapExcel = asyncHandler(async (req, res) => {
-  const { branch_id, date_from, date_to } = req.query;
-  const whereOrder = {};
-  if (branch_id) whereOrder.branch_id = branch_id;
-  if (date_from || date_to) {
-    whereOrder.created_at = {};
-    if (date_from) whereOrder.created_at[Op.gte] = new Date(date_from);
-    if (date_to) {
-      const d = new Date(date_to);
-      d.setHours(23, 59, 59, 999);
-      whereOrder.created_at[Op.lte] = d;
-    }
-  }
-
-  const orders = await Order.findAll({
-    where: whereOrder,
-    include: [
-      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] },
-      { model: User, as: 'User', attributes: ['id', 'name'] }
-    ],
-    order: [['created_at', 'DESC']],
-    limit: 500
-  });
-
-  const invoices = await Invoice.findAll({
-    where: branch_id ? { branch_id } : {},
-    include: [{ model: Order, as: 'Order', attributes: ['id', 'order_number'] }]
-  });
-
-  const recap = { total_orders: orders.length, total_invoices: invoices.length, orders_by_status: {}, orders_by_branch: {} };
-  orders.forEach(o => {
-    const j = o.toJSON();
-    recap.orders_by_status[j.status] = (recap.orders_by_status[j.status] || 0) + 1;
-    const bid = j.branch_id || 'none';
-    recap.orders_by_branch[bid] = (recap.orders_by_branch[bid] || 0) + 1;
-  });
-
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Rekap', { views: [{ state: 'frozen', ySplit: 1 }] });
-  sheet.columns = [
-    { header: 'Metric', width: 25 },
-    { header: 'Nilai', width: 15 }
-  ];
-  sheet.getRow(1).font = { bold: true };
-  sheet.addRows([
-    ['Total Order', recap.total_orders],
-    ['Total Faktur', recap.total_invoices],
-    ['', ''],
-    ['Order per Status', '']
-  ]);
-  Object.entries(recap.orders_by_status || {}).forEach(([k, v]) => sheet.addRow([k, v]));
-  sheet.addRows([['', ''], ['Order per Cabang', '']]);
-  const branches = await Branch.findAll({ where: { is_active: true }, attributes: ['id', 'code', 'name'] });
-  const branchMap = branches.reduce((acc, b) => { acc[b.id] = b.name || b.code; return acc; }, {});
-  Object.entries(recap.orders_by_branch || {}).forEach(([bid, v]) => {
-    sheet.addRow([branchMap[bid] || bid, v]);
-  });
-
-  const buf = await workbook.xlsx.writeBuffer();
-  const now = new Date();
-  const filename = `rekap-combined-${now.toISOString().slice(0, 10)}.xlsx`;
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(Buffer.from(buf));
-});
-
-/**
- * GET /api/v1/admin-pusat/export-recap-pdf?branch_id=&date_from=&date_to=
- */
-const exportRecapPdf = asyncHandler(async (req, res) => {
-  const { branch_id, date_from, date_to } = req.query;
-  const whereOrder = {};
-  if (branch_id) whereOrder.branch_id = branch_id;
-  if (date_from || date_to) {
-    whereOrder.created_at = {};
-    if (date_from) whereOrder.created_at[Op.gte] = new Date(date_from);
-    if (date_to) {
-      const d = new Date(date_to);
-      d.setHours(23, 59, 59, 999);
-      whereOrder.created_at[Op.lte] = d;
-    }
-  }
-
-  const orders = await Order.findAll({
-    where: whereOrder,
-    include: [{ model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] }],
-    order: [['created_at', 'DESC']],
-    limit: 200
-  });
-
-  const invoices = await Invoice.findAll({
-    where: branch_id ? { branch_id } : {},
-    attributes: ['id', 'status']
-  });
-
-  const recap = { total_orders: orders.length, total_invoices: invoices.length, orders_by_status: {}, orders_by_branch: {} };
-  orders.forEach(o => {
-    const j = o.toJSON();
-    recap.orders_by_status[j.status] = (recap.orders_by_status[j.status] || 0) + 1;
-    const bid = j.branch_id || 'none';
-    recap.orders_by_branch[bid] = (recap.orders_by_branch[bid] || 0) + 1;
-  });
-
-  const doc = new PDFDocument({ margin: 50 });
-  const now = new Date();
-  const filename = `rekap-combined-${now.toISOString().slice(0, 10)}.pdf`;
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  doc.pipe(res);
-
-  doc.fontSize(16).text('Rekap Combined - Admin Pusat', { align: 'center' });
-  doc.fontSize(9).text(`Generated: ${now.toLocaleString('id-ID')}`, { align: 'center' });
-  doc.moveDown(1.5);
-  doc.fontSize(10).text(`Total Order: ${recap.total_orders}  |  Total Faktur: ${recap.total_invoices}`);
-  doc.moveDown(0.5);
-  doc.text('Order per Status:');
-  Object.entries(recap.orders_by_status || {}).forEach(([k, v]) => doc.text(`  ${k}: ${v}`));
-  doc.moveDown(0.5);
-  doc.text('Order per Cabang:');
-  const branches = await Branch.findAll({ where: { is_active: true }, attributes: ['id', 'code', 'name'] });
-  const branchMap = branches.reduce((acc, b) => { acc[b.id] = b.name || b.code; return acc; }, {});
-  Object.entries(recap.orders_by_branch || {}).forEach(([bid, v]) => doc.text(`  ${branchMap[bid] || bid}: ${v}`));
-  doc.end();
-});
-
-/**
  * GET /api/v1/admin-pusat/users
  * Daftar user (Super Admin / Admin Pusat). Untuk manajemen user.
  */
@@ -405,19 +200,16 @@ const listUsers = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/v1/admin-pusat/users
- * Buat akun: role_bus, role_hotel (Saudi), admin_cabang, admin_wilayah, admin_provinsi
+ * Buat akun: role_bus, role_hotel (Saudi), admin_wilayah, admin_provinsi
  */
 const createUser = asyncHandler(async (req, res) => {
   const { name, email, password, role, branch_id, region } = req.body;
-  const allowedRoles = [ROLES.ROLE_BUS, ROLES.ROLE_HOTEL, ROLES.ADMIN_CABANG, ROLES.ADMIN_WILAYAH, ROLES.ADMIN_PROVINSI];
+  const allowedRoles = [ROLES.ROLE_BUS, ROLES.ROLE_HOTEL, ROLES.ADMIN_WILAYAH, ROLES.ADMIN_PROVINSI];
   if (!name || !email || !password || !role) {
     return res.status(400).json({ success: false, message: 'name, email, password, role wajib' });
   }
   if (!allowedRoles.includes(role)) {
-    return res.status(400).json({ success: false, message: 'Role harus role_bus, role_hotel, admin_cabang, admin_wilayah, atau admin_provinsi' });
-  }
-  if (role === ROLES.ADMIN_CABANG && !branch_id) {
-    return res.status(400).json({ success: false, message: 'admin_cabang wajib punya branch_id' });
+    return res.status(400).json({ success: false, message: 'Role harus role_bus, role_hotel, admin_wilayah, atau admin_provinsi' });
   }
   if (role === ROLES.ADMIN_WILAYAH && !region) {
     return res.status(400).json({ success: false, message: 'admin_wilayah wajib punya region (wilayah: Sumatra, Jawa, dll)' });
@@ -528,109 +320,11 @@ const setProductAvailability = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
-/**
- * GET /api/v1/admin-pusat/flyers - list semua flyer (admin)
- * GET /api/v1/admin-pusat/flyers/published - list yang published (bisa dipakai role lain)
- */
-const listFlyers = asyncHandler(async (req, res) => {
-  const { type, product_id, is_published } = req.query;
-  const where = {};
-  if (type) where.type = type;
-  if (product_id) where.product_id = product_id;
-  if (is_published !== undefined) where.is_published = is_published === 'true';
-
-  const flyers = await FlyerTemplate.findAll({
-    where,
-    include: [
-      { model: Product, as: 'Product', attributes: ['id', 'code', 'name', 'type'] },
-      { model: User, as: 'CreatedBy', attributes: ['id', 'name'] }
-    ],
-    order: [['updated_at', 'DESC']]
-  });
-  res.json({ success: true, data: flyers });
-});
-
-const listPublishedFlyers = asyncHandler(async (req, res) => {
-  const flyers = await FlyerTemplate.findAll({
-    where: { is_published: true },
-    include: [{ model: Product, as: 'Product', attributes: ['id', 'code', 'name', 'type'] }],
-    order: [['published_at', 'DESC']]
-  });
-  res.json({ success: true, data: flyers });
-});
-
-const createFlyer = asyncHandler(async (req, res) => {
-  const { name, type, product_id, design_content, thumbnail_url } = req.body;
-  if (!name || !type) return res.status(400).json({ success: false, message: 'name dan type wajib' });
-  if (!['product', 'package'].includes(type)) return res.status(400).json({ success: false, message: 'type harus product atau package' });
-  if (product_id) {
-    const p = await Product.findByPk(product_id);
-    if (!p) return res.status(404).json({ success: false, message: 'Product tidak ditemukan' });
-  }
-  const flyer = await FlyerTemplate.create({
-    name,
-    type,
-    product_id: product_id || null,
-    design_content: design_content || null,
-    thumbnail_url: thumbnail_url || null,
-    is_published: false,
-    created_by: req.user.id
-  });
-  const data = await FlyerTemplate.findByPk(flyer.id, {
-    include: [{ model: Product, as: 'Product', attributes: ['id', 'code', 'name'] }]
-  });
-  res.status(201).json({ success: true, data });
-});
-
-const updateFlyer = asyncHandler(async (req, res) => {
-  const flyer = await FlyerTemplate.findByPk(req.params.id);
-  if (!flyer) return res.status(404).json({ success: false, message: 'Flyer tidak ditemukan' });
-  const { name, type, product_id, design_content, thumbnail_url } = req.body;
-  if (type && !['product', 'package'].includes(type)) return res.status(400).json({ success: false, message: 'type harus product atau package' });
-  await flyer.update({
-    ...(name !== undefined && { name }),
-    ...(type !== undefined && { type }),
-    ...(product_id !== undefined && { product_id: product_id || null }),
-    ...(design_content !== undefined && { design_content }),
-    ...(thumbnail_url !== undefined && { thumbnail_url })
-  });
-  const data = await FlyerTemplate.findByPk(flyer.id, {
-    include: [{ model: Product, as: 'Product', attributes: ['id', 'code', 'name'] }]
-  });
-  res.json({ success: true, data });
-});
-
-const deleteFlyer = asyncHandler(async (req, res) => {
-  const flyer = await FlyerTemplate.findByPk(req.params.id);
-  if (!flyer) return res.status(404).json({ success: false, message: 'Flyer tidak ditemukan' });
-  await flyer.destroy();
-  res.json({ success: true, message: 'Flyer dihapus' });
-});
-
-const publishFlyer = asyncHandler(async (req, res) => {
-  const flyer = await FlyerTemplate.findByPk(req.params.id);
-  if (!flyer) return res.status(404).json({ success: false, message: 'Flyer tidak ditemukan' });
-  await flyer.update({ is_published: true, published_at: new Date() });
-  const data = await FlyerTemplate.findByPk(flyer.id, {
-    include: [{ model: Product, as: 'Product', attributes: ['id', 'code', 'name'] }]
-  });
-  res.json({ success: true, data, message: 'Flyer diluncurkan' });
-});
-
 module.exports = {
   getDashboard,
-  getCombinedRecap,
-  exportRecapExcel,
-  exportRecapPdf,
   listUsers,
   createUser,
   updateUser,
   deleteUser,
-  setProductAvailability,
-  listFlyers,
-  listPublishedFlyers,
-  createFlyer,
-  updateFlyer,
-  deleteFlyer,
-  publishFlyer
+  setProductAvailability
 };

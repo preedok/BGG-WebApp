@@ -52,11 +52,10 @@ function renderInvoicePdf(doc, data) {
   doc.text(`Tanggal: ${formatDate(data.issued_at || data.created_at)}`, margin + pageWidth * 0.75, y);
   y += 22;
 
-  // Info Order & Owner
+  // Info Owner & Cabang (nomor/status dari invoice saja)
   doc.fontSize(10).fillColor('#64748b');
-  doc.text(`Order: ${data.Order?.order_number || 'ORD-2025-00001'}`, margin, y);
-  doc.text(`Owner: ${data.User?.name || data.User?.company_name || 'PT Contoh'}`, margin + pageWidth * 0.4, y);
-  doc.text(`Cabang: ${data.Branch?.name || data.Branch?.code || 'Jakarta'}`, margin + pageWidth * 0.75, y);
+  doc.text(`Owner: ${data.User?.name || data.User?.company_name || '-'}`, margin, y);
+  doc.text(`Cabang: ${data.Branch?.name || data.Branch?.code || '-'}`, margin + pageWidth * 0.5, y);
   y += 28;
 
   // Tabel item (ringkas)
@@ -76,9 +75,9 @@ function renderInvoicePdf(doc, data) {
   if (items.length > 0) {
     items.forEach((item, i) => {
       const desc = item.Product?.name || item.product_name || `Item ${i + 1}`;
-      const amt = parseFloat(item.total_price || item.amount || 0);
+      const amt = parseFloat(item.subtotal || item.unit_price || 0);
       doc.fontSize(9).fillColor('#334155');
-      doc.text(desc.slice(0, 50), margin + 12, y);
+      doc.text(String(desc).slice(0, 50), margin + 12, y);
       doc.text(formatIDR(amt), margin + pageWidth - 100, y);
       y += 20;
     });

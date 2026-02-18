@@ -41,7 +41,7 @@ async function readBlobError(blob: Blob): Promise<string> {
 }
 
 const MONITORING_ROLES: UserRole[] = [
-  'admin_pusat', 'admin_cabang', 'owner', 'invoice_koordinator', 'role_invoice_saudi', 'role_visa', 'role_ticket', 'role_hotel', 'role_bus', 'role_accounting'
+  'admin_pusat', 'owner', 'invoice_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_bus', 'role_accounting'
 ];
 
 const SuperAdminDashboard: React.FC = () => {
@@ -132,7 +132,7 @@ const SuperAdminDashboard: React.FC = () => {
 
   const quickActions = [
     { label: 'System Logs', path: '/dashboard/super-admin/logs', icon: <FileText className="w-6 h-6" />, color: 'from-purple-500 to-pink-500' },
-    { label: 'Maintenance', path: '/dashboard/super-admin/maintenance', icon: <Bell className="w-6 h-6" />, color: 'from-amber-500 to-orange-500' }
+    { label: 'Maintenance', path: '/dashboard/super-admin/maintenance', icon: <Bell className="w-6 h-6" />, color: 'from-primary-500 to-primary-600' }
   ];
 
   return (
@@ -196,24 +196,24 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       {loading && !data ? (
-        <Card><div className="py-12 text-center text-slate-500">Memuat...</div></Card>
+        <Card className="travel-card"><div className="py-12 text-center text-stone-500">Memuat...</div></Card>
       ) : (
         <>
           {/* Informasi transaksi keseluruhan */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <Card hover className="relative overflow-hidden">
+            <Card hover className="travel-card relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white">
                   <DollarSign className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
+              <p className="text-sm text-stone-600 mb-1">Total Revenue</p>
               <p className="text-2xl font-bold text-slate-900">{formatIDR(o.total_revenue || 0)}</p>
               <p className="text-xs text-slate-500 mt-1">Hari ini: {formatIDR(o.revenue_today || 0)}</p>
             </Card>
-            <Card hover className="relative overflow-hidden">
+            <Card hover className="travel-card relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white">
                   <Receipt className="w-6 h-6" />
                 </div>
               </div>
@@ -221,7 +221,7 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="text-2xl font-bold text-slate-900">{o.total_orders ?? 0}</p>
               <p className="text-xs text-slate-500 mt-1">Hari ini: {o.orders_today ?? 0}</p>
             </Card>
-            <Card hover className="relative overflow-hidden">
+            <Card hover className="travel-card relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 text-white">
                   <FileCheck className="w-6 h-6" />
@@ -231,7 +231,7 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="text-2xl font-bold text-slate-900">{o.total_invoices ?? 0}</p>
               <p className="text-xs text-slate-500 mt-1">Hari ini: {o.invoices_today ?? 0}</p>
             </Card>
-            <Card hover className="relative overflow-hidden">
+            <Card hover className="travel-card relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                   <Users className="w-6 h-6" />
@@ -241,9 +241,9 @@ const SuperAdminDashboard: React.FC = () => {
               <p className="text-2xl font-bold text-slate-900">{o.active_users_24h ?? 0}</p>
               <p className="text-xs text-slate-500 mt-1">Total: {o.total_users ?? 0}</p>
             </Card>
-            <Card hover className="relative overflow-hidden">
+            <Card hover className="travel-card relative overflow-hidden">
               <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl text-white ${perf.database === 'ok' ? 'bg-gradient-to-br from-emerald-500 to-teal-500' : 'bg-gradient-to-br from-red-500 to-rose-500'}`}>
+                <div className={`p-3 rounded-xl text-white ${perf.database === 'ok' ? 'bg-gradient-to-br from-primary-500 to-primary-600' : 'bg-gradient-to-br from-red-500 to-rose-500'}`}>
                   <Activity className="w-6 h-6" />
                 </div>
               </div>
@@ -255,8 +255,8 @@ const SuperAdminDashboard: React.FC = () => {
 
           {/* Chart Order per Status + Performance */}
           <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Order per Status</h3>
+            <Card className="travel-card">
+              <h3 className="text-lg font-bold text-stone-900 mb-4">Order per Status</h3>
               {Object.keys(ordersByStatus).length > 0 ? (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -284,10 +284,10 @@ const SuperAdminDashboard: React.FC = () => {
                 <p className="text-slate-500 text-sm py-8">Belum ada order</p>
               )}
             </Card>
-            <Card>
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Performa Aplikasi</h3>
+            <Card className="travel-card">
+              <h3 className="text-lg font-bold text-stone-900 mb-4">Performa Aplikasi</h3>
               <div className="space-y-2">
-                <div className="flex justify-between"><span className="text-slate-600">Database</span><span className={perf.database === 'ok' ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>{perf.database === 'ok' ? 'OK' : 'Error'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">Database</span><span className={perf.database === 'ok' ? 'text-primary-600 font-medium' : 'text-red-600 font-medium'}>{perf.database === 'ok' ? 'OK' : 'Error'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-600">Memory</span><span className="font-medium">{perf.memory_mb ?? '-'} MB</span></div>
                 <div className="flex justify-between"><span className="text-slate-600">Uptime</span><span className="font-medium">{perf.uptime_human || '-'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-600">Cabang aktif</span><span className="font-medium">{o.active_branches ?? 0}</span></div>
@@ -295,8 +295,8 @@ const SuperAdminDashboard: React.FC = () => {
             </Card>
           </div>
 
-          <Card>
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Menu</h3>
+          <Card className="travel-card">
+            <h3 className="text-xl font-bold text-stone-900 mb-4">Menu</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {quickActions.map((action, index) => (
                 <Button

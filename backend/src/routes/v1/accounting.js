@@ -48,7 +48,6 @@ router.get('/payments', accountingController.getPaymentsList);
 router.get('/invoices', accountingController.listInvoices);
 router.get('/orders', accountingController.listOrders);
 router.get('/financial-report', accountingController.getFinancialReport);
-router.get('/reconciliation', accountingController.getReconciliation);
 router.post('/payments/:id/reconcile', accountingController.reconcilePayment);
 
 // Payroll (penggajian)

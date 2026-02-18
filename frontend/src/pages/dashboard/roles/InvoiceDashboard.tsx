@@ -116,7 +116,7 @@ const InvoiceDashboard: React.FC = () => {
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/invoices')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/orders-invoices')}>
             <Receipt className="w-4 h-4 mr-2" />
             Semua Invoice
           </Button>
@@ -154,7 +154,7 @@ const InvoiceDashboard: React.FC = () => {
                     <p className="text-sm text-slate-600">{inv.User?.name} · Total {formatIDR(inv.total_amount)}</p>
                     {proof && <p className="text-xs text-slate-500 mt-1">Klaim: {formatIDR(proof.amount)} · {proof.bank_name || '-'}</p>}
                   </div>
-                  <Button size="sm" onClick={() => navigate(`/dashboard/invoices?open=${inv.id}`)}>
+                  <Button size="sm" onClick={() => navigate(`/dashboard/orders-invoices?tab=invoices`)}>
                     <Eye className="w-4 h-4 mr-2" /> Verifikasi
                   </Button>
                 </div>

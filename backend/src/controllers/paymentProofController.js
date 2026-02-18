@@ -8,6 +8,15 @@ const uploadConfig = require('../config/uploads');
 
 const proofDir = uploadConfig.getDir(uploadConfig.SUBDIRS.PAYMENT_PROOFS);
 
+const MIME_BY_EXT = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.pdf': 'application/pdf'
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, proofDir),
   filename: (req, file, cb) => {
@@ -73,4 +82,32 @@ const create = [
   })
 ];
 
-module.exports = { create, upload };
+/**
+ * GET /api/v1/invoices/:id/payment-proofs/:proofId/file
+ * Stream file bukti bayar (untuk preview di popup; auth dipakai sehingga img/fetch bisa akses).
+ */
+const getFile = asyncHandler(async (req, res) => {
+  const proof = await PaymentProof.findOne({
+    where: { id: req.params.proofId, invoice_id: req.params.id }
+  });
+  if (!proof || !proof.proof_file_url || proof.proof_file_url === 'issued-saudi') {
+    return res.status(404).json({ success: false, message: 'File tidak ditemukan' });
+  }
+  const invoice = await Invoice.findByPk(proof.invoice_id, { attributes: ['owner_id'] });
+  const canAccess = invoice && (
+    invoice.owner_id === req.user.id ||
+    ['super_admin', 'admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'role_invoice_saudi', 'role_invoice', 'invoice', 'role_accounting'].includes(req.user.role)
+  );
+  if (!canAccess) return res.status(403).json({ success: false, message: 'Akses ditolak' });
+  const match = proof.proof_file_url.match(/\/uploads\/payment-proofs\/(.+)$/);
+  if (!match) return res.status(404).json({ success: false, message: 'Path tidak valid' });
+  const filePath = path.join(proofDir, match[1]);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, message: 'File tidak ada di server' });
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = MIME_BY_EXT[ext] || 'application/octet-stream';
+  res.setHeader('Content-Type', mime);
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(filePath).pipe(res);
+});
+
+module.exports = { create, upload, getFile };

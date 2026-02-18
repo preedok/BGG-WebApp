@@ -16,6 +16,8 @@ import Card from '../../../components/common/Card';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -679,25 +681,16 @@ const HotelsPage: React.FC = () => {
                   </Badge>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="flex items-center justify-center gap-2">
-                    {canEditProduct && (
-                      <button
-                        onClick={() => handleOpenEdit(hotel)}
-                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    )}
-                    {canAddHotel && (
-                      <button
-                        onClick={() => handleDeleteHotel(hotel)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Hapus"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                  <div className="flex justify-center">
+                    {(canEditProduct || canAddHotel) ? (
+                      <ActionsMenu
+                        align="right"
+                        items={[
+                          ...(canEditProduct ? [{ id: 'edit', label: 'Edit', icon: <Edit className="w-4 h-4" />, onClick: () => handleOpenEdit(hotel) }] : []),
+                          ...(canAddHotel ? [{ id: 'delete', label: 'Hapus', icon: <Trash2 className="w-4 h-4" />, onClick: () => handleDeleteHotel(hotel), danger: true }] : []),
+                        ].filter(Boolean) as ActionsMenuItem[]}
+                      />
+                    ) : null}
                   </div>
                 </td>
               </tr>

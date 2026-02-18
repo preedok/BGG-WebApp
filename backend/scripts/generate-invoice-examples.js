@@ -1,13 +1,21 @@
 /**
  * Generate example invoice PDFs per status (satu file per status)
- * Simpan di uploads/invoice-examples/
+ * Simpan di uploads/invoice-examples/ (folder opsional, bukan bagian workflow inti)
  *
  * Usage: node scripts/generate-invoice-examples.js
  */
 const path = require('path');
 const fs = require('fs');
 const { buildInvoicePdfBuffer, STATUS_LABELS } = require('../src/utils/invoicePdf');
-const { SUBDIRS, getDir } = require('../src/config/uploads');
+const { UPLOAD_ROOT } = require('../src/config/uploads');
+
+const INVOICE_EXAMPLES_DIR = path.join(UPLOAD_ROOT, 'invoice-examples');
+function ensureDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e) { /* ignore */ }
+  return dir;
+}
 
 const INVOICE_STATUSES = [
   'draft',
@@ -74,7 +82,7 @@ function createSampleData(status) {
 }
 
 async function main() {
-  const outDir = getDir(SUBDIRS.INVOICE_EXAMPLES);
+  const outDir = ensureDir(INVOICE_EXAMPLES_DIR);
   console.log('Generating invoice examples to:', outDir);
 
   for (const status of INVOICE_STATUSES) {

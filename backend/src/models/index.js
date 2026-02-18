@@ -15,7 +15,6 @@ const Notification = require('./Notification');
 const AppSetting = require('./AppSetting');
 const SystemLog = require('./SystemLog');
 const MaintenanceNotice = require('./MaintenanceNotice');
-const UiTemplate = require('./UiTemplate');
 const Product = require('./Product');
 const ProductPrice = require('./ProductPrice');
 const BusinessRuleConfig = require('./BusinessRuleConfig');
@@ -24,7 +23,6 @@ const TicketProgress = require('./TicketProgress');
 const VisaProgress = require('./VisaProgress');
 const BusProgress = require('./BusProgress');
 const ProductAvailability = require('./ProductAvailability');
-const FlyerTemplate = require('./FlyerTemplate');
 const AccountingFiscalYear = require('./AccountingFiscalYear');
 const AccountingPeriod = require('./AccountingPeriod');
 const ChartOfAccount = require('./ChartOfAccount');
@@ -105,6 +103,9 @@ ProductPrice.belongsTo(User, { foreignKey: 'owner_id', as: 'Owner' });
 ProductPrice.belongsTo(User, { foreignKey: 'created_by', as: 'Creator' });
 Branch.hasMany(ProductPrice, { foreignKey: 'branch_id' });
 
+OrderItem.belongsTo(Product, { foreignKey: 'product_ref_id', as: 'Product', required: false });
+Product.hasMany(OrderItem, { foreignKey: 'product_ref_id' });
+
 BusinessRuleConfig.belongsTo(Branch, { foreignKey: 'branch_id' });
 BusinessRuleConfig.belongsTo(User, { foreignKey: 'updated_by' });
 Branch.hasMany(BusinessRuleConfig, { foreignKey: 'branch_id' });
@@ -132,10 +133,6 @@ OrderItem.hasOne(BusProgress, { foreignKey: 'order_item_id', as: 'BusProgress' }
 ProductAvailability.belongsTo(Product, { foreignKey: 'product_id' });
 ProductAvailability.belongsTo(User, { foreignKey: 'updated_by', as: 'UpdatedBy' });
 Product.hasOne(ProductAvailability, { foreignKey: 'product_id', as: 'ProductAvailability' });
-
-FlyerTemplate.belongsTo(Product, { foreignKey: 'product_id' });
-FlyerTemplate.belongsTo(User, { foreignKey: 'created_by', as: 'CreatedBy' });
-Product.hasMany(FlyerTemplate, { foreignKey: 'product_id', as: 'FlyerTemplates' });
 
 // Accounting
 AccountingFiscalYear.hasMany(AccountingPeriod, { foreignKey: 'fiscal_year_id', as: 'Periods' });
@@ -182,7 +179,6 @@ const db = {
   AppSetting,
   SystemLog,
   MaintenanceNotice,
-  UiTemplate,
   Product,
   ProductPrice,
   BusinessRuleConfig,
@@ -191,7 +187,6 @@ const db = {
   VisaProgress,
   BusProgress,
   ProductAvailability,
-  FlyerTemplate,
   AccountingFiscalYear,
   AccountingPeriod,
   ChartOfAccount,

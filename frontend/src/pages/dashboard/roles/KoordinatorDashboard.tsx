@@ -4,7 +4,7 @@ import { Receipt, Users, FileText, Hotel, Plane, Bus, RefreshCw, Settings } from
 import { useToast } from '../../../contexts/ToastContext';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
-import { koordinatorApi } from '../../../services/api';
+import { koordinatorApi, ordersApi } from '../../../services/api';
 
 const OWNER_STATUS_LABELS: Record<string, string> = {
   registered_pending_mou: 'Pending MoU',
@@ -204,7 +204,7 @@ const KoordinatorDashboard: React.FC = () => {
                   onClick={async () => {
                     setSendingId(o.id);
                     try {
-                      await koordinatorApi.sendOrderResult(o.id, 'both');
+                      await ordersApi.sendResult(o.id, 'both');
                       showToast('Notifikasi hasil order telah dikirim ke owner.', 'success');
                     } catch (e: any) {
                       showToast(e.response?.data?.message || 'Gagal mengirim', 'error');

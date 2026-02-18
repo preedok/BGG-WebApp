@@ -43,11 +43,11 @@ const ProductsPage: React.FC = () => {
               onClick={() => setTab(id)}
               className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 border-2 ${
                 tab === id
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800'
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800'
               }`}
             >
-              <Icon className={`w-5 h-5 shrink-0 ${tab === id ? 'text-emerald-600' : 'text-slate-500'}`} />
+              <Icon className={`w-5 h-5 shrink-0 ${tab === id ? 'text-primary-600' : 'text-stone-500'}`} />
               {label}
             </button>
           ))}

@@ -11,7 +11,8 @@
  *   │   └── ticket/
  *   ├── visa-docs/           Dokumen visa terbit (role visa upload)
  *   ├── ticket-docs/         Dokumen tiket terbit (role ticket upload)
- *   └── flyer/               Asset flyer/template (admin pusat)
+ *   ├── invoices/            PDF invoice yang digenerate
+ *   └── payroll-slips/       Slip gaji PDF
  *
  * Format nama file (mudah dibaca dan dicari):
  *   - mou:           MOU_Owner_{userId}_YYYYMMDD_HHmmss.{ext}
@@ -36,8 +37,6 @@ const SUBDIRS = {
   MANIFEST_TICKET: 'manifest/ticket',
   VISA_DOCS: 'visa-docs',
   TICKET_DOCS: 'ticket-docs',
-  FLYER: 'flyer',
-  INVOICE_EXAMPLES: 'invoice-examples',
   INVOICES: 'invoices',
   PAYROLL_SLIPS: 'payroll-slips'
 };

@@ -112,15 +112,12 @@ const PayrollEmployeesPage: React.FC = () => {
     const map: Record<string, string> = {
       super_admin: 'Super Admin',
       admin_pusat: 'Admin Pusat',
-      admin_cabang: 'Admin Cabang',
       role_accounting: 'Accounting',
       role_invoice: 'Invoice (legacy)',
       invoice_koordinator: 'Invoice Koordinator',
       role_invoice_saudi: 'Invoice Saudi',
       role_hotel: 'Hotel',
-      role_visa: 'Visa',
-      role_bus: 'Bus',
-      role_ticket: 'Tiket'
+      role_bus: 'Bus'
     };
     return map[r] || r;
   };

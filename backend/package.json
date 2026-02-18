@@ -25,6 +25,7 @@
     "db:update": "npm run migrate && node scripts/sync-database.js && npm run seed && npm run seed:workflow-koordinator",
     "db:recreate": "node scripts/recreate-database.js && npm run db:update",
     "db:sync": "node scripts/sync-database.js",
+    "clean:uploads": "node scripts/clean-uploads.js",
     "generate:payment-proofs": "node scripts/generate-payment-proof-examples.js"
   },
   "dependencies": {

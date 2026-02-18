@@ -31,12 +31,12 @@ const SettingsPage: React.FC = () => {
     notification_invoice: true
   });
 
-  const canEdit = user?.role === 'super_admin' || user?.role === 'admin_pusat' || user?.role === 'admin_cabang';
+  const canEdit = user?.role === 'super_admin' || user?.role === 'admin_pusat';
 
   useEffect(() => {
     let cancelled = false;
     businessRulesApi
-      .get(user?.role === 'admin_cabang' ? { branch_id: user.branch_id } : {})
+      .get({})
       .then((res) => {
         if (!cancelled && res.data?.data) {
           const data = res.data.data as Record<string, any>;
@@ -142,7 +142,7 @@ const SettingsPage: React.FC = () => {
 
       <div className="grid lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
-          <Card>
+          <Card className="travel-card">
             <nav className="space-y-1">
               {tabs.map((tab) => (
                 <button
@@ -150,7 +150,7 @@ const SettingsPage: React.FC = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
+                      ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
                       : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -164,8 +164,8 @@ const SettingsPage: React.FC = () => {
 
         <div className="lg:col-span-3">
           {activeTab === 'general' && (
-            <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">General</h3>
+            <Card className="travel-card">
+              <h3 className="text-xl font-bold text-stone-900 mb-6">General</h3>
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Nama Perusahaan</label>
@@ -174,7 +174,7 @@ const SettingsPage: React.FC = () => {
                     value={form.company_name}
                     onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
                     disabled={!canEdit}
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-slate-100"
                   />
                 </div>
                 <div>
@@ -184,7 +184,7 @@ const SettingsPage: React.FC = () => {
                     onChange={(e) => setForm((f) => ({ ...f, company_address: e.target.value }))}
                     disabled={!canEdit}
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-slate-100"
                   />
                 </div>
                 {canEdit && (
@@ -198,8 +198,8 @@ const SettingsPage: React.FC = () => {
           )}
 
           {activeTab === 'currency' && (
-            <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Currency & Kurs</h3>
+            <Card className="travel-card">
+              <h3 className="text-xl font-bold text-stone-900 mb-6">Currency & Kurs</h3>
               <div className="space-y-6">
                 <p className="text-sm text-slate-600">Nilai tukar ke IDR (untuk konversi tagihan). Hanya Admin Pusat / Super Admin yang dapat mengubah kurs global.</p>
                 <div className="space-y-4">
@@ -210,7 +210,7 @@ const SettingsPage: React.FC = () => {
                       value={form.SAR_TO_IDR === '' ? '' : form.SAR_TO_IDR}
                       onChange={(e) => setForm((f) => ({ ...f, SAR_TO_IDR: e.target.value === '' ? '' : Number(e.target.value) || 0 }))}
                       disabled={!canEdit}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-slate-100"
                     />
                   </div>
                   <div className="p-4 bg-slate-50 rounded-lg">
@@ -220,7 +220,7 @@ const SettingsPage: React.FC = () => {
                       value={form.USD_TO_IDR === '' ? '' : form.USD_TO_IDR}
                       onChange={(e) => setForm((f) => ({ ...f, USD_TO_IDR: e.target.value === '' ? '' : Number(e.target.value) || 0 }))}
                       disabled={!canEdit}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 disabled:bg-slate-100"
                     />
                   </div>
                 </div>
@@ -235,8 +235,8 @@ const SettingsPage: React.FC = () => {
           )}
 
           {activeTab === 'notifications' && (
-            <Card>
-              <h3 className="text-xl font-bold text-slate-900 mb-6">Notifikasi</h3>
+            <Card className="travel-card">
+              <h3 className="text-xl font-bold text-stone-900 mb-6">Notifikasi</h3>
               <div className="space-y-4">
                 {[
                   { key: 'notification_order' as const, label: 'Notifikasi Order', description: 'Notifikasi saat ada order baru' },
@@ -256,7 +256,7 @@ const SettingsPage: React.FC = () => {
                         disabled={!canEdit}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 disabled:opacity-60"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600 disabled:opacity-60"></div>
                     </label>
                   </div>
                 ))}

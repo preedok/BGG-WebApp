@@ -3,7 +3,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 const asyncHandler = require('express-async-handler');
 const sequelize = require('../config/sequelize');
-const { Invoice, InvoiceFile, Order, User, Branch, PaymentProof, Notification, Provinsi, Wilayah } = require('../models');
+const { Invoice, InvoiceFile, Order, OrderItem, User, Branch, PaymentProof, Notification, Provinsi, Wilayah, Product } = require('../models');
 const { INVOICE_STATUS, NOTIFICATION_TRIGGER } = require('../constants');
 const { getRulesForBranch } = require('./businessRuleController');
 const { getBranchIdsForWilayah } = require('../utils/wilayahScope');
@@ -62,6 +62,8 @@ async function resolveBranchFilterList(branch_id, provinsi_id, wilayah_id, user)
     if (user.branch_id) return { branch_id: user.branch_id };
     return {};
   }
+  // Owner: jangan scope by branch di sini agar mereka lihat semua invoice milik mereka
+  if (user.role === 'owner') return branch_id ? { branch_id } : {};
   if (user.branch_id && !['super_admin', 'admin_pusat', 'role_accounting'].includes(user.role)) return { branch_id: user.branch_id };
   if (branch_id) return { branch_id };
   if (provinsi_id) {
@@ -112,8 +114,9 @@ const list = asyncHandler(async (req, res) => {
     }
   }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
-  // Jangan timpa branch_id dari resolveBranchFilterList (wilayah koordinator)
-  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role) && !isKoordinatorRole(req.user.role)) {
+  // Untuk owner: jangan filter branch_id agar semua invoice milik mereka tampil (order bisa punya branch dari form).
+  // role_accounting, role_invoice, invoice: lihat semua invoice (verifikasi); tidak di-scope ke satu cabang.
+  if (req.user.branch_id && req.user.role !== 'owner' && !['super_admin', 'admin_pusat', 'role_accounting', 'role_invoice', 'invoice'].includes(req.user.role) && !isKoordinatorRole(req.user.role)) {
     where.branch_id = req.user.branch_id;
   }
 
@@ -178,6 +181,7 @@ const list = asyncHandler(async (req, res) => {
     }, {});
   }
 
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json({
     success: true,
     data: rows,
@@ -226,7 +230,7 @@ const getSummary = asyncHandler(async (req, res) => {
     }
   }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
-  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role) && !isKoordinatorRole(req.user.role)) {
+  if (req.user.branch_id && req.user.role !== 'owner' && !['super_admin', 'admin_pusat', 'role_accounting', 'role_invoice', 'invoice'].includes(req.user.role) && !isKoordinatorRole(req.user.role)) {
     where.branch_id = req.user.branch_id;
   }
   if (req.user.wilayah_id && isKoordinatorRole(req.user.role)) {
@@ -300,7 +304,7 @@ const getSummary = asyncHandler(async (req, res) => {
  * Create invoice from order. Status tentative, auto_cancel_at = now + dp_grace_hours.
  */
 const create = asyncHandler(async (req, res) => {
-  const { order_id, is_super_promo } = req.body;
+  const { order_id, is_super_promo, dp_percentage: bodyDpPct, dp_amount: bodyDpAmount } = req.body;
   const order = await Order.findByPk(order_id, { include: ['OrderItems'] });
   if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
   if (order.owner_id !== req.user.id && !['invoice_koordinator', 'role_invoice_saudi', 'super_admin'].includes(req.user.role)) {
@@ -314,8 +318,15 @@ const create = asyncHandler(async (req, res) => {
   const dpGraceHours = rules.dp_grace_hours ?? 24;
   const dpDueDays = rules.dp_due_days ?? 3;
   const totalAmount = parseFloat(order.total_amount);
-  const dpPercentage = is_super_promo ? 50 : 30;
-  const dpAmount = Math.round(totalAmount * dpPercentage / 100);
+  const minDpPct = Math.max(0, parseInt(rules.min_dp_percentage, 10) || 30);
+  let dpPercentage = is_super_promo ? 50 : (parseInt(bodyDpPct, 10) || 30);
+  let dpAmount = typeof bodyDpAmount === 'number' && bodyDpAmount > 0 ? Math.round(bodyDpAmount) : Math.round(totalAmount * dpPercentage / 100);
+  const minDpAmount = Math.round(totalAmount * minDpPct / 100);
+  if (dpAmount < minDpAmount) {
+    dpAmount = minDpAmount;
+    dpPercentage = Math.round((dpAmount / totalAmount) * 100);
+  }
+  if (dpPercentage < minDpPct) dpPercentage = minDpPct;
   const dueDateDp = new Date();
   dueDateDp.setDate(dueDateDp.getDate() + dpDueDays);
   const autoCancelAt = new Date();
@@ -356,6 +367,69 @@ const create = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Buat invoice tentative dari order (dipanggil otomatis setelah order dibuat agar Trip & Invoice table terisi).
+ * @param {import('../models').Order} order - Order instance (id, owner_id, branch_id, total_amount, order_number)
+ * @param {{ is_super_promo?: boolean }} opts
+ * @returns {Promise<import('../models').Invoice|null>} Invoice yang dibuat, atau null jika sudah ada invoice
+ */
+async function createInvoiceForOrder(order, opts = {}) {
+  const orderId = order.id;
+  const existing = await Invoice.findOne({ where: { order_id: orderId } });
+  if (existing) return existing;
+  let rules = {};
+  try {
+    rules = await getRulesForBranch(order.branch_id) || {};
+  } catch (e) {
+    console.warn('createInvoiceForOrder getRulesForBranch failed, using defaults:', e?.message);
+  }
+  const dpGraceHours = rules.dp_grace_hours ?? 24;
+  const dpDueDays = rules.dp_due_days ?? 3;
+  const totalAmount = parseFloat(order.total_amount);
+  const minDpPct = Math.max(0, parseInt(rules.min_dp_percentage, 10) || 30);
+  let dpPercentage = opts.is_super_promo ? 50 : (opts.dp_percentage != null ? parseInt(opts.dp_percentage, 10) : 30);
+  let dpAmount = typeof opts.dp_amount === 'number' && opts.dp_amount > 0 ? Math.round(opts.dp_amount) : Math.round(totalAmount * dpPercentage / 100);
+  const minDpAmount = Math.round(totalAmount * minDpPct / 100);
+  if (dpAmount < minDpAmount) {
+    dpAmount = minDpAmount;
+    dpPercentage = Math.round((dpAmount / totalAmount) * 100);
+  }
+  if (dpPercentage < minDpPct) dpPercentage = minDpPct;
+  const dueDateDp = new Date();
+  dueDateDp.setDate(dueDateDp.getDate() + dpDueDays);
+  const autoCancelAt = new Date();
+  autoCancelAt.setHours(autoCancelAt.getHours() + dpGraceHours);
+  const invoice = await Invoice.create({
+    invoice_number: generateInvoiceNumber(),
+    order_id: orderId,
+    owner_id: order.owner_id,
+    branch_id: order.branch_id,
+    total_amount: totalAmount,
+    dp_percentage: dpPercentage,
+    dp_amount: dpAmount,
+    paid_amount: 0,
+    remaining_amount: totalAmount,
+    status: INVOICE_STATUS.TENTATIVE,
+    issued_at: new Date(),
+    due_date_dp: dueDateDp,
+    auto_cancel_at: autoCancelAt,
+    is_overdue: false,
+    terms: [
+      `Invoice batal otomatis bila dalam ${dpGraceHours} jam setelah issued belum ada DP`,
+      `Minimal DP ${dpPercentage}% dari total`,
+      `Jatuh tempo DP ${dpDueDays} hari setelah issued`
+    ]
+  });
+  await Notification.create({
+    user_id: order.owner_id,
+    trigger: NOTIFICATION_TRIGGER.INVOICE_CREATED,
+    title: 'Invoice baru',
+    message: `Invoice ${invoice.invoice_number} untuk order ${order.order_number || orderId}. Silakan bayar DP dalam ${dpGraceHours} jam.`,
+    data: { order_id: orderId, invoice_id: invoice.id }
+  });
+  return invoice;
+}
+
+/**
  * GET /api/v1/invoices/:id
  */
 const getById = asyncHandler(async (req, res) => {
@@ -379,6 +453,7 @@ const getById = asyncHandler(async (req, res) => {
   const rules = await getRulesForBranch(invoice.branch_id);
   const data = invoice.toJSON();
   data.currency_rates = rules.currency_rates || {};
+  data.bank_accounts = Array.isArray(rules.bank_accounts) ? rules.bank_accounts : (typeof rules.bank_accounts === 'string' ? (() => { try { return JSON.parse(rules.bank_accounts); } catch (e) { return []; } })() : []);
   res.json({ success: true, data });
 });
 
@@ -430,7 +505,9 @@ const verifyPayment = asyncHandler(async (req, res) => {
   const isApproved = verified === true || verified === 'true';
   const proof = await PaymentProof.findByPk(payment_proof_id);
   if (!proof || proof.invoice_id !== req.params.id) return res.status(404).json({ success: false, message: 'Bukti bayar tidak ditemukan' });
-  if (!['admin_pusat', 'admin_koordinator', 'role_accounting', 'super_admin'].includes(req.user.role)) {
+  // Hanya karyawan (bukan owner/pembeli) yang boleh verifikasi
+  const allowedVerify = ['admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'role_invoice_saudi', 'role_invoice', 'invoice', 'role_accounting', 'super_admin'];
+  if (!allowedVerify.includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Tidak berwenang verifikasi' });
   }
   const invoice = await Invoice.findByPk(proof.invoice_id);
@@ -520,7 +597,7 @@ const handleOverpaid = asyncHandler(async (req, res) => {
 const getPdf = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findByPk(req.params.id, {
     include: [
-      { model: Order, as: 'Order', include: ['OrderItems'] },
+      { model: Order, as: 'Order', include: [{ model: OrderItem, as: 'OrderItems', include: [{ model: Product, as: 'Product', attributes: ['id', 'code', 'name', 'type'], required: false }] }] },
       { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
       { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false }
     ]
@@ -596,6 +673,7 @@ module.exports = {
   list,
   getSummary,
   create,
+  createInvoiceForOrder,
   getById,
   getPdf,
   unblock,

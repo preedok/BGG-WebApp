@@ -14,16 +14,16 @@ const Card: React.FC<CardProps> = ({
   hover = false,
   className = ''
 }) => {
-  const baseStyles = 'bg-white rounded-2xl border border-slate-200 transition-all duration-300';
+  const baseStyles = 'bg-white rounded-travel border border-stone-200/80 shadow-card transition-all duration-300';
   
   const paddingStyles: Record<CardPadding, string> = {
     none: '',
     sm: 'p-4',
-    md: 'p-6',
-    lg: 'p-8'
+    md: 'p-5 sm:p-6',
+    lg: 'p-6 sm:p-8'
   };
 
-  const hoverStyles = hover ? 'hover:shadow-xl hover:-translate-y-1' : 'shadow-sm';
+  const hoverStyles = hover ? 'hover:shadow-travel hover:-translate-y-0.5' : '';
 
   return (
     <div className={`${baseStyles} ${paddingStyles[padding]} ${hoverStyles} ${className}`}>

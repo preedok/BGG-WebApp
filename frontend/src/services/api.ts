@@ -37,7 +37,6 @@ export const authApi = {
 
 export const superAdminApi = {
   getMonitoring: (params?: { branch_id?: string; role?: string }) => api.get('/super-admin/monitoring', { params }),
-  getOrderStatistics: (params?: { period?: string; branch_id?: string }) => api.get('/super-admin/order-statistics', { params }),
   getLogs: (params?: { source?: string; level?: string; q?: string; page?: number; limit?: number }) => api.get('/super-admin/logs', { params }),
   createLog: (body: { source?: string; level?: string; message: string; meta?: object }) => api.post('/super-admin/logs', body),
   listMaintenance: (params?: { active_only?: string }) => api.get('/super-admin/maintenance', { params }),
@@ -46,8 +45,6 @@ export const superAdminApi = {
   deleteMaintenance: (id: string) => api.delete(`/super-admin/maintenance/${id}`),
   getSettings: () => api.get('/super-admin/settings'),
   updateSettings: (body: object) => api.put('/super-admin/settings', body),
-  listTemplates: () => api.get('/super-admin/templates'),
-  activateTemplate: (id: string) => api.post(`/super-admin/templates/${id}/activate`),
   exportMonitoringExcel: (params?: { period?: string; branch_id?: string; role?: string }) =>
     api.get('/super-admin/export-monitoring-excel', { params, responseType: 'blob' }),
   exportMonitoringPdf: (params?: { period?: string; branch_id?: string; role?: string }) =>
@@ -88,7 +85,8 @@ export const ordersApi = {
   getById: (id: string) => api.get(`/orders/${id}`),
   create: (body: object) => api.post('/orders', body),
   update: (id: string, body: object) => api.patch(`/orders/${id}`, body),
-  delete: (id: string) => api.delete(`/orders/${id}`)
+  delete: (id: string) => api.delete(`/orders/${id}`),
+  sendResult: (orderId: string, channel?: 'email' | 'whatsapp' | 'both') => api.post(`/orders/${orderId}/send-result`, { channel })
 };
 
 export const hotelApi = {
@@ -229,7 +227,8 @@ export interface InvoicesSummaryData {
 }
 
 export const invoicesApi = {
-  list: (params?: { status?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; order_status?: string; invoice_number?: string; order_number?: string; date_from?: string; date_to?: string; due_status?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) => api.get('/invoices', { params }),
+  list: (params?: { status?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; order_status?: string; invoice_number?: string; order_number?: string; date_from?: string; date_to?: string; due_status?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) =>
+    api.get('/invoices', { params, headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } }),
   getSummary: (params?: { status?: string; branch_id?: string; owner_id?: string; order_status?: string; invoice_number?: string; order_number?: string; date_from?: string; date_to?: string; due_status?: string }) =>
     api.get<{ success: boolean; data: InvoicesSummaryData }>('/invoices/summary', { params }),
   getById: (id: string) => api.get(`/invoices/${id}`),
@@ -238,7 +237,8 @@ export const invoicesApi = {
   unblock: (id: string) => api.patch(`/invoices/${id}/unblock`),
   verifyPayment: (id: string, body: { payment_proof_id: string; verified: boolean; notes?: string }) => api.post(`/invoices/${id}/verify-payment`, body),
   handleOverpaid: (id: string, body: { handling: string; target_invoice_id?: string; target_order_id?: string }) => api.patch(`/invoices/${id}/overpaid`, body),
-  uploadPaymentProof: (id: string, formData: FormData) => api.post(`/invoices/${id}/payment-proofs`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  uploadPaymentProof: (id: string, formData: FormData) => api.post(`/invoices/${id}/payment-proofs`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getPaymentProofFile: (invoiceId: string, proofId: string) => api.get(`/invoices/${invoiceId}/payment-proofs/${proofId}/file`, { responseType: 'blob' })
 };
 
 export interface ProvinceItem {
@@ -313,12 +313,6 @@ export interface UserListItem {
 export const adminPusatApi = {
   getDashboard: (params?: { branch_id?: string; date_from?: string; date_to?: string; status?: string; provinsi_id?: string; wilayah_id?: string }) =>
     api.get<{ success: boolean; data: AdminPusatDashboardData }>('/admin-pusat/dashboard', { params }),
-  getCombinedRecap: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
-    api.get<{ success: boolean; data: AdminPusatCombinedRecapData }>('/admin-pusat/combined-recap', { params }),
-  exportRecapExcel: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
-    api.get('/admin-pusat/export-recap-excel', { params, responseType: 'blob' }),
-  exportRecapPdf: (params?: { branch_id?: string; date_from?: string; date_to?: string }) =>
-    api.get('/admin-pusat/export-recap-pdf', { params, responseType: 'blob' }),
   listUsers: (params?: { role?: string; branch_id?: string; is_active?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc' }) =>
     api.get<{ success: boolean; data: UserListItem[]; pagination?: { total: number; page: number; limit: number; totalPages: number } }>('/admin-pusat/users', { params }),
   createUser: (body: { name: string; email: string; password: string; role: string; branch_id?: string; region?: string }) =>
@@ -327,16 +321,7 @@ export const adminPusatApi = {
     api.patch<{ success: boolean; data: any }>(`/admin-pusat/users/${id}`, body),
   deleteUser: (id: string) => api.delete<{ success: boolean; message?: string }>(`/admin-pusat/users/${id}`),
   setProductAvailability: (productId: string, body: { quantity?: number; meta?: object }) =>
-    api.put<{ success: boolean; data: any }>(`/admin-pusat/products/${productId}/availability`, body),
-  listFlyers: (params?: { type?: string; product_id?: string; is_published?: string }) =>
-    api.get<{ success: boolean; data: FlyerTemplate[] }>('/admin-pusat/flyers', { params }),
-  listPublishedFlyers: () => api.get<{ success: boolean; data: FlyerTemplate[] }>('/admin-pusat/flyers/published'),
-  createFlyer: (body: { name: string; type: string; product_id?: string; design_content?: string; thumbnail_url?: string }) =>
-    api.post<{ success: boolean; data: FlyerTemplate }>('/admin-pusat/flyers', body),
-  updateFlyer: (id: string, body: Partial<{ name: string; type: string; product_id: string | null; design_content: string; thumbnail_url: string }>) =>
-    api.patch<{ success: boolean; data: FlyerTemplate }>(`/admin-pusat/flyers/${id}`, body),
-  deleteFlyer: (id: string) => api.delete<{ success: boolean }>(`/admin-pusat/flyers/${id}`),
-  publishFlyer: (id: string) => api.post<{ success: boolean; data: FlyerTemplate }>(`/admin-pusat/flyers/${id}/publish`)
+    api.put<{ success: boolean; data: any }>(`/admin-pusat/products/${productId}/availability`, body)
 };
 export interface AdminPusatDashboardData {
   branches: Branch[];
@@ -351,35 +336,6 @@ export interface AdminPusatDashboardData {
   invoices: { total: number; by_status: Record<string, number> };
   owners_total: number;
   orders_recent: any[];
-}
-export interface AdminPusatCombinedRecapData {
-  recap: {
-    total_orders: number;
-    total_invoices: number;
-    orders_by_branch: Record<string, number>;
-    orders_by_status: Record<string, number>;
-    items_hotel: number;
-    items_visa: number;
-    items_ticket: number;
-    items_bus: number;
-  };
-  orders: any[];
-  branches: Branch[];
-}
-export interface FlyerTemplate {
-  id: string;
-  name: string;
-  type: 'product' | 'package';
-  product_id: string | null;
-  design_content: string | null;
-  thumbnail_url: string | null;
-  is_published: boolean;
-  published_at: string | null;
-  created_by: string | null;
-  Product?: { id: string; code: string; name: string; type?: string };
-  CreatedBy?: { id: string; name: string };
-  created_at?: string;
-  updated_at?: string;
 }
 
 export const accountingApi = {
@@ -435,8 +391,6 @@ export const accountingApi = {
     api.get('/accounting/export-financial-excel', { params, responseType: 'blob' }),
   exportFinancialPdf: (params?: { period?: string; year?: string; month?: string; date_from?: string; date_to?: string; branch_id?: string; provinsi_id?: string; wilayah_id?: string; owner_id?: string; status?: string; order_status?: string; product_type?: string; search?: string; min_amount?: number; max_amount?: number }) =>
     api.get('/accounting/export-financial-pdf', { params, responseType: 'blob' }),
-  getReconciliation: (params?: { reconciled?: string; date_from?: string; date_to?: string; branch_id?: string }) =>
-    api.get<{ success: boolean; data: any[] }>('/accounting/reconciliation', { params }),
   reconcilePayment: (id: string) =>
     api.post<{ success: boolean; data: any }>(`/accounting/payments/${id}/reconcile`),
   payroll: {
@@ -706,29 +660,20 @@ export const reportsApi = {
     api.get('/reports/export-pdf', { params, responseType: 'blob' })
 };
 
-export const adminCabangApi = {
-  getDashboard: () => api.get<{ success: boolean; data: AdminCabangDashboardData }>('/admin-cabang/dashboard'),
-  listOrders: (params?: { status?: string }) => api.get<{ success: boolean; data: any[] }>('/admin-cabang/orders', { params }),
-  createUser: (body: { name: string; email: string; password: string; role: string }) => api.post('/admin-cabang/users', body),
-  sendOrderResult: (orderId: string, channel?: 'email' | 'whatsapp' | 'both') => api.post(`/admin-cabang/orders/${orderId}/send-result`, { channel })
-};
-
 export const koordinatorApi = {
-  getDashboard: () => api.get<{ success: boolean; data: AdminCabangDashboardData }>('/koordinator/dashboard'),
-  listOrders: (params?: { status?: string }) => api.get<{ success: boolean; data: any[] }>('/koordinator/orders', { params }),
-  sendOrderResult: (orderId: string, channel?: 'email' | 'whatsapp' | 'both') => api.post(`/koordinator/orders/${orderId}/send-result`, { channel })
+  getDashboard: () => api.get<{ success: boolean; data: KoordinatorDashboardData }>('/koordinator/dashboard')
 };
 
 export const ownersApi = {
   register: (body: { email: string; password: string; name: string; phone?: string; company_name?: string; address?: string; operational_region?: string; preferred_branch_id?: string; whatsapp?: string; npwp?: string }) =>
     api.post<{ success: boolean; message?: string; data?: { user: any; owner_status: string } }>('/owners/register', body),
-  list: (params?: { status?: string; branch_id?: string }) => api.get<{ success: boolean; data: OwnerProfile[] }>('/owners', { params }),
+  list: (params?: { status?: string; branch_id?: string; wilayah_id?: string }) => api.get<{ success: boolean; data: OwnerProfile[] }>('/owners', { params }),
   assignBranch: (ownerId: string, branchId: string) => api.patch(`/owners/${ownerId}/assign-branch`, { branch_id: branchId }),
   verifyDeposit: (ownerId: string) => api.patch(`/owners/${ownerId}/verify-deposit`),
   activate: (ownerId: string) => api.patch(`/owners/${ownerId}/activate`)
 };
 
-interface AdminCabangDashboardData {
+export interface KoordinatorDashboardData {
   orders: { total: number; by_status: Record<string, number> };
   orders_recent: any[];
   owners: { total: number; list: any[] };

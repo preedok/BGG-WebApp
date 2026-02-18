@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
-import Input from '../../../components/common/Input';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { superAdminApi } from '../../../services/api';
 
 interface Notice {
@@ -136,7 +137,10 @@ export const SuperAdminMaintenancePage: React.FC = () => {
           <div className="space-y-3">
             {list.map((n) => {
               const status = getNoticeStatus(n);
-              const showActions = status === 'upcoming';
+              const actionItems: ActionsMenuItem[] = [
+                { id: 'edit', label: 'Ubah', icon: <Pencil className="w-4 h-4" />, onClick: () => openEdit(n) },
+                { id: 'delete', label: 'Hapus', icon: <Trash2 className="w-4 h-4" />, onClick: () => handleDelete(n.id), danger: true }
+              ];
               return (
                 <div key={n.id} className="p-4 border border-slate-200 rounded-xl flex flex-wrap justify-between items-start gap-4">
                   <div className="flex-1 min-w-0">
@@ -152,7 +156,7 @@ export const SuperAdminMaintenancePage: React.FC = () => {
                         <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800">Pemeliharaan sedang berlangsung</span>
                       )}
                       {status === 'ended' && (
-                        <span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800">Pemeliharaan aplikasi ini selesai</span>
+                        <span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800">Pemeliharaan selesai</span>
                       )}
                     </div>
                     <p className="text-sm text-slate-600 mt-1">{n.message}</p>
@@ -162,16 +166,9 @@ export const SuperAdminMaintenancePage: React.FC = () => {
                       {n.CreatedBy && ` · Oleh: ${n.CreatedBy.name}`}
                     </p>
                   </div>
-                  {showActions ? (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(n)}><Pencil className="w-4 h-4" /></Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(n.id)}><Trash2 className="w-4 h-4 text-red-600" /></Button>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-slate-500 italic">
-                      {status === 'blocking' ? 'Pemeliharaan sedang berlangsung' : 'Pemeliharaan selesai'}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <ActionsMenu items={actionItems} />
+                  </div>
                 </div>
               );
             })}

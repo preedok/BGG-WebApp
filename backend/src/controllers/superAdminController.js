@@ -9,8 +9,7 @@ const {
   Branch,
   AppSetting,
   SystemLog,
-  MaintenanceNotice,
-  UiTemplate
+  MaintenanceNotice
 } = require('../models');
 const { ROLES } = require('../constants');
 
@@ -161,64 +160,6 @@ async function getMonitoringFilters(branch_id, role) {
 
   return { orderWhere, invoiceWhere, userWhere, ownerIds, branchesCount };
 }
-
-/**
- * GET /api/v1/super-admin/order-statistics
- * Detailed order stats: by period, by branch, by status
- */
-const getOrderStatistics = asyncHandler(async (req, res) => {
-  const { period = 'month', branch_id } = req.query;
-  const now = new Date();
-  let startDate;
-  if (period === 'today') {
-    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  } else if (period === 'week') {
-    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  } else {
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  }
-
-  const where = { created_at: { [Op.gte]: startDate } };
-  if (branch_id) where.branch_id = branch_id;
-
-  const orders = await Order.findAll({
-    where,
-    attributes: ['id', 'status', 'total_amount', 'branch_id', 'created_at'],
-    include: [{ model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] }]
-  });
-
-  const byStatus = {};
-  const byBranch = {};
-  let totalAmount = 0;
-  let count = 0;
-  orders.forEach(o => {
-    const ord = o.toJSON();
-    byStatus[ord.status] = (byStatus[ord.status] || 0) + 1;
-    const bid = ord.branch_id;
-    if (bid) {
-      byBranch[bid] = byBranch[bid] || { branch_name: ord.Branch?.name || 'Unknown', count: 0, revenue: 0 };
-      byBranch[bid].count += 1;
-      byBranch[bid].revenue += parseFloat(ord.total_amount || 0);
-    }
-    if (!['draft', 'cancelled'].includes(ord.status)) {
-      totalAmount += parseFloat(ord.total_amount || 0);
-      count += 1;
-    }
-  });
-
-  res.json({
-    success: true,
-    data: {
-      period,
-      start_date: startDate.toISOString(),
-      total_orders: orders.length,
-      confirmed_orders: count,
-      total_revenue: totalAmount,
-      by_status: byStatus,
-      by_branch: Object.entries(byBranch).map(([id, v]) => ({ branch_id: id, ...v }))
-    }
-  });
-});
 
 /**
  * GET /api/v1/super-admin/logs
@@ -446,49 +387,6 @@ const updateSettings = asyncHandler(async (req, res) => {
     }
   });
   res.json({ success: true, data: settings });
-});
-
-/**
- * GET /api/v1/super-admin/templates
- * UI templates list
- */
-const listTemplates = asyncHandler(async (req, res) => {
-  const templates = await UiTemplate.findAll({
-    order: [['sort_order', 'ASC'], ['code', 'ASC']]
-  });
-  res.json({ success: true, data: templates });
-});
-
-/**
- * POST /api/v1/super-admin/templates/:id/activate
- * Set one template as active; update app_settings ui_template
- */
-const activateTemplate = asyncHandler(async (req, res) => {
-  const template = await UiTemplate.findByPk(req.params.id);
-  if (!template) return res.status(404).json({ success: false, message: 'Template not found' });
-  await UiTemplate.update({ is_active: false }, { where: {} });
-  await template.update({ is_active: true });
-  const [setting] = await AppSetting.findOrCreate({ where: { key: 'ui_template' }, defaults: { value: template.code } });
-  await setting.update({ value: template.code });
-  res.json({ success: true, data: template });
-});
-
-/**
- * POST /api/v1/super-admin/deploy
- * Simulate deploy/update - in production would trigger CI or script
- */
-const triggerDeploy = asyncHandler(async (req, res) => {
-  await SystemLog.create({
-    source: 'backend',
-    level: 'info',
-    message: 'Deployment triggered by Super Admin',
-    meta: { userId: req.user.id, email: req.user.email }
-  });
-  res.json({
-    success: true,
-    message: 'Deployment request recorded. In production, this would trigger your CI/CD pipeline.',
-    data: { triggered_at: new Date().toISOString() }
-  });
 });
 
 const LOCALES = ['en', 'id', 'ar'];
@@ -844,7 +742,6 @@ const exportLogsPdf = asyncHandler(async (req, res) => {
 
 module.exports = {
   getMonitoring,
-  getOrderStatistics,
   getLogs,
   createLog,
   listMaintenance,
@@ -854,9 +751,6 @@ module.exports = {
   deleteMaintenance,
   getSettings,
   updateSettings,
-  listTemplates,
-  activateTemplate,
-  triggerDeploy,
   getI18n,
   listLocales,
   exportMonitoringExcel,

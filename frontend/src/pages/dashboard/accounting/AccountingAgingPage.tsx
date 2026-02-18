@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { Filter, RefreshCw, Download, ExternalLink, Eye, Receipt, MoreVertical, FileText, X, FileSpreadsheet, CreditCard, ChevronLeft, ChevronRight, Check, LayoutGrid, Unlock } from 'lucide-react';
+import { Filter, RefreshCw, Download, ExternalLink, Eye, Receipt, FileText, X, FileSpreadsheet, CreditCard, ChevronLeft, ChevronRight, Check, LayoutGrid, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import Badge from '../../../components/common/Badge';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { accountingApi, branchesApi, invoicesApi, businessRulesApi, type AccountingAgingData } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatIDR, formatInvoiceDisplay } from '../../../utils';
@@ -57,8 +58,6 @@ const AccountingAgingPage: React.FC = () => {
   const [selectedBucketTab, setSelectedBucketTab] = useState<BucketTab>('all');
   const [viewInvoice, setViewInvoice] = useState<any | null>(null);
   const [detailTab, setDetailTab] = useState<'invoice' | 'payments'>('invoice');
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [invoicePdfUrl, setInvoicePdfUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
@@ -269,8 +268,6 @@ const AccountingAgingPage: React.FC = () => {
   }, [invoicePdfUrl]);
 
   const openPdf = async (invoiceId: string) => {
-    setMenuOpenId(null);
-    setMenuPosition(null);
     try {
       const res = await invoicesApi.getPdf(invoiceId);
       const blob = res.data as Blob;
@@ -343,9 +340,9 @@ const AccountingAgingPage: React.FC = () => {
   };
 
   const canUnblock = (inv: any) =>
-    inv?.is_blocked && ['invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '');
+    inv?.is_blocked && ['invoice_koordinator', 'role_invoice_saudi', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '');
 
-  const canVerify = ['admin_pusat', 'admin_cabang', 'role_accounting', 'super_admin'].includes(user?.role || '');
+  const canVerify = ['admin_pusat', 'role_accounting', 'super_admin'].includes(user?.role || '');
 
   const rates = viewInvoice?.currency_rates || currencyRates;
   const sarToIdr = rates.SAR_TO_IDR || 4200;
@@ -575,52 +572,16 @@ const AccountingAgingPage: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3 pr-4">{formatDate(inv.issued_at || inv.created_at)}</td>
-                      <td className="py-3 pr-4 relative">
-                        <div className="flex items-center justify-center">
-                          <button
-                            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-                            onClick={(e) => {
-                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setMenuOpenId(menuOpenId === inv.id ? null : inv.id);
-                              setMenuPosition(menuOpenId === inv.id ? null : { top: rect.bottom + 4, left: rect.right - 180 });
-                            }}
-                          >
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
-                          {menuOpenId === inv.id && menuPosition && createPortal(
-                            <>
-                              <div className="fixed inset-0 z-[9998]" onClick={() => { setMenuOpenId(null); setMenuPosition(null); }} aria-hidden="true" />
-                              <div
-                                className="fixed z-[9999] py-1 bg-white border border-slate-200 rounded-lg shadow-xl min-w-[180px]"
-                                style={{ top: menuPosition.top, left: menuPosition.left }}
-                              >
-                                <button
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm hover:bg-slate-50 rounded-t-lg"
-                                  onClick={() => { setViewInvoice(inv); setDetailTab('invoice'); setMenuOpenId(null); setMenuPosition(null); fetchInvoiceDetail(inv.id); }}
-                                >
-                                  <Eye className="w-4 h-4" /> Lihat Invoice
-                                </button>
-                                <button
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm hover:bg-slate-50"
-                                  onClick={() => openPdf(inv.id)}
-                                >
-                                  <FileText className="w-4 h-4" /> Unduh PDF
-                                </button>
-                                <button
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm hover:bg-slate-50 rounded-b-lg"
-                                  onClick={() => {
-                                    setMenuOpenId(null);
-                                    setMenuPosition(null);
-                                    const q = inv.Order?.order_number ? '?order_number=' + encodeURIComponent(inv.Order.order_number) : '';
-                                    navigate('/dashboard/orders-invoices' + q);
-                                  }}
-                                >
-                                  <ExternalLink className="w-4 h-4" /> Order & Invoice
-                                </button>
-                              </div>
-                            </>,
-                            document.body
-                          )}
+                      <td className="py-3 pr-4">
+                        <div className="flex justify-center">
+                          <ActionsMenu
+                            align="right"
+                            items={[
+                              { id: 'view', label: 'Lihat Invoice', icon: <Eye className="w-4 h-4" />, onClick: () => { setViewInvoice(inv); setDetailTab('invoice'); fetchInvoiceDetail(inv.id); } },
+                              { id: 'pdf', label: 'Unduh PDF', icon: <FileText className="w-4 h-4" />, onClick: () => openPdf(inv.id) },
+                              { id: 'order', label: 'Order & Invoice', icon: <ExternalLink className="w-4 h-4" />, onClick: () => { const q = inv.Order?.order_number ? '?order_number=' + encodeURIComponent(inv.Order.order_number) : ''; navigate('/dashboard/orders-invoices' + q); } },
+                            ] as ActionsMenuItem[]}
+                          />
                         </div>
                       </td>
                     </tr>

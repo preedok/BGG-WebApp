@@ -4,6 +4,8 @@ import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import Table from '../../../components/common/Table';
 import Badge from '../../../components/common/Badge';
+import ActionsMenu from '../../../components/common/ActionsMenu';
+import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
 import { adminPusatApi, type UserListItem } from '../../../services/api';
 import { TableColumn } from '../../../types';
 
@@ -369,23 +371,14 @@ const AdminPusatCreateUserPage: React.FC = () => {
                   {u.created_at ? new Date(u.created_at).toLocaleDateString('id-ID') : '-'}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex justify-center gap-2">
-                    <button
-                      type="button"
-                      className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                      onClick={() => openEdit(u)}
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      onClick={() => handleDelete(u)}
-                      title="Hapus"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex justify-center">
+                    <ActionsMenu
+                      align="right"
+                      items={[
+                        { id: 'edit', label: 'Edit', icon: <Edit className="w-4 h-4" />, onClick: () => openEdit(u) },
+                        { id: 'delete', label: 'Hapus', icon: <Trash2 className="w-4 h-4" />, onClick: () => handleDelete(u), danger: true },
+                      ] as ActionsMenuItem[]}
+                    />
                   </div>
                 </td>
               </tr>

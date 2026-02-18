@@ -40,49 +40,37 @@ const menuItems: MenuItem[] = [
     title: 'Dashboard',
     icon: <LayoutDashboard className="w-5 h-5" />,
     path: '/dashboard',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_bus', 'role_accounting', 'owner']
   },
   {
     title: 'Dashboard Koordinator',
     icon: <LayoutDashboard className="w-5 h-5" />,
     path: '/dashboard/koordinator',
-    roles: ['admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator']
+    roles: ['admin_koordinator', 'tiket_koordinator', 'visa_koordinator']
   },
   {
     title: 'Owners Wilayah',
     icon: <Users className="w-5 h-5" />,
     path: '/dashboard/koordinator/owners',
-    roles: ['admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator']
+    roles: ['super_admin', 'admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator']
   },
   {
     title: 'Products',
     icon: <Package className="w-5 h-5" />,
     path: '/dashboard/products',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_hotel', 'role_bus', 'owner']
   },
   {
     title: 'Order & Invoice',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/orders-invoices',
-    roles: ['admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_accounting', 'owner', 'super_admin', 'role_invoice_saudi']
+    roles: ['admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_accounting', 'owner', 'super_admin', 'role_invoice_saudi']
   },
   {
     title: 'Users',
     icon: <Users className="w-5 h-5" />,
     path: '/dashboard/users',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang']
-  },
-  {
-    title: 'Owner Cabang',
-    icon: <Users className="w-5 h-5" />,
-    path: '/dashboard/admin-cabang/owners',
-    roles: ['admin_cabang']
-  },
-  {
-    title: 'Personil Cabang',
-    icon: <UserPlus className="w-5 h-5" />,
-    path: '/dashboard/admin-cabang/personil',
-    roles: ['admin_cabang']
+    roles: ['super_admin', 'admin_pusat']
   },
   {
     title: 'Branches',
@@ -109,12 +97,6 @@ const menuItems: MenuItem[] = [
     roles: ['role_accounting']
   },
   {
-    title: 'Periode Fiskal',
-    icon: <Calendar className="w-5 h-5" />,
-    path: '/dashboard/accounting/fiscal-periods',
-    roles: ['role_accounting']
-  },
-  {
     title: 'Laporan Keuangan',
     icon: <FileText className="w-5 h-5" />,
     path: '/dashboard/accounting/financial-report',
@@ -127,22 +109,10 @@ const menuItems: MenuItem[] = [
     roles: ['role_accounting']
   },
   {
-    title: 'Penggajian',
-    icon: <DollarSign className="w-5 h-5" />,
-    path: '/dashboard/accounting/payroll/runs',
-    roles: ['super_admin', 'admin_pusat', 'role_accounting']
-  },
-  {
-    title: 'Slip Gaji Saya',
-    icon: <FileText className="w-5 h-5" />,
-    path: '/dashboard/my-slip-gaji',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting']
-  },
-  {
     title: 'Settings',
     icon: <Settings className="w-5 h-5" />,
     path: '/dashboard/settings',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'owner']
   },
   {
     title: 'System Logs',
@@ -251,35 +221,29 @@ const DashboardLayout: React.FC = () => {
     const isCollapsed = !mobile && sidebarCollapsed;
     
     return (
-      <div className="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-r border-slate-700/50 overflow-hidden">
+      <div className="h-full flex flex-col bg-slate-800 border-r border-slate-700 overflow-hidden shadow-lg">
         {/* Logo */}
-        <div className={`px-4 py-5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-slate-700/50`}>
+        <div className={`px-4 py-5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-slate-700`}>
           {!isCollapsed && (
             <div className="flex items-center gap-3">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                <div className="relative w-9 h-9 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center overflow-hidden p-0.5">
-                  <img src={logo} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-                </div>
+              <div className="relative w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center overflow-hidden ring-1 ring-slate-600">
+                <img src={logo} alt="Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-white">Bintang Global</h1>
-                <p className="text-xs text-emerald-400">Travel Management</p>
+                <h1 className="text-base font-bold text-slate-100">Bintang Global</h1>
+                <p className="text-xs text-slate-400">Umroh & Travel</p>
               </div>
             </div>
           )}
           {isCollapsed && (
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition-opacity"></div>
-              <div className="relative w-9 h-9 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center overflow-hidden p-0.5">
-                <img src={logo} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-              </div>
+            <div className="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center overflow-hidden ring-1 ring-slate-600">
+              <img src={logo} alt="Logo" className="w-full h-full object-cover" />
             </div>
           )}
           {mobile && (
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-slate-400 hover:text-white p-1 hover:bg-slate-700/50 rounded-lg transition-colors"
+              className="lg:hidden text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-xl transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -291,17 +255,17 @@ const DashboardLayout: React.FC = () => {
           {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
-              <div key={item.path} className="relative">
+              <div key={item.path} className="relative group">
                 <button
                   onClick={() => handleNavigate(item.path)}
-                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-3' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all group ${
+                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-3' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                      ? 'bg-primary-500 text-white shadow-sm'
+                      : 'text-slate-300 hover:bg-slate-700 hover:text-primary-200'
                   }`}
                   title={isCollapsed ? item.title : ''}
                 >
-                  <span className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'}>
+                  <span className={isActive ? 'text-white' : 'text-slate-400'}>
                     {item.icon}
                   </span>
                   {!isCollapsed && (
@@ -316,9 +280,8 @@ const DashboardLayout: React.FC = () => {
                     </>
                   )}
                 </button>
-                {/* Tooltip for collapsed state */}
                 {isCollapsed && (
-                  <div className="fixed ml-20 px-3 py-2 bg-slate-800 border border-slate-700 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none shadow-xl z-50">
+                  <div className="fixed ml-20 px-3 py-2 bg-primary-600 text-white text-xs rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none shadow-xl z-50">
                     {item.title}
                   </div>
                 )}
@@ -329,41 +292,39 @@ const DashboardLayout: React.FC = () => {
 
         {/* User Profile */}
         {!isCollapsed && (
-          <div className="p-4 border-t border-slate-700/50">
-            <div className="flex items-center gap-3 px-2 py-2 bg-white/5 rounded-xl border border-slate-700/50 hover:border-emerald-500/50 transition-colors">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-lg shadow-emerald-600/30">
+          <div className="p-4 border-t border-slate-700">
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-slate-700/50 rounded-xl border border-slate-600">
+              <div className="w-9 h-9 bg-primary-500 rounded-full flex items-center justify-center text-sm font-semibold text-white">
                 {user?.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
-                <p className="text-xs text-emerald-400 truncate">{user ? ROLE_NAMES[user.role] : ''}</p>
+                <p className="text-sm font-semibold text-slate-100 truncate">{user?.name}</p>
+                <p className="text-xs text-slate-400 truncate">{user ? ROLE_NAMES[user.role] : ''}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Collapsed User Profile */}
         {isCollapsed && (
-          <div className="p-3 border-t border-slate-700/50 flex justify-center">
-            <div className="w-9 h-9 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-lg shadow-emerald-600/30">
+          <div className="p-3 border-t border-slate-700 flex justify-center">
+            <div className="w-9 h-9 bg-primary-500 rounded-full flex items-center justify-center text-sm font-semibold text-white">
               {user?.name.charAt(0).toUpperCase()}
             </div>
           </div>
         )}
 
-        {/* Collapse Toggle Button - Desktop Only */}
         {!mobile && (
-          <div className="p-3 border-t border-slate-700/50">
+          <div className="p-3 border-t border-slate-700">
             <button
               onClick={toggleSidebar}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-slate-400 hover:bg-white/5 hover:text-emerald-400 rounded-xl transition-colors group"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-slate-400 hover:bg-slate-700 hover:text-white rounded-xl transition-colors text-sm"
             >
               {isCollapsed ? (
                 <ChevronRight className="w-5 h-5" />
               ) : (
                 <>
                   <ChevronLeft className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Collapse</span>
+                  <span className="text-sm font-semibold">Sembunyikan</span>
                 </>
               )}
             </button>
@@ -373,100 +334,101 @@ const DashboardLayout: React.FC = () => {
     );
   };
 
+  /* Mobile bottom nav: 4 key travel app actions (seperti Traveloka/Agoda) */
+  const bottomNavItems = [
+    { path: '/dashboard', label: 'Home', icon: LayoutDashboard },
+    { path: '/dashboard/orders-invoices', label: 'Trip Saya', icon: Receipt },
+    { path: '/dashboard/products', label: 'Paket', icon: Package },
+  ];
+  const showBottomNav = user && !['super_admin'].includes(user.role) && filteredMenuItems.some(m => m.path === '/dashboard' || m.path === '/dashboard/orders-invoices' || m.path === '/dashboard/products');
+
   return (
     <div className="min-h-screen app-bg flex overflow-x-hidden">
-      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Mobile Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 w-64 z-50 transform transition-transform duration-300 lg:hidden ${
+        className={`fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 transform transition-transform duration-300 lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <Sidebar mobile />
       </div>
 
-      {/* Desktop Sidebar */}
       <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
         <div className={`fixed h-screen transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
           <Sidebar />
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
-        {/* Top Navbar */}
-        <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-sm">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-sm">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-slate-600 hover:text-emerald-600 transition-colors"
+                className="lg:hidden flex-shrink-0 p-2 text-stone-600 hover:text-primary-600 hover:bg-stone-100 rounded-xl transition-colors"
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <div>
-                <h2 className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold text-stone-900 truncate">
                   {currentPage?.title || 'Dashboard'}
                 </h2>
+                <p className="text-xs text-stone-500 hidden sm:block">Bintang Global Travel</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Search */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <div ref={searchRef} className="hidden md:block relative">
                 {searchOpen ? (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg min-w-[220px]">
-                    <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  <div className="flex items-center gap-2 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl min-w-[200px]">
+                    <Search className="w-4 h-4 text-stone-500 flex-shrink-0" />
                     <input
                       ref={searchInputRef}
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={handleSearchKeyDown}
-                      placeholder="Cari order (Enter untuk buka Orders)..."
-                      className="flex-1 bg-transparent text-sm text-slate-900 placeholder-slate-500 outline-none min-w-0"
+                      placeholder="Cari order atau invoice..."
+                      className="flex-1 bg-transparent text-sm text-stone-900 placeholder-stone-400 outline-none min-w-0"
                     />
-                    <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs text-slate-400 border border-slate-200 rounded">Esc</kbd>
+                    <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-xs text-stone-400 border border-stone-200 rounded">Esc</kbd>
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setSearchOpen(true)}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-stone-500 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl transition-colors"
                   >
                     <Search className="w-4 h-4" />
-                    <span>Search...</span>
-                    <kbd className="hidden lg:inline-block px-2 py-0.5 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded">⌘K</kbd>
+                    <span className="hidden lg:inline">Cari...</span>
                   </button>
                 )}
               </div>
 
-              {/* Notifications */}
               <div ref={notificationRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setNotificationOpen(!notificationOpen)}
-                  className="relative p-2 text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-colors"
+                  className="relative p-2 text-stone-600 hover:text-primary-600 hover:bg-stone-100 rounded-xl transition-colors"
                 >
                   <Bell className="w-5 h-5" />
                   {notifications.length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
                   )}
                 </button>
                 {notificationOpen && (
-                  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-xl shadow-2xl border border-slate-200 py-2 z-50">
-                    <div className="px-4 py-2 border-b border-slate-100">
-                      <h3 className="text-sm font-semibold text-slate-900">Notifikasi</h3>
+                  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-travel-lg border border-stone-200 py-2 z-50">
+                    <div className="px-4 py-2 border-b border-stone-100">
+                      <h3 className="text-sm font-semibold text-stone-900">Notifikasi</h3>
                     </div>
                     {notifications.length === 0 ? (
-                      <p className="px-4 py-6 text-sm text-slate-500 text-center">Tidak ada notifikasi baru</p>
+                      <p className="px-4 py-6 text-sm text-stone-500 text-center">Tidak ada notifikasi baru</p>
                     ) : (
                       <ul className="py-1">
                         {notifications.map((n) => (
@@ -474,10 +436,10 @@ const DashboardLayout: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => { setNotificationOpen(false); navigate('/dashboard'); }}
-                              className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                              className="w-full px-4 py-3 text-left text-sm hover:bg-stone-50 transition-colors border-b border-stone-50 last:border-0"
                             >
-                              <p className="font-medium text-slate-900">{n.title}</p>
-                              <p className="text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
+                              <p className="font-medium text-stone-900">{n.title}</p>
+                              <p className="text-stone-500 mt-0.5 line-clamp-2">{n.message}</p>
                             </button>
                           </li>
                         ))}
@@ -487,16 +449,15 @@ const DashboardLayout: React.FC = () => {
                 )}
               </div>
 
-              {/* User Menu */}
               <Dropdown
                 trigger={
-                  <div className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-slate-200">
-                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-lg shadow-emerald-600/30">
+                  <div className="flex items-center gap-2 px-2 sm:px-3 py-2 hover:bg-stone-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-stone-200">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                       {user?.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="hidden md:block text-left">
-                      <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
-                      <p className="text-xs text-slate-500">{user ? ROLE_NAMES[user.role] : ''}</p>
+                      <p className="text-sm font-semibold text-stone-900 truncate max-w-[120px]">{user?.name}</p>
+                      <p className="text-xs text-stone-500">{user ? ROLE_NAMES[user.role] : ''}</p>
                     </div>
                   </div>
                 }
@@ -507,8 +468,7 @@ const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Page Content — Super Admin hanya boleh di /dashboard dan /dashboard/super-admin/* */}
-        <main className="flex-1 p-6">
+        <main className={`flex-1 p-4 sm:p-6 main-content ${showBottomNav ? 'pb-24' : ''}`} style={showBottomNav ? { paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' } : undefined}>
           <div className="mb-4">
             <MaintenanceBanner />
           </div>
@@ -518,6 +478,39 @@ const DashboardLayout: React.FC = () => {
             <Outlet />
           )}
         </main>
+
+        {/* Mobile Bottom Navigation - Travel app style (green) */}
+        {showBottomNav && (
+          <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-primary-100 shadow-travel-lg lg:hidden pb-safe" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+            <div className="flex items-center justify-around h-16 px-2">
+              {bottomNavItems.map((item) => {
+                const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    onClick={() => handleNavigate(item.path)}
+                    className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-2 rounded-xl transition-colors min-w-0 touch-manipulation ${
+                      isActive ? 'text-primary-600 bg-primary-50 font-semibold' : 'text-stone-500 active:bg-primary-50/50'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6 flex-shrink-0" />
+                    <span className="text-[11px] font-medium truncate w-full text-center">{item.label}</span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex flex-col items-center justify-center flex-1 gap-0.5 py-2 rounded-xl text-stone-500 active:bg-stone-100 transition-colors min-w-0 touch-manipulation"
+              >
+                <Menu className="w-6 h-6 flex-shrink-0" />
+                <span className="text-[11px] font-medium">Menu</span>
+              </button>
+            </div>
+          </nav>
+        )}
       </div>
     </div>
   );

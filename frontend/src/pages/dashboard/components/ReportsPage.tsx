@@ -61,7 +61,6 @@ const GROUP_BY_OPTIONS: { value: ReportGroupBy; label: string }[] = [
 const ROLES_FILTER = [
   { value: '', label: 'Semua role' },
   { value: 'owner', label: 'Owner' },
-  { value: 'admin_cabang', label: 'Admin Cabang' },
   { value: 'admin_pusat', label: 'Admin Pusat' },
   { value: 'role_accounting', label: 'Accounting' }
 ];
@@ -257,10 +256,10 @@ const ReportsPage: React.FC = () => {
       )}
 
       {/* Filter panel */}
-      <Card>
+      <Card className="travel-card">
         <button
           type="button"
-          className="w-full flex items-center justify-between text-left font-semibold text-slate-900"
+          className="w-full flex items-center justify-between text-left font-semibold text-stone-900"
           onClick={() => setFiltersOpen((v) => !v)}
         >
           <span className="flex items-center gap-2">
@@ -276,7 +275,7 @@ const ReportsPage: React.FC = () => {
               <select
                 value={reportType}
                 onChange={(e) => setReportType(e.target.value as ReportType)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 {REPORT_TYPES.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
@@ -288,7 +287,7 @@ const ReportsPage: React.FC = () => {
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value as ReportPeriod)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 {PERIOD_OPTIONS.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
@@ -301,7 +300,7 @@ const ReportsPage: React.FC = () => {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -310,7 +309,7 @@ const ReportsPage: React.FC = () => {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -318,7 +317,7 @@ const ReportsPage: React.FC = () => {
               <select
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">Semua cabang</option>
                 {filterOptions.branches
@@ -341,7 +340,7 @@ const ReportsPage: React.FC = () => {
               <select
                 value={wilayahId}
                 onChange={(e) => { setWilayahId(e.target.value); setProvinsiId(''); setBranchId(''); }}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">Semua wilayah</option>
                 {filterOptions.wilayah.map((w) => (
@@ -354,7 +353,7 @@ const ReportsPage: React.FC = () => {
               <select
                 value={provinsiId}
                 onChange={(e) => { setProvinsiId(e.target.value); setBranchId(''); }}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">Semua provinsi</option>
                 {filterOptions.provinsi
@@ -370,7 +369,7 @@ const ReportsPage: React.FC = () => {
                 <select
                   value={groupBy}
                   onChange={(e) => setGroupBy(e.target.value as ReportGroupBy)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   {GROUP_BY_OPTIONS.map((g) => (
                     <option key={g.value} value={g.value}>{g.label}</option>
@@ -384,7 +383,7 @@ const ReportsPage: React.FC = () => {
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   {ROLES_FILTER.map((r) => (
                     <option key={r.value || 'all'} value={r.value}>{r.label}</option>
@@ -401,7 +400,7 @@ const ReportsPage: React.FC = () => {
                     value={logSource}
                     onChange={(e) => setLogSource(e.target.value)}
                     placeholder="Opsional"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -409,7 +408,7 @@ const ReportsPage: React.FC = () => {
                   <select
                     value={logLevel}
                     onChange={(e) => setLogLevel(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="">Semua</option>
                     <option value="info">Info</option>
@@ -434,11 +433,11 @@ const ReportsPage: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {reportType === 'financial' && (
               <>
-                <Card hover>
+                <Card hover className="travel-card">
                   <p className="text-sm text-slate-600 mb-1">Total Pendapatan</p>
-                  <p className="text-2xl font-bold text-emerald-600">{formatIDR(summary.total_revenue ?? 0)}</p>
+                  <p className="text-2xl font-bold text-primary-600">{formatIDR(summary.total_revenue ?? 0)}</p>
                 </Card>
-                <Card hover>
+                <Card hover className="travel-card">
                   <p className="text-sm text-slate-600 mb-1">Jumlah Invoice</p>
                   <p className="text-2xl font-bold text-slate-900">{summary.invoice_count ?? 0}</p>
                 </Card>
@@ -446,26 +445,26 @@ const ReportsPage: React.FC = () => {
             )}
             {(reportType === 'revenue' || reportType === 'orders' || reportType === 'partners' || reportType === 'jamaah') && (
               <>
-                <Card hover>
+                <Card hover className="travel-card">
                   <p className="text-sm text-slate-600 mb-1">Total Order</p>
                   <p className="text-2xl font-bold text-slate-900">{summary.total_orders ?? 0}</p>
                 </Card>
-                <Card hover>
+                <Card hover className="travel-card">
                   <p className="text-sm text-slate-600 mb-1">Total Revenue</p>
-                  <p className="text-2xl font-bold text-emerald-600">{formatIDR(summary.total_revenue ?? 0)}</p>
+                  <p className="text-2xl font-bold text-primary-600">{formatIDR(summary.total_revenue ?? 0)}</p>
                 </Card>
-                <Card hover>
+                <Card hover className="travel-card">
                   <p className="text-sm text-slate-600 mb-1">Total Jamaah</p>
                   <p className="text-2xl font-bold text-slate-900">{summary.total_jamaah ?? 0}</p>
                 </Card>
-                <Card hover>
+                <Card hover className="travel-card">
                   <p className="text-sm text-slate-600 mb-1">Total Invoice</p>
                   <p className="text-2xl font-bold text-slate-900">{summary.total_invoices ?? 0}</p>
                 </Card>
               </>
             )}
             {reportType === 'logs' && (
-              <Card hover>
+              <Card hover className="travel-card">
                 <p className="text-sm text-slate-600 mb-1">Total Log</p>
                 <p className="text-2xl font-bold text-slate-900">{summary.total_logs ?? 0}</p>
               </Card>
@@ -474,7 +473,7 @@ const ReportsPage: React.FC = () => {
 
           {/* Series (time) */}
           {series.length > 0 && (
-            <Card>
+            <Card className="travel-card">
               <h3 className="text-lg font-bold text-slate-900 mb-4">Trend per Periode</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -504,7 +503,7 @@ const ReportsPage: React.FC = () => {
           {/* Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {breakdown.by_branch && breakdown.by_branch.length > 0 && (
-              <Card>
+              <Card className="travel-card">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">Per Cabang</h3>
                 <div className="overflow-x-auto max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -529,7 +528,7 @@ const ReportsPage: React.FC = () => {
               </Card>
             )}
             {breakdown.by_status && Object.keys(breakdown.by_status).length > 0 && (
-              <Card>
+              <Card className="travel-card">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">Per Status</h3>
                 <div className="space-y-2">
                   {Object.entries(breakdown.by_status).map(([status, count]) => (
@@ -542,7 +541,7 @@ const ReportsPage: React.FC = () => {
               </Card>
             )}
             {breakdown.by_provinsi && breakdown.by_provinsi.length > 0 && (
-              <Card>
+              <Card className="travel-card">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">Per Provinsi</h3>
                 <div className="overflow-x-auto max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -567,7 +566,7 @@ const ReportsPage: React.FC = () => {
               </Card>
             )}
             {breakdown.by_wilayah && breakdown.by_wilayah.length > 0 && (
-              <Card>
+              <Card className="travel-card">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">Per Wilayah</h3>
                 <div className="overflow-x-auto max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -594,7 +593,7 @@ const ReportsPage: React.FC = () => {
           </div>
 
           {/* Detail table */}
-          <Card>
+          <Card className="travel-card">
             <h3 className="text-lg font-bold text-slate-900 mb-4">
               {reportType === 'logs' ? 'Log Entri' : reportType === 'financial' ? 'Detail Invoice' : 'Detail Order'}
             </h3>
@@ -640,7 +639,7 @@ const ReportsPage: React.FC = () => {
                         <td className="py-2 pr-4">{inv.branch_name ?? '-'}</td>
                         <td className="py-2 pr-4">{inv.owner_name ?? '-'}</td>
                         <td className="py-2 pr-4 text-right">{formatIDR(inv.total_amount ?? 0)}</td>
-                        <td className="py-2 pr-4 text-right text-emerald-600">{formatIDR(inv.paid_amount ?? 0)}</td>
+                        <td className="py-2 pr-4 text-right text-primary-600">{formatIDR(inv.paid_amount ?? 0)}</td>
                         <td className="py-2 pr-4 text-right">{formatIDR(inv.remaining_amount ?? 0)}</td>
                         <td className="py-2"><Badge variant="info">{inv.status ?? '-'}</Badge></td>
                       </tr>

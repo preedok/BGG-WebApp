@@ -23,6 +23,7 @@ export interface DashboardFilterBarProps {
   showOrderStatus?: boolean;
   showOwner?: boolean;
   showDueStatus?: boolean;
+  showSort?: boolean;
   wilayahId?: string;
   provinsiId?: string;
   branchId?: string;
@@ -34,6 +35,11 @@ export interface DashboardFilterBarProps {
   dateTo?: string;
   search?: string;
   search2?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  sortOptions?: { value: string; label: string }[];
+  onSortByChange?: (v: string) => void;
+  onSortOrderChange?: (v: 'asc' | 'desc') => void;
   onWilayahChange?: (v: string) => void;
   onProvinsiChange?: (v: string) => void;
   onBranchChange?: (v: string) => void;
@@ -47,6 +53,8 @@ export interface DashboardFilterBarProps {
   onSearch2Change?: (v: string) => void;
   onApply: () => void;
   onReset?: () => void;
+  /** Sembunyikan tombol Terapkan/Reset (untuk dipakai di dalam PageFilter) */
+  hideActions?: boolean;
   wilayahList?: { id: string; name: string }[];
   provinces?: { id: string | number; name?: string; nama?: string }[];
   branches?: { id: string; code: string; name: string }[];
@@ -82,6 +90,7 @@ const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   showOrderStatus = false,
   showOwner = false,
   showDueStatus = false,
+  showSort = false,
   wilayahId = '',
   provinsiId = '',
   branchId = '',
@@ -93,6 +102,16 @@ const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   dateTo = '',
   search = '',
   search2 = '',
+  sortBy = 'created_at',
+  sortOrder = 'desc',
+  sortOptions = [
+    { value: 'created_at', label: 'Tanggal dibuat' },
+    { value: 'invoice_number', label: 'Nomor invoice' },
+    { value: 'total_amount', label: 'Total' },
+    { value: 'status', label: 'Status' }
+  ],
+  onSortByChange,
+  onSortOrderChange,
   onWilayahChange,
   onProvinsiChange,
   onBranchChange,
@@ -106,6 +125,7 @@ const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   onSearch2Change,
   onApply,
   onReset,
+  hideActions = false,
   wilayahList = [],
   provinces = [],
   branches = [],
@@ -122,14 +142,14 @@ const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
   const isModal = variant === 'modal';
   const gridClass = isModal
     ? 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3'
-    : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4';
+    : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
   const selectClass = isModal ? inputClass : `${inputClass} ${selectMinWidth}`;
 
   return (
     <div className={gridClass}>
       {variant === 'page' && (
         <div className="flex items-end gap-2 pb-2">
-          <Filter className="w-5 h-5 text-emerald-600 shrink-0" />
+          <Filter className="w-5 h-5 text-primary-600 shrink-0" />
           <span className="text-slate-600 font-medium">Filter</span>
         </div>
       )}
@@ -230,16 +250,37 @@ const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           <input type="text" value={search2} onChange={(e) => onSearch2Change?.(e.target.value)} placeholder={search2Placeholder} className={inputClass} />
         </div>
       )}
-      <div className={`flex items-end gap-2 ${isModal ? 'col-span-2' : ''}`}>
-        <Button variant="primary" size={isModal ? 'sm' : 'md'} onClick={onApply} disabled={loading}>
-          {loading ? 'Memuat...' : 'Terapkan'}
-        </Button>
-        {showReset && onReset && (
-          <Button variant="outline" size={isModal ? 'sm' : 'md'} onClick={onReset}>
-            Reset
+      {showSort && (
+        <>
+          <div>
+            <label className={labelClass}>Urutkan</label>
+            <select value={sortBy} onChange={(e) => onSortByChange?.(e.target.value)} className={selectClass}>
+              {sortOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Arah</label>
+            <select value={sortOrder} onChange={(e) => onSortOrderChange?.(e.target.value as 'asc' | 'desc')} className={selectClass}>
+              <option value="desc">Terbaru dulu</option>
+              <option value="asc">Terlama dulu</option>
+            </select>
+          </div>
+        </>
+      )}
+      {!hideActions && (
+        <div className={`flex items-end gap-2 ${isModal ? 'col-span-2' : ''}`}>
+          <Button variant="primary" size={isModal ? 'sm' : 'md'} onClick={onApply} disabled={loading}>
+            {loading ? 'Memuat...' : 'Terapkan'}
           </Button>
-        )}
-      </div>
+          {showReset && onReset && (
+            <Button variant="outline" size={isModal ? 'sm' : 'md'} onClick={onReset}>
+              Reset
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

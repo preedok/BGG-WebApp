@@ -33,7 +33,7 @@ const VisaPage: React.FC = () => {
   const [editTarget, setEditTarget] = useState<string>('');
 
   const isPusat = user?.role === 'super_admin' || user?.role === 'admin_pusat';
-  const isBranch = user?.role === 'admin_cabang';
+  const isBranch = false;
   const canConfig = isPusat || isBranch;
 
   const branchIdForApi = isBranch && user?.branch_id
@@ -165,7 +165,7 @@ const VisaPage: React.FC = () => {
     }
   };
 
-  if (user?.role === 'role_visa') {
+  if (user?.role === 'visa_koordinator') {
     return <VisaWorkPage />;
   }
 

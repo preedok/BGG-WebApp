@@ -1161,42 +1161,6 @@ const exportFinancialPdf = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET /api/v1/accounting/reconciliation
- * Daftar pembayaran untuk rekonsiliasi bank. Filter: reconciled (true/false), date_from, date_to, branch_id.
- */
-const getReconciliation = asyncHandler(async (req, res) => {
-  const { reconciled, date_from, date_to, branch_id } = req.query;
-  const where = {};
-  if (reconciled === 'true') where.reconciled_at = { [Op.ne]: null };
-  else if (reconciled === 'false') where.reconciled_at = null;
-  if (date_from || date_to) {
-    where.created_at = {};
-    if (date_from) where.created_at[Op.gte] = new Date(date_from);
-    if (date_to) {
-      const d = new Date(date_to);
-      d.setHours(23, 59, 59, 999);
-      where.created_at[Op.lte] = d;
-    }
-  }
-  if (branch_id) {
-    const invIds = (await Invoice.findAll({ where: { branch_id }, attributes: ['id'], raw: true })).map(i => i.id);
-    if (invIds.length > 0) where.invoice_id = { [Op.in]: invIds };
-    else where.invoice_id = 'none';
-  }
-
-  const payments = await PaymentProof.findAll({
-    where,
-    include: [
-      { model: Invoice, as: 'Invoice', include: [{ model: Order, as: 'Order' }, { model: User, as: 'User', attributes: ['id', 'name', 'company_name'] }, { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'] }] }
-    ],
-    order: [['created_at', 'DESC']],
-    limit: 200
-  });
-
-  res.json({ success: true, data: payments });
-});
-
-/**
  * POST /api/v1/accounting/payments/:id/reconcile
  * Tandai bukti pembayaran sudah direkonsiliasi (rekonsiliasi bank).
  */
@@ -1630,7 +1594,6 @@ module.exports = {
   getFinancialReport,
   exportFinancialExcel,
   exportFinancialPdf,
-  getReconciliation,
   reconcilePayment,
   getChartOfAccounts,
   getChartOfAccountById,

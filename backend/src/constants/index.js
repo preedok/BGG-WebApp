@@ -156,7 +156,9 @@ const BUSINESS_RULE_KEYS = {
   TICKET_GENERAL_IDR: 'ticket_general_idr',
   TICKET_LION_IDR: 'ticket_lion_idr',
   TICKET_SUPER_AIR_JET_IDR: 'ticket_super_air_jet_idr',
-  TICKET_GARUDA_IDR: 'ticket_garuda_idr'
+  TICKET_GARUDA_IDR: 'ticket_garuda_idr',
+  MIN_DP_PERCENTAGE: 'min_dp_percentage',
+  BANK_ACCOUNTS: 'bank_accounts'
 };
 
 // Notifikasi trigger (VIII)
@@ -237,7 +239,9 @@ const BUSINESS_RULES = {
   DP_DUE_DAYS: 3,            // Tenggat DP 3 hari
   BUS_MIN_PACK: 35,
   CURRENCY: ['IDR', 'SAR'],
-  REGISTRATION_DEPOSIT_IDR: 25000000  // Biaya pendaftaran owner (umum dari pusat, bisa diubah cabang)
+  REGISTRATION_DEPOSIT_IDR: 25000000,
+  MIN_DP_PERCENTAGE: 30,
+  BANK_ACCOUNTS: []  // [{ bank_name, account_number, account_name, currency? }]
 };
 
 module.exports = {

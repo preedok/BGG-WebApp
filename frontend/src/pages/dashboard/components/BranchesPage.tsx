@@ -8,7 +8,7 @@ import Button from '../../../components/common/Button';
 import { branchesApi, adminPusatApi, type Branch, type ProvinceItem, type UserListItem } from '../../../services/api';
 import { TableColumn } from '../../../types';
 
-type AddAccountMode = 'akun_cabang' | 'akun_wilayah' | 'akun_provinsi';
+type AddAccountMode = 'akun_wilayah' | 'akun_provinsi';
 
 const BranchesPage: React.FC = () => {
   const { user } = useAuth();
@@ -17,7 +17,7 @@ const BranchesPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [addAccountMode, setAddAccountMode] = useState<AddAccountMode>('akun_cabang');
+  const [addAccountMode, setAddAccountMode] = useState<AddAccountMode>('akun_wilayah');
   const [accountForm, setAccountForm] = useState({
     name: '',
     email: '',
@@ -107,7 +107,7 @@ const BranchesPage: React.FC = () => {
   const openAddAccount = () => {
     setEditingBranchId(null);
     setEditingUserId(null);
-    setAddAccountMode('akun_cabang');
+    setAddAccountMode('akun_wilayah');
     setAccountForm({ name: '', email: '', password: '', branch_id: '', region: '' });
     setModalOpen(true);
     setMessage(null);
@@ -126,7 +126,7 @@ const BranchesPage: React.FC = () => {
     setEditingBranchId(b.id);
     setModalOpen(true);
     setMessage(null);
-    setAddAccountMode('akun_cabang');
+    setAddAccountMode('akun_wilayah');
     setAccountForm({ name: '', email: '', password: '', branch_id: b.id, region: '' });
     branchesApi.list({ limit: 600, include_inactive: 'true' })
       .then((r) => { if (r.data.success && r.data.data) setAllBranchesForSelect(r.data.data); })
@@ -154,7 +154,7 @@ const BranchesPage: React.FC = () => {
   const openEditAccount = (u: UserListItem) => {
     setEditingBranchId(null);
     setEditingUserId(u.id);
-    const mode = u.role === 'admin_wilayah' ? 'akun_wilayah' : u.role === 'admin_provinsi' ? 'akun_provinsi' : 'akun_cabang';
+    const mode = u.role === 'admin_wilayah' ? 'akun_wilayah' : u.role === 'admin_provinsi' ? 'akun_provinsi' : 'akun_wilayah';
     setAddAccountMode(mode);
     setAccountForm({
       name: u.name || '',
@@ -205,7 +205,7 @@ const BranchesPage: React.FC = () => {
           setMessage({ type: 'error', text: 'Password minimal 6 karakter' });
           return;
         }
-        const roleMap = { akun_cabang: 'admin_cabang', akun_wilayah: 'admin_wilayah', akun_provinsi: 'admin_provinsi' } as const;
+        const roleMap = { akun_wilayah: 'admin_wilayah', akun_provinsi: 'admin_provinsi' } as const;
         const role = roleMap[addAccountMode];
         const body: { name: string; email: string; password: string; role: string; branch_id?: string; region?: string } = {
           name: accountForm.name.trim(),
@@ -213,13 +213,7 @@ const BranchesPage: React.FC = () => {
           password: accountForm.password,
           role
         };
-        if (addAccountMode === 'akun_cabang') {
-          if (!accountForm.branch_id) {
-            setMessage({ type: 'error', text: 'Pilih kabupaten/kota (cabang) terlebih dahulu' });
-            return;
-          }
-          body.branch_id = accountForm.branch_id;
-        } else if (addAccountMode === 'akun_wilayah') {
+        if (addAccountMode === 'akun_wilayah') {
           if (!accountForm.region) {
             setMessage({ type: 'error', text: 'Pilih wilayah (Sumatra, Jawa, dll) terlebih dahulu' });
             return;
@@ -266,68 +260,68 @@ const BranchesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Kelola Cabang</h1>
-          <p className="text-slate-600 mt-1">Daftar cabang dan tambah akun admin cabang, wilayah, atau provinsi</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Kelola Cabang</h1>
+          <p className="text-stone-600 mt-1">Daftar cabang dan tambah akun admin cabang, wilayah, atau provinsi</p>
         </div>
         {canCreateBranch && (
           <Button variant="primary" onClick={openAddAccount}><UserPlus className="w-5 h-5 mr-2" />Tambah Akun</Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card hover>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card hover className="travel-card">
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-card">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm text-slate-600">Total Cabang</p>
-              <p className="text-2xl font-bold text-slate-900">{pagination?.total ?? branches.length}</p>
+              <p className="text-sm text-stone-600">Total Cabang</p>
+              <p className="text-2xl font-bold text-stone-900">{pagination?.total ?? branches.length}</p>
             </div>
           </div>
         </Card>
         {hasActiveFilters && (
-          <Card hover>
+          <Card hover className="travel-card">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-slate-100 text-slate-600">
+              <div className="p-3 rounded-xl bg-primary-100 text-primary-600">
                 <Filter className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-slate-600">Filter aktif</p>
-                <p className="text-2xl font-bold text-slate-900">{pagination?.total ?? 0} tampil</p>
+                <p className="text-sm text-stone-600">Filter aktif</p>
+                <p className="text-2xl font-bold text-stone-900">{pagination?.total ?? 0} tampil</p>
               </div>
             </div>
           </Card>
         )}
       </div>
 
-      <Card>
+      <Card className="travel-card">
         {loading ? (
-          <p className="text-slate-500 py-8 text-center">Memuat...</p>
+          <p className="text-stone-500 py-8 text-center">Memuat...</p>
         ) : (
           <>
             <div className="space-y-4 mb-4">
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                  <Filter className="w-4 h-4" /> Filter Cabang
+              <div className="p-4 bg-primary-50/50 rounded-xl border border-primary-100">
+                <p className="text-sm font-medium text-stone-700 mb-3 flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-primary-600" /> Filter Cabang
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                     <input
                       type="text"
                       placeholder="Cari kode, nama, kota, provinsi..."
                       value={searchText}
                       onChange={(e) => setSearchText(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
                   <select
                     value={filterWilayah}
                     onChange={(e) => { setFilterWilayah(e.target.value); setFilterProvinsi(''); }}
-                    className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[180px]"
+                    className="px-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white min-w-[180px]"
                   >
                     <option value="">Semua Wilayah</option>
                     {wilayahForSelect.map((w) => (
@@ -337,7 +331,7 @@ const BranchesPage: React.FC = () => {
                   <select
                     value={filterProvinsi}
                     onChange={(e) => setFilterProvinsi(e.target.value)}
-                    className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[180px]"
+                    className="px-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white min-w-[180px]"
                   >
                     <option value="">Semua Provinsi</option>
                     {provincesByWilayah.map((p) => (
@@ -349,12 +343,12 @@ const BranchesPage: React.FC = () => {
                     placeholder="Filter kota..."
                     value={filterCity}
                     onChange={(e) => setFilterCity(e.target.value)}
-                    className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
+                    className="px-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-[140px]"
                   />
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-                    className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[140px]"
+                    className="px-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white min-w-[140px]"
                   >
                     <option value="all">Semua Status</option>
                     <option value="active">Aktif</option>
@@ -416,8 +410,13 @@ const BranchesPage: React.FC = () => {
                 </td>
                 {canCreateBranch && (
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex justify-center gap-2">
-                      <button type="button" className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => openEdit(branch)}>
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"
+                        onClick={() => openEdit(branch)}
+                        title="Edit Cabang"
+                      >
                         <Edit className="w-4 h-4" />
                       </button>
                     </div>
@@ -442,7 +441,7 @@ const BranchesPage: React.FC = () => {
                     <div key={u.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
                       <span className="text-sm font-medium text-slate-800">{u.name}</span>
                       <span className="text-xs text-slate-500">({u.region})</span>
-                      <button type="button" className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => openEditAccount(u)}>
+                      <button type="button" className="p-1.5 text-primary-600 hover:bg-primary-50 rounded" onClick={() => openEditAccount(u)}>
                         <Edit className="w-4 h-4" />
                       </button>
                     </div>
@@ -458,7 +457,7 @@ const BranchesPage: React.FC = () => {
                     <div key={u.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
                       <span className="text-sm font-medium text-slate-800">{u.name}</span>
                       <span className="text-xs text-slate-500">({u.region})</span>
-                      <button type="button" className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded" onClick={() => openEditAccount(u)}>
+                      <button type="button" className="p-1.5 text-primary-600 hover:bg-primary-50 rounded" onClick={() => openEditAccount(u)}>
                         <Edit className="w-4 h-4" />
                       </button>
                     </div>
@@ -474,10 +473,10 @@ const BranchesPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setModalOpen(false); setEditingBranchId(null); setEditingUserId(null); }}>
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-slate-900 mb-4">
-              {editingUserId ? `Edit Akun ${addAccountMode === 'akun_cabang' ? 'Cabang' : addAccountMode === 'akun_wilayah' ? 'Wilayah' : 'Provinsi'}` : editingBranchId ? 'Tambah Akun Cabang' : 'Tambah Akun'}
+              {editingUserId ? `Edit Akun ${addAccountMode === 'akun_wilayah' ? 'Wilayah' : 'Provinsi'}` : 'Tambah Akun'}
             </h3>
             {message && (
-              <div className={`mb-4 rounded-lg px-4 py-3 ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              <div className={`mb-4 rounded-lg px-4 py-3 ${message.type === 'success' ? 'bg-primary-50 text-primary-800 border border-primary-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                 {message.text}
               </div>
             )}
@@ -487,18 +486,14 @@ const BranchesPage: React.FC = () => {
                 <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
                   <label className="block text-sm font-medium text-slate-700 mb-2">Jenis akun</label>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => setAddAccountMode('akun_cabang')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${addAccountMode === 'akun_cabang' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
-                      <Building2 className="w-4 h-4" /> Akun Cabang
-                    </button>
-                    <button type="button" onClick={() => setAddAccountMode('akun_wilayah')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${addAccountMode === 'akun_wilayah' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    <button type="button" onClick={() => setAddAccountMode('akun_wilayah')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${addAccountMode === 'akun_wilayah' ? 'bg-primary-600 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
                       <MapPin className="w-4 h-4" /> Akun Wilayah
                     </button>
-                    <button type="button" onClick={() => setAddAccountMode('akun_provinsi')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${addAccountMode === 'akun_provinsi' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    <button type="button" onClick={() => setAddAccountMode('akun_provinsi')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${addAccountMode === 'akun_provinsi' ? 'bg-primary-600 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
                       <Globe className="w-4 h-4" /> Akun Provinsi
                     </button>
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    {addAccountMode === 'akun_cabang' && 'Pilih kabupaten/kota → provinsi & wilayah otomatis terisi.'}
                     {addAccountMode === 'akun_wilayah' && 'Pilih wilayah utama (Sumatra, Jawa, Kalimantan, dll).'}
                     {addAccountMode === 'akun_provinsi' && 'Pilih provinsi → sistem otomatis masukkan ke wilayah yang sesuai.'}
                   </p>
@@ -518,7 +513,7 @@ const BranchesPage: React.FC = () => {
                 <input type="password" value={accountForm.password} onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" required={!editingUserId} minLength={6} placeholder="••••••••" />
               </div>
 
-              {(addAccountMode === 'akun_cabang' || editingBranchId) && (
+              {editingBranchId && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Pilih Kabupaten/Kota (Cabang) *</label>
                   <select value={accountForm.branch_id} onChange={(e) => setAccountForm({ ...accountForm, branch_id: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2" required disabled={!!editingBranchId || !!editingUserId}>
