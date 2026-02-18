@@ -166,7 +166,8 @@ const UsersPage: React.FC = () => {
             <option value="admin_pusat">Admin Pusat</option>
             <option value="admin_cabang">Admin Cabang</option>
             <option value="owner">Owner</option>
-            <option value="role_invoice">Invoice</option>
+            <option value="invoice_koordinator">Invoice Koordinator</option>
+            <option value="role_invoice_saudi">Invoice Saudi</option>
             <option value="role_visa">Visa</option>
             <option value="role_ticket">Tiket</option>
             <option value="role_hotel">Hotel</option>

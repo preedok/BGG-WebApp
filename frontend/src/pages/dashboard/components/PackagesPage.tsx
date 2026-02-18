@@ -6,7 +6,8 @@ import Button from '../../../components/common/Button';
 import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { productsApi } from '../../../services/api';
+import { productsApi, businessRulesApi } from '../../../services/api';
+import { fillFromSource, getRatesFromRates } from '../../../utils/currencyConversion';
 
 const INCLUDE_OPTIONS = [
   { id: 'hotel', label: 'Hotel' },
@@ -34,19 +35,24 @@ interface PackageProduct {
   is_package?: boolean;
   price_general?: number | null;
   price_branch?: number | null;
+  price_general_idr?: number | null;
+  price_general_sar?: number | null;
+  price_general_usd?: number | null;
   currency?: string;
 }
 
 type FormState = {
   name: string;
-  price: number;
+  /** Mata uang yang dipilih untuk input; hanya field ini yang bisa diisi */
+  price_currency: 'IDR' | 'SAR' | 'USD';
+  /** Nilai harga dalam price_currency; konversi IDR/SAR/USD otomatis (read-only) */
+  price_value: number;
   days: number;
   discountPercent: number;
   includes: string[];
-  currency: 'IDR' | 'SAR' | 'USD';
 };
 
-const emptyForm: FormState = { name: '', price: 0, days: 1, discountPercent: 0, includes: [], currency: 'IDR' };
+const emptyForm: FormState = { name: '', price_currency: 'IDR', price_value: 0, days: 1, discountPercent: 0, includes: [] };
 
 const PackagesPage: React.FC = () => {
   const { user } = useAuth();
@@ -60,8 +66,21 @@ const PackagesPage: React.FC = () => {
   const [form, setForm] = useState<FormState>(emptyForm);
   /** Tampilan input Lama (hari) agar user bisa mengosongkan dan mengubah dari 1 */
   const [daysInput, setDaysInput] = useState('1');
+  const [currencyRates, setCurrencyRates] = useState<{ SAR_TO_IDR?: number; USD_TO_IDR?: number }>({});
 
   const canCreatePackage = user?.role === 'super_admin' || user?.role === 'admin_pusat';
+
+  useEffect(() => {
+    businessRulesApi.get().then((res) => {
+      const data = (res.data as { data?: { currency_rates?: unknown } })?.data;
+      let cr = data?.currency_rates;
+      if (typeof cr === 'string') {
+        try { cr = JSON.parse(cr) as { SAR_TO_IDR?: number; USD_TO_IDR?: number }; } catch { cr = null; }
+      }
+      const rates = cr as { SAR_TO_IDR?: number; USD_TO_IDR?: number } | null;
+      if (rates && typeof rates === 'object') setCurrencyRates({ SAR_TO_IDR: rates.SAR_TO_IDR ?? 4200, USD_TO_IDR: rates.USD_TO_IDR ?? 15500 });
+    }).catch(() => {});
+  }, []);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -136,13 +155,27 @@ const PackagesPage: React.FC = () => {
     setEditingPackage(pkg);
     const meta = pkg.meta as { includes?: string[]; discount_percent?: number; days?: number; currency?: string } | undefined;
     const days = Number(meta?.days ?? 1);
+    const rates = getRatesFromRates(currencyRates);
+    let price_idr = pkg.price_general_idr ?? 0;
+    let price_sar = pkg.price_general_sar ?? 0;
+    let price_usd = pkg.price_general_usd ?? 0;
+    if (price_idr === 0 && price_sar === 0 && price_usd === 0) {
+      const base = Number(pkg.price_branch ?? pkg.price_general ?? 0);
+      const cur = (meta?.currency || pkg.currency || 'IDR') as 'IDR' | 'SAR' | 'USD';
+      const triple = fillFromSource(cur, base, currencyRates);
+      price_idr = triple.idr;
+      price_sar = triple.sar;
+      price_usd = triple.usd;
+    }
+    const curFirst = price_idr > 0 ? 'IDR' : price_sar > 0 ? 'SAR' : 'USD';
+    const valFirst = curFirst === 'IDR' ? price_idr : curFirst === 'SAR' ? price_sar : price_usd;
     setForm({
       name: pkg.name,
-      price: Number(pkg.price_branch ?? pkg.price_general ?? 0),
+      price_currency: curFirst,
+      price_value: valFirst,
       days,
       discountPercent: Number(meta?.discount_percent ?? 0),
-      includes: meta?.includes ?? [],
-      currency: (meta?.currency as 'IDR' | 'SAR' | 'USD') || (pkg.currency as 'IDR' | 'SAR' | 'USD') || 'IDR'
+      includes: meta?.includes ?? []
     });
     setDaysInput(days >= 1 ? String(days) : '1');
     setShowModal(true);
@@ -164,12 +197,13 @@ const PackagesPage: React.FC = () => {
     }
     const parsedDays = parseInt(daysInput.trim(), 10);
     const days = (Number.isNaN(parsedDays) || parsedDays < 1) ? 1 : parsedDays;
+    const triplePrice = fillFromSource(form.price_currency, form.price_value || 0, currencyRates);
+    const hasPrice = triplePrice.idr > 0 || triplePrice.sar > 0 || triplePrice.usd > 0;
     setSaving(true);
     try {
       const meta = {
         includes: form.includes,
         days,
-        currency: form.currency,
         ...(editingPackage ? { discount_percent: form.discountPercent } : {})
       };
       if (editingPackage) {
@@ -179,16 +213,18 @@ const PackagesPage: React.FC = () => {
         });
         const pricesRes = await productsApi.listPrices({ product_id: editingPackage.id });
         const prices = (pricesRes.data as { data?: Array<{ id: string; branch_id: string | null; owner_id: string | null }> })?.data ?? [];
-        const general = prices.find((p: { branch_id: string | null; owner_id: string | null }) => !p.branch_id && !p.owner_id);
-        if (general) {
-          await productsApi.updatePrice(general.id, { amount: form.price, currency: form.currency });
-        } else if (form.price > 0) {
+        const generalPrices = prices.filter((p: { branch_id: string | null; owner_id: string | null }) => !p.branch_id && !p.owner_id);
+        for (const p of generalPrices) {
+          await productsApi.deletePrice(p.id);
+        }
+        if (hasPrice) {
           await productsApi.createPrice({
             product_id: editingPackage.id,
             branch_id: null,
             owner_id: null,
-            currency: form.currency,
-            amount: form.price
+            amount_idr: triplePrice.idr || undefined,
+            amount_sar: triplePrice.sar || undefined,
+            amount_usd: triplePrice.usd || undefined
           });
         }
         showToast('Paket berhasil diubah', 'success');
@@ -198,19 +234,20 @@ const PackagesPage: React.FC = () => {
           type: 'package',
           code,
           name: form.name.trim(),
-          description: form.includes.length ? `Include: ${form.includes.join(', ')}. ${form.days} hari.` : `${form.days} hari.`,
+          description: form.includes.length ? `Include: ${form.includes.join(', ')}. ${days} hari.` : `${days} hari.`,
           is_package: true,
           meta
         });
         const productId = (createRes.data as { data?: { id: string } })?.data?.id;
         if (!productId) throw new Error('Product id tidak ditemukan');
-        if (form.price > 0) {
+        if (hasPrice) {
           await productsApi.createPrice({
             product_id: productId,
             branch_id: null,
             owner_id: null,
-            currency: form.currency,
-            amount: form.price
+            amount_idr: triplePrice.idr || undefined,
+            amount_sar: triplePrice.sar || undefined,
+            amount_usd: triplePrice.usd || undefined
           });
         }
         showToast('Paket berhasil dibuat', 'success');
@@ -305,26 +342,35 @@ const PackagesPage: React.FC = () => {
             onLimitChange: (l) => { setLimit(l); setPage(1); }
           } : undefined}
           renderRow={(pkg: PackageProduct) => {
-            const basePrice = Number(pkg.price_branch ?? pkg.price_general ?? 0);
+            const basePrice = Number(pkg.price_branch ?? pkg.price_general_idr ?? pkg.price_general_sar ?? pkg.price_general_usd ?? pkg.price_general ?? 0);
             const meta = pkg.meta as { discount_percent?: number; days?: number; currency?: string } | undefined;
             const discountPercent = Number(meta?.discount_percent ?? 0);
             const priceAfter = getPriceAfterDiscount(basePrice, discountPercent);
             const days = Number(meta?.days ?? 1);
-            const cur = meta?.currency || pkg.currency || 'IDR';
+            const hasMulti = (pkg.price_general_idr != null || pkg.price_general_sar != null || pkg.price_general_usd != null);
             return (
               <tr key={pkg.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-semibold text-slate-900">{pkg.name}</td>
                 <td className="px-6 py-4 text-center text-slate-700">{days} hari</td>
-                <td className="px-6 py-4 text-center text-slate-700">{cur}</td>
+                <td className="px-6 py-4 text-center text-slate-700">
+                  {hasMulti ? 'IDR / SAR / USD' : (meta?.currency || pkg.currency || 'IDR')}
+                </td>
                 <td className="px-6 py-4 text-right font-medium text-slate-900">
-                  {formatPrice(basePrice, cur)}
+                  {hasMulti ? (
+                    <span className="text-xs block space-y-0.5">
+                      {pkg.price_general_idr != null && pkg.price_general_idr > 0 && <span className="block">{formatPrice(pkg.price_general_idr, 'IDR')}</span>}
+                      {pkg.price_general_sar != null && pkg.price_general_sar > 0 && <span className="block text-slate-600">{formatPrice(pkg.price_general_sar, 'SAR')}</span>}
+                      {pkg.price_general_usd != null && pkg.price_general_usd > 0 && <span className="block text-slate-600">{formatPrice(pkg.price_general_usd, 'USD')}</span>}
+                      {!pkg.price_general_idr && !pkg.price_general_sar && !pkg.price_general_usd && '-'}
+                    </span>
+                  ) : formatPrice(basePrice, meta?.currency || pkg.currency)}
                 </td>
                 <td className="px-6 py-4 text-center">
                   {discountPercent > 0 ? <span className="text-amber-600 font-medium">{discountPercent}%</span> : '-'}
                 </td>
                 <td className="px-6 py-4 text-right">
                   {discountPercent > 0 ? (
-                    <span className="text-emerald-600 font-medium">{formatPrice(priceAfter, cur)}</span>
+                    <span className="text-emerald-600 font-medium">{formatPrice(priceAfter, 'IDR')}</span>
                   ) : (
                     '-'
                   )}
@@ -411,29 +457,52 @@ const PackagesPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Mata uang</label>
-                <select
-                  value={form.currency}
-                  onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value as 'IDR' | 'SAR' | 'USD' }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Harga ({form.currency}) – total untuk {(() => { const v = parseInt(daysInput.trim(), 10); return (Number.isNaN(v) || v < 1) ? 1 : v; })()} hari
+                  Harga – total untuk {(() => { const v = parseInt(daysInput.trim(), 10); return (Number.isNaN(v) || v < 1) ? 1 : v; })()} hari
                 </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.price || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) || 0 }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  placeholder="Contoh: 28000000"
-                />
+                <p className="text-xs text-slate-500 mb-1">Pilih mata uang, lalu isi harga. Mata uang lain terisi otomatis (konversi).</p>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="text-sm text-slate-600">Input harga dalam:</span>
+                  <select
+                    value={form.price_currency}
+                    onChange={(e) => {
+                      const newCur = e.target.value as 'IDR' | 'SAR' | 'USD';
+                      const triple = fillFromSource(form.price_currency, form.price_value || 0, currencyRates);
+                      const newVal = newCur === 'IDR' ? triple.idr : newCur === 'SAR' ? triple.sar : triple.usd;
+                      setForm((f) => ({ ...f, price_currency: newCur, price_value: newVal }));
+                    }}
+                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="IDR">IDR (Rupiah)</option>
+                    <option value="SAR">SAR (Riyal Saudi)</option>
+                    <option value="USD">USD (US Dollar)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
+                  {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                    const triple = fillFromSource(form.price_currency, form.price_value || 0, currencyRates);
+                    const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                    const isEditable = form.price_currency === curKey;
+                    return (
+                      <div key={curKey}>
+                        <label className="block text-xs text-slate-500 mb-0.5">
+                          {curKey} {curKey === 'IDR' ? '(Rupiah)' : curKey === 'SAR' ? '(Riyal Saudi)' : '(US Dollar)'}
+                          {!isEditable && ' (konversi otomatis)'}
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={curKey === 'IDR' ? 1 : 0.01}
+                          value={val || ''}
+                          readOnly={!isEditable}
+                          onChange={isEditable ? (e) => setForm((f) => ({ ...f, price_value: parseFloat(e.target.value) || 0 })) : undefined}
+                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 ${isEditable ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed'}`}
+                          placeholder="0"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               {editingPackage && (
                 <>
@@ -451,9 +520,9 @@ const PackagesPage: React.FC = () => {
                   </div>
                   {form.discountPercent > 0 && (
                     <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                      <span className="text-slate-600">Harga setelah diskon: </span>
+                      <span className="text-slate-600">Harga setelah diskon (IDR): </span>
                       <span className="font-semibold text-emerald-600">
-                        {formatPrice(getPriceAfterDiscount(form.price, form.discountPercent), form.currency)}
+                        {formatPrice(getPriceAfterDiscount(fillFromSource(form.price_currency, form.price_value || 0, currencyRates).idr, form.discountPercent), 'IDR')}
                       </span>
                     </div>
                   )}

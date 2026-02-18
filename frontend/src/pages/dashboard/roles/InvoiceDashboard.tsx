@@ -120,7 +120,7 @@ const InvoiceDashboard: React.FC = () => {
             <Receipt className="w-4 h-4 mr-2" />
             Semua Invoice
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/orders')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/orders-invoices')}>
             <Receipt className="w-4 h-4 mr-2" />
             Order
           </Button>

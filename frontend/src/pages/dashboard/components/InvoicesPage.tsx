@@ -8,6 +8,7 @@ import { TableColumn } from '../../../types';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatIDR } from '../../../utils';
+import { formatInvoiceDisplay } from '../../../utils';
 import { INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS } from '../../../utils/constants';
 import { invoicesApi } from '../../../services/api';
 
@@ -38,6 +39,8 @@ const InvoicesPage: React.FC = () => {
   const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null);
   const [viewInvoice, setViewInvoice] = useState<any | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [uploadForm, setUploadForm] = useState({ amount: '', payment_type: 'dp' as 'dp' | 'partial' | 'full', transfer_date: '', proof_file: null as File | null });
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -69,6 +72,13 @@ const InvoicesPage: React.FC = () => {
     fetchInvoices();
   }, [statusFilter, page, limit]);
 
+  useEffect(() => {
+    if (viewInvoice) {
+      const rem = parseFloat(viewInvoice.remaining_amount);
+      setUploadForm((f) => ({ ...f, amount: !isNaN(rem) && rem > 0 ? String(rem) : '', payment_type: 'dp', transfer_date: '', proof_file: null }));
+    }
+  }, [viewInvoice?.id]);
+
   const mapRow = (inv: any): InvoiceRow => ({
     id: inv.id,
     invoice_number: inv.invoice_number,
@@ -93,8 +103,7 @@ const InvoicesPage: React.FC = () => {
   ];
 
   const tableColumns: TableColumn[] = [
-    { id: 'invoice', label: 'Invoice #', align: 'left', sortable: true, sortKey: 'invoice_number' },
-    { id: 'order', label: 'Order #', align: 'left' },
+    { id: 'invoice', label: 'Invoice', align: 'left', sortable: true, sortKey: 'invoice_number' },
     { id: 'owner', label: 'Owner', align: 'left' },
     { id: 'total', label: 'Total Amount', align: 'right', sortable: true, sortKey: 'total_amount' },
     { id: 'paid', label: 'Paid', align: 'right' },
@@ -136,11 +145,42 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
-  const canUploadProof = (invoice: InvoiceRow) =>
-    (user?.role === 'owner' || user?.role === 'role_invoice') && invoice.status !== 'paid';
+  const canUploadProof = (invoice: InvoiceRow | any) =>
+    (user?.role === 'owner' || user?.role === 'invoice_koordinator' || user?.role === 'role_invoice_saudi') && invoice?.status !== 'paid';
+
+  const handleUploadProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!viewInvoice?.id || !uploadForm.proof_file || !uploadForm.amount.trim()) {
+      showToast('Pilih file dan isi nominal', 'warning');
+      return;
+    }
+    const amt = parseFloat(uploadForm.amount);
+    if (isNaN(amt) || amt <= 0) {
+      showToast('Nominal harus > 0', 'warning');
+      return;
+    }
+    setUploadingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('proof_file', uploadForm.proof_file);
+      formData.append('amount', String(amt));
+      formData.append('payment_type', uploadForm.payment_type);
+      if (uploadForm.transfer_date) formData.append('transfer_date', uploadForm.transfer_date);
+      await invoicesApi.uploadPaymentProof(viewInvoice.id, formData);
+      showToast('Bukti bayar berhasil diupload. Menunggu verifikasi.', 'success');
+      const res = await invoicesApi.getById(viewInvoice.id);
+      if (res.data?.data) setViewInvoice(res.data.data);
+      fetchInvoices();
+      setUploadForm((f) => ({ ...f, amount: '', proof_file: null }));
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Gagal upload bukti bayar', 'error');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
 
   const canUnblock = (inv: any) =>
-    ['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(user?.role || '') && inv.is_blocked;
+    ['invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(user?.role || '') && inv.is_blocked;
 
   return (
     <div className="space-y-6">
@@ -196,8 +236,7 @@ const InvoicesPage: React.FC = () => {
             } : undefined}
             renderRow={(invoice: InvoiceRow) => (
               <tr key={invoice.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 font-semibold text-slate-900">{invoice.invoice_number}</td>
-                <td className="px-6 py-4 text-slate-700">{invoice.order_number}</td>
+                <td className="px-6 py-4 font-semibold text-slate-900">{formatInvoiceDisplay(invoice.status, invoice.invoice_number, INVOICE_STATUS_LABELS)}</td>
                 <td className="px-6 py-4 text-slate-700">{invoice.owner_name}</td>
                 <td className="px-6 py-4 text-right font-semibold text-slate-900">{formatIDR(invoice.total_amount)}</td>
                 <td className="px-6 py-4 text-right text-emerald-600 font-semibold">{formatIDR(invoice.paid_amount)}</td>
@@ -211,7 +250,16 @@ const InvoicesPage: React.FC = () => {
                   <div className="flex items-center justify-center gap-2">
                     <button
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                      onClick={() => setViewInvoice(invoices.find((i) => i.id === invoice.id))}
+                      onClick={async () => {
+                        const inv = invoices.find((i) => i.id === invoice.id);
+                        if (inv) setViewInvoice(inv);
+                        try {
+                          const res = await invoicesApi.getById(invoice.id);
+                          if (res.data?.data) setViewInvoice(res.data.data);
+                        } catch {
+                          if (inv) setViewInvoice(inv);
+                        }
+                      }}
                       title="Lihat detail"
                     >
                       <Eye className="w-4 h-4" />
@@ -232,8 +280,7 @@ const InvoicesPage: React.FC = () => {
               <button onClick={() => setViewInvoice(null)} className="p-2 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <dl className="space-y-3 text-sm">
-              <div><dt className="text-slate-500">Invoice #</dt><dd className="font-semibold">{viewInvoice.invoice_number}</dd></div>
-              <div><dt className="text-slate-500">Order #</dt><dd className="font-semibold">{viewInvoice.Order?.order_number}</dd></div>
+              <div><dt className="text-slate-500">Invoice</dt><dd className="font-semibold">{formatInvoiceDisplay(viewInvoice.status, viewInvoice.invoice_number, INVOICE_STATUS_LABELS)}</dd></div>
               <div><dt className="text-slate-500">Owner</dt><dd className="font-semibold">{viewInvoice.User?.name}</dd></div>
               <div><dt className="text-slate-500">Total</dt><dd className="font-semibold">{formatIDR(parseFloat(viewInvoice.total_amount))}</dd></div>
               <div><dt className="text-slate-500">Paid</dt><dd className="font-semibold text-emerald-600">{formatIDR(parseFloat(viewInvoice.paid_amount || 0))}</dd></div>
@@ -247,7 +294,7 @@ const InvoicesPage: React.FC = () => {
                   {viewInvoice.PaymentProofs.map((p: any) => (
                     <div key={p.id} className="p-3 bg-slate-50 rounded-lg flex justify-between items-center">
                       <span>{p.payment_type} · {formatIDR(parseFloat(p.amount))} {p.verified_at ? '✓' : '(pending)'}</span>
-                      {!p.verified_at && ['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '') && (
+                      {!p.verified_at && ['invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting', 'admin_koordinator'].includes(user?.role || '') && (
                         <Button size="sm" onClick={() => handleVerifyPayment(viewInvoice.id, p.id, true)} disabled={verifyingId === p.id}>
                           <Check className="w-4 h-4 mr-1" /> Verifikasi
                         </Button>
@@ -256,6 +303,54 @@ const InvoicesPage: React.FC = () => {
                   ))}
                 </div>
               </div>
+            )}
+            {canUploadProof(viewInvoice) && (
+              <form onSubmit={handleUploadProof} className="mt-4 p-4 bg-slate-50 rounded-lg space-y-3">
+                <h4 className="font-semibold text-slate-900">Upload Bukti Bayar</h4>
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1">File bukti *</label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setUploadForm((f) => ({ ...f, proof_file: e.target.files?.[0] || null }))}
+                    className="w-full text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">Nominal (Rp) *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={uploadForm.amount}
+                      onChange={(e) => setUploadForm((f) => ({ ...f, amount: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">Tipe</label>
+                    <select
+                      value={uploadForm.payment_type}
+                      onChange={(e) => setUploadForm((f) => ({ ...f, payment_type: e.target.value as 'dp' | 'partial' | 'full' }))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="dp">DP</option>
+                      <option value="partial">Pelunasan sebagian</option>
+                      <option value="full">Lunas</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1">Tanggal transfer (opsional)</label>
+                  <input
+                    type="date"
+                    value={uploadForm.transfer_date}
+                    onChange={(e) => setUploadForm((f) => ({ ...f, transfer_date: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <Button type="submit" disabled={uploadingProof || !uploadForm.proof_file}>{(uploadingProof ? 'Mengupload...' : 'Upload')}</Button>
+              </form>
             )}
             <div className="mt-6 flex gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setViewInvoice(null)}>Tutup</Button>

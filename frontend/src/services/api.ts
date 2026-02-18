@@ -87,7 +87,8 @@ export const ordersApi = {
   list: (params?: { status?: string; branch_id?: string; owner_id?: string; limit?: number; page?: number; sort_by?: string; sort_order?: 'asc' | 'desc'; date_from?: string; date_to?: string; order_number?: string; provinsi_id?: string; wilayah_id?: string }) => api.get('/orders', { params }),
   getById: (id: string) => api.get(`/orders/${id}`),
   create: (body: object) => api.post('/orders', body),
-  update: (id: string, body: object) => api.patch(`/orders/${id}`, body)
+  update: (id: string, body: object) => api.patch(`/orders/${id}`, body),
+  delete: (id: string) => api.delete(`/orders/${id}`)
 };
 
 export const hotelApi = {
@@ -710,6 +711,12 @@ export const adminCabangApi = {
   listOrders: (params?: { status?: string }) => api.get<{ success: boolean; data: any[] }>('/admin-cabang/orders', { params }),
   createUser: (body: { name: string; email: string; password: string; role: string }) => api.post('/admin-cabang/users', body),
   sendOrderResult: (orderId: string, channel?: 'email' | 'whatsapp' | 'both') => api.post(`/admin-cabang/orders/${orderId}/send-result`, { channel })
+};
+
+export const koordinatorApi = {
+  getDashboard: () => api.get<{ success: boolean; data: AdminCabangDashboardData }>('/koordinator/dashboard'),
+  listOrders: (params?: { status?: string }) => api.get<{ success: boolean; data: any[] }>('/koordinator/orders', { params }),
+  sendOrderResult: (orderId: string, channel?: 'email' | 'whatsapp' | 'both') => api.post(`/koordinator/orders/${orderId}/send-result`, { channel })
 };
 
 export const ownersApi = {

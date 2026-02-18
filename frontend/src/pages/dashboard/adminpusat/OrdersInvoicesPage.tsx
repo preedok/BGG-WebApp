@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Receipt, Filter, Download, Check, X, Unlock, MoreVertical, Eye, FileText, ChevronLeft, ChevronRight,
-  FileSpreadsheet, CreditCard, LayoutGrid, ExternalLink, DollarSign, Package, Wallet
+  FileSpreadsheet, CreditCard, LayoutGrid, ExternalLink, DollarSign, Package, Wallet, Plus, Edit, Trash2
 } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
@@ -10,9 +11,9 @@ import Button from '../../../components/common/Button';
 import { DashboardFilterBar } from '../../../components/common';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { formatIDR } from '../../../utils';
+import { formatIDR, formatInvoiceDisplay } from '../../../utils';
 import { INVOICE_STATUS_LABELS, ORDER_STATUS_LABELS } from '../../../utils/constants';
-import { invoicesApi, branchesApi, businessRulesApi, ownersApi, type InvoicesSummaryData } from '../../../services/api';
+import { invoicesApi, branchesApi, businessRulesApi, ownersApi, ordersApi, type InvoicesSummaryData } from '../../../services/api';
 
 const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/api\/v1\/?$/, '') || '';
 
@@ -26,9 +27,24 @@ const getFileUrl = (path: string) => {
  * Order & Invoice - Satu halaman gabungan untuk Admin Pusat & Admin Cabang.
  * Modal Detail Invoice: tab Invoice & Order & tab Bukti Bayar, file preview inline.
  */
+type ApiOrder = {
+  id: string;
+  order_number: string;
+  owner_id?: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
+  User?: { id: string; name?: string; company_name?: string };
+  Branch?: { id: string; code?: string; name?: string };
+};
+
 const OrdersInvoicesPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const tab = searchParams.get('tab') || 'invoices';
+  const canOrderAction = user?.role === 'owner' || user?.role === 'invoice_koordinator';
   const [branchId, setBranchId] = useState<string>('');
   const [wilayahId, setWilayahId] = useState<string>('');
   const [provinsiId, setProvinsiId] = useState<string>('');
@@ -37,10 +53,8 @@ const OrdersInvoicesPage: React.FC = () => {
   const [provinces, setProvinces] = useState<{ id: string | number; name?: string; nama?: string }[]>([]);
   const [owners, setOwners] = useState<{ id: string; user_id?: string; User?: { id: string; name: string; company_name?: string } }[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('');
-  const [filterOrderStatus, setFilterOrderStatus] = useState<string>('');
   const [filterOwnerId, setFilterOwnerId] = useState<string>('');
-  const [filterInvoiceNumber, setFilterInvoiceNumber] = useState<string>('');
-  const [filterOrderNumber, setFilterOrderNumber] = useState<string>('');
+  const [filterInvoiceNumber, setFilterInvoiceNumber] = useState<string>(() => searchParams.get('invoice_number') || '');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [filterDueStatus, setFilterDueStatus] = useState<string>('');
@@ -62,6 +76,16 @@ const OrdersInvoicesPage: React.FC = () => {
   const [currencyRates, setCurrencyRates] = useState<{ SAR_TO_IDR?: number; USD_TO_IDR?: number }>({});
   const [summary, setSummary] = useState<InvoicesSummaryData | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderLimit] = useState(25);
+  const [orderPagination, setOrderPagination] = useState<{ total: number; page: number; limit: number; totalPages: number } | null>(null);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
+  const [orderSearch, setOrderSearch] = useState(() => searchParams.get('q') || '');
+  const [orderQuery, setOrderQuery] = useState(() => searchParams.get('q') || '');
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
   const isAdminPusat = user?.role === 'admin_pusat';
   const isAdminCabang = user?.role === 'admin_cabang';
@@ -102,10 +126,8 @@ const OrdersInvoicesPage: React.FC = () => {
     if (wilayahId) params.wilayah_id = wilayahId;
     if (provinsiId) params.provinsi_id = provinsiId;
     if (filterStatus) params.status = filterStatus;
-    if (filterOrderStatus) params.order_status = filterOrderStatus;
     if (filterOwnerId) params.owner_id = filterOwnerId;
     if (filterInvoiceNumber.trim()) params.invoice_number = filterInvoiceNumber.trim();
-    if (filterOrderNumber.trim()) params.order_number = filterOrderNumber.trim();
     if (filterDateFrom) params.date_from = filterDateFrom;
     if (filterDateTo) params.date_to = filterDateTo;
     if (filterDueStatus) params.due_status = filterDueStatus;
@@ -120,10 +142,8 @@ const OrdersInvoicesPage: React.FC = () => {
       if (wilayahId) params.wilayah_id = wilayahId;
       if (provinsiId) params.provinsi_id = provinsiId;
       if (filterStatus) params.status = filterStatus;
-      if (filterOrderStatus) params.order_status = filterOrderStatus;
       if (filterOwnerId) params.owner_id = filterOwnerId;
       if (filterInvoiceNumber.trim()) params.invoice_number = filterInvoiceNumber.trim();
-      if (filterOrderNumber.trim()) params.order_number = filterOrderNumber.trim();
       if (filterDateFrom) params.date_from = filterDateFrom;
       if (filterDateTo) params.date_to = filterDateTo;
       if (filterDueStatus) params.due_status = filterDueStatus;
@@ -181,6 +201,54 @@ const OrdersInvoicesPage: React.FC = () => {
     } catch {}
   };
 
+  const fetchOrders = useCallback(() => {
+    if (tab !== 'orders') return;
+    setLoadingOrders(true);
+    const params: Record<string, string | number> = { limit: orderLimit, page: orderPage, sort_by: 'created_at', sort_order: 'desc' };
+    if (orderStatusFilter && orderStatusFilter !== 'all') params.status = orderStatusFilter;
+    if (orderQuery.trim()) params.order_number = orderQuery.trim();
+    if (user?.role === 'owner' && user?.id) params.owner_id = user.id;
+    ordersApi.list(params)
+      .then((res) => {
+        const data = (res.data as { data?: ApiOrder[]; pagination?: typeof orderPagination })?.data ?? [];
+        setOrders(Array.isArray(data) ? data : []);
+        const p = (res.data as { pagination?: typeof orderPagination }).pagination;
+        setOrderPagination(p || null);
+      })
+      .catch(() => {
+        setOrders([]);
+        setOrderPagination(null);
+        showToast('Gagal memuat daftar order', 'error');
+      })
+      .finally(() => setLoadingOrders(false));
+  }, [tab, orderPage, orderLimit, orderStatusFilter, orderQuery, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (tab === 'orders') fetchOrders();
+  }, [tab, fetchOrders]);
+
+  const handleDeleteOrder = async (order: ApiOrder) => {
+    if (!canOrderAction) return;
+    if (!window.confirm(`Batalkan order "${order.order_number}"? Invoice terkait (jika ada) juga akan dibatalkan.`)) return;
+    setDeletingOrderId(order.id);
+    try {
+      await ordersApi.delete(order.id);
+      showToast('Order dibatalkan', 'success');
+      fetchOrders();
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'Gagal membatalkan order', 'error');
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
+  const getOrderStatusBadge = (status: string): 'success' | 'warning' | 'info' | 'error' | 'default' => {
+    const v: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
+      confirmed: 'success', pending: 'warning', processing: 'info', cancelled: 'error', completed: 'success', draft: 'default', tentative: 'default'
+    };
+    return v[status] || 'default';
+  };
+
   const fetchInvoicePdf = useCallback(async (invoiceId: string) => {
     setLoadingPdf(true);
     setInvoicePdfUrl(null);
@@ -207,15 +275,15 @@ const OrdersInvoicesPage: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [branchId, wilayahId, provinsiId, limit, filterStatus, filterOrderStatus, filterOwnerId, filterInvoiceNumber, filterOrderNumber, filterDateFrom, filterDateTo, filterDueStatus, sortBy, sortOrder]);
+  }, [branchId, wilayahId, provinsiId, limit, filterStatus, filterOwnerId, filterInvoiceNumber, filterDateFrom, filterDateTo, filterDueStatus, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchInvoices();
-  }, [branchId, wilayahId, provinsiId, isAdminPusat, isAccounting, page, limit, filterStatus, filterOrderStatus, filterOwnerId, filterInvoiceNumber, filterOrderNumber, filterDateFrom, filterDateTo, filterDueStatus, sortBy, sortOrder]);
+  }, [branchId, wilayahId, provinsiId, isAdminPusat, isAccounting, page, limit, filterStatus, filterOwnerId, filterInvoiceNumber, filterDateFrom, filterDateTo, filterDueStatus, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchSummary();
-  }, [branchId, wilayahId, provinsiId, filterStatus, filterOrderStatus, filterOwnerId, filterInvoiceNumber, filterOrderNumber, filterDateFrom, filterDateTo, filterDueStatus]);
+  }, [branchId, wilayahId, provinsiId, filterStatus, filterOwnerId, filterInvoiceNumber, filterDateFrom, filterDateTo, filterDueStatus]);
 
   const summaryFromTable = (() => {
     if (invoices.length === 0) return null;
@@ -318,7 +386,7 @@ const OrdersInvoicesPage: React.FC = () => {
   const formatDate = (d: string | null) => (d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-');
 
   const canUnblock = (inv: any) =>
-    inv?.is_blocked && ['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '');
+    inv?.is_blocked && ['invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '');
 
   const canVerify = ['admin_pusat', 'admin_cabang', 'role_accounting', 'super_admin'].includes(user?.role || '');
 
@@ -342,10 +410,8 @@ const OrdersInvoicesPage: React.FC = () => {
     setWilayahId('');
     setProvinsiId('');
     setFilterStatus('');
-    setFilterOrderStatus('');
     setFilterOwnerId('');
     setFilterInvoiceNumber('');
-    setFilterOrderNumber('');
     setFilterDateFrom('');
     setFilterDateTo('');
     setFilterDueStatus('');
@@ -354,7 +420,7 @@ const OrdersInvoicesPage: React.FC = () => {
     setPage(1);
   };
 
-  const hasActiveFilters = branchId || wilayahId || provinsiId || filterStatus || filterOrderStatus || filterOwnerId || filterInvoiceNumber.trim() || filterOrderNumber.trim() || filterDateFrom || filterDateTo || filterDueStatus || sortBy !== 'created_at' || sortOrder !== 'desc';
+  const hasActiveFilters = branchId || wilayahId || provinsiId || filterStatus || filterOwnerId || filterInvoiceNumber.trim() || filterDateFrom || filterDateTo || filterDueStatus || sortBy !== 'created_at' || sortOrder !== 'desc';
 
   const s = summary || summaryFromTable || {
     total_invoices: pagination?.total ?? 0,
@@ -372,20 +438,146 @@ const OrdersInvoicesPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Order & Invoice</h1>
           <p className="text-slate-600 mt-1">
-            {(isAdminPusat || isAccounting) ? 'Daftar order dan invoice. Filter lengkap, konfirmasi pembayaran.' : 'Daftar order dan invoice cabang Anda.'}
+            {(isAdminPusat || isAccounting) ? 'Daftar order dan invoice. Filter lengkap, konfirmasi pembayaran.' : (user?.role === 'owner' ? 'Daftar order dan invoice Anda.' : 'Daftar order dan invoice cabang Anda.')}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="w-4 h-4 mr-2" />
-            Filter {hasActiveFilters && <span className="ml-1 px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded-full">aktif</span>}
-          </Button>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters}>Reset</Button>
+          {tab === 'orders' && canOrderAction && (
+            <Button variant="primary" onClick={() => navigate('/dashboard/orders/new')}>
+              <Plus className="w-5 h-5 mr-2" /> Tambah Order
+            </Button>
+          )}
+          {tab === 'invoices' && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+                <Filter className="w-4 h-4 mr-2" />
+                Filter {hasActiveFilters && <span className="ml-1 px-1.5 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded-full">aktif</span>}
+              </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={resetFilters}>Reset</Button>
+              )}
+            </>
           )}
         </div>
       </div>
 
+      {/* Tabs: Invoice | Daftar Order */}
+      <div className="flex gap-2 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => setSearchParams({ tab: 'invoices' })}
+          className={`px-4 py-2 font-medium border-b-2 -mb-px transition-colors ${tab === 'invoices' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+        >
+          Invoice
+        </button>
+        <button
+          type="button"
+          onClick={() => setSearchParams({ tab: 'orders' })}
+          className={`px-4 py-2 font-medium border-b-2 -mb-px transition-colors ${tab === 'orders' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+        >
+          Daftar Order
+        </button>
+      </div>
+
+      {tab === 'orders' ? (
+        <Card>
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Cari nomor order..."
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (setOrderQuery(orderSearch), setOrderPage(1))}
+                className="w-full border border-slate-300 rounded-lg pl-4 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {['all', 'draft', 'tentative', 'confirmed', 'processing', 'completed', 'cancelled'].map((s) => (
+                <Button key={s} variant={orderStatusFilter === s ? 'primary' : 'outline'} size="sm" onClick={() => { setOrderStatusFilter(s); setOrderPage(1); }}>
+                  {s === 'all' ? 'Semua' : (ORDER_STATUS_LABELS[s] || s)}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {loadingOrders ? (
+            <div className="py-12 text-center text-slate-500">Memuat...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-600">
+                    <th className="pb-2 pr-4">Order</th>
+                    {user?.role !== 'owner' && <th className="pb-2 pr-4">Owner</th>}
+                    <th className="pb-2 pr-4 text-right">Total</th>
+                    <th className="pb-2 pr-4">Status</th>
+                    <th className="pb-2 pr-4">Tanggal</th>
+                    {canOrderAction && <th className="pb-2 w-24">Aksi</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-3 pr-4 font-semibold text-slate-900">{order.order_number}</td>
+                      {user?.role !== 'owner' && (
+                        <td className="py-3 pr-4 text-slate-700">{order.User?.company_name ?? order.User?.name ?? '-'}</td>
+                      )}
+                      <td className="py-3 pr-4 text-right font-medium">{formatIDR(order.total_amount ?? 0)}</td>
+                      <td className="py-3 pr-4">
+                        <Badge variant={getOrderStatusBadge(order.status)}>{ORDER_STATUS_LABELS[order.status] || order.status}</Badge>
+                      </td>
+                      <td className="py-3 pr-4 text-slate-600">{order.created_at ? new Date(order.created_at).toLocaleDateString('id-ID') : '-'}</td>
+                      {canOrderAction && (
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-1">
+                            {['draft', 'tentative', 'confirmed', 'processing'].includes(order.status) && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/dashboard/orders/${order.id}/edit`)}
+                                  className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteOrder(order)}
+                                  disabled={deletingOrderId === order.id}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                                  title="Batalkan order"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {orders.length === 0 && <p className="py-8 text-center text-slate-500">Tidak ada order</p>}
+              {orderPagination && orderPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+                  <span className="text-sm text-slate-600">{orderPagination.total} order</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={orderPage <= 1} onClick={() => setOrderPage((p) => Math.max(1, p - 1))}>
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="py-2 text-sm">Hal {orderPage} / {orderPagination.totalPages}</span>
+                    <Button variant="outline" size="sm" disabled={orderPage >= orderPagination.totalPages} onClick={() => setOrderPage((p) => p + 1)}>
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      ) : (
+        <>
       {/* Statistik Total - Card per metrik */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card hover className="flex flex-col">
@@ -445,8 +637,8 @@ const OrdersInvoicesPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Per Status Invoice & Per Status Order */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Per Status Invoice (setelah create order pakai status invoice saja) */}
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
             <Receipt className="w-4 h-4" /> Per Status Invoice
@@ -466,25 +658,6 @@ const OrdersInvoicesPage: React.FC = () => {
             </div>
           )}
         </Card>
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <Package className="w-4 h-4" /> Per Status Order
-          </h3>
-          {loadingSummary ? (
-            <p className="text-slate-500 text-sm">Memuat...</p>
-          ) : Object.keys(s.by_order_status).length === 0 ? (
-            <p className="text-slate-500 text-sm">Tidak ada data</p>
-          ) : (
-            <div className="flex flex-wrap gap-3">
-              {Object.entries(s.by_order_status).map(([status, count]) => (
-                <div key={status} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100 min-w-[120px]">
-                  <Badge variant={getStatusBadge(status)}>{ORDER_STATUS_LABELS[status] || status}</Badge>
-                  <span className="font-bold text-slate-900">{Number(count).toLocaleString('id-ID')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
       </div>
 
       {showFilters && (
@@ -497,11 +670,8 @@ const OrdersInvoicesPage: React.FC = () => {
             showBranch={isAdminPusat || isAccounting}
             showStatus
             statusType="invoice"
-            showOrderStatus
             showOwner
-            showSearch
             showSearch2
-            searchPlaceholder="No. Order..."
             search2Placeholder="No. Invoice..."
             showDateRange
             showDueStatus
@@ -510,22 +680,18 @@ const OrdersInvoicesPage: React.FC = () => {
             provinsiId={provinsiId}
             branchId={branchId}
             status={filterStatus}
-            orderStatus={filterOrderStatus}
             ownerId={filterOwnerId}
             dateFrom={filterDateFrom}
             dateTo={filterDateTo}
-            search={filterOrderNumber}
             search2={filterInvoiceNumber}
             dueStatus={filterDueStatus}
             onWilayahChange={setWilayahId}
             onProvinsiChange={setProvinsiId}
             onBranchChange={setBranchId}
             onStatusChange={setFilterStatus}
-            onOrderStatusChange={setFilterOrderStatus}
             onOwnerChange={setFilterOwnerId}
             onDateFromChange={setFilterDateFrom}
             onDateToChange={setFilterDateTo}
-            onSearchChange={setFilterOrderNumber}
             onSearch2Change={setFilterInvoiceNumber}
             onDueStatusChange={setFilterDueStatus}
             onApply={() => { setPage(1); fetchInvoices(); }}
@@ -534,7 +700,6 @@ const OrdersInvoicesPage: React.FC = () => {
             provinces={provinces}
             branches={branches}
             invoiceStatusOptions={[{ value: '', label: 'Semua status' }, ...Object.entries(INVOICE_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
-            orderStatusOptions={ORDER_STATUS_LABELS}
             owners={owners.map((o) => ({ id: o.User?.id || (o as any).user_id || o.id, User: o.User }))}
             dueStatusOptions={[
               { value: '', label: 'Semua' },
@@ -575,14 +740,12 @@ const OrdersInvoicesPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-600">
-                  <th className="pb-2 pr-4">Invoice #</th>
-                  <th className="pb-2 pr-4">Order #</th>
+                  <th className="pb-2 pr-4">Invoice</th>
                   <th className="pb-2 pr-4">Owner</th>
                   <th className="pb-2 pr-4">Cabang</th>
                   <th className="pb-2 pr-4 text-right">Total</th>
                   <th className="pb-2 pr-4 text-right">Dibayar</th>
                   <th className="pb-2 pr-4 text-right">Sisa</th>
-                  <th className="pb-2 pr-4">Status Order</th>
                   <th className="pb-2 pr-4">Status Invoice</th>
                   <th className="pb-2 pr-4">Bukti Bayar</th>
                   <th className="pb-2 pr-4">Tgl Invoice</th>
@@ -593,14 +756,12 @@ const OrdersInvoicesPage: React.FC = () => {
               <tbody>
                 {invoices.map((inv) => (
                   <tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-3 pr-4 font-mono font-semibold">{inv.invoice_number}</td>
-                    <td className="py-3 pr-4 font-mono">{inv.Order?.order_number || '-'}</td>
+                    <td className="py-3 pr-4 font-mono font-semibold">{formatInvoiceDisplay(inv.status, inv.invoice_number, INVOICE_STATUS_LABELS)}</td>
                     <td className="py-3 pr-4">{inv.User?.name || inv.User?.company_name || '-'}</td>
                     <td className="py-3 pr-4">{inv.Branch?.name || inv.Branch?.code || '-'}</td>
                     <td className="py-3 pr-4 text-right font-medium">{formatIDR(parseFloat(inv.total_amount || 0))}</td>
                     <td className="py-3 pr-4 text-right text-emerald-600 font-medium">{formatIDR(parseFloat(inv.paid_amount || 0))}</td>
                     <td className="py-3 pr-4 text-right text-red-600 font-medium">{formatIDR(parseFloat(inv.remaining_amount || 0))}</td>
-                    <td className="py-3 pr-4"><Badge variant={getStatusBadge(inv.Order?.status)}>{ORDER_STATUS_LABELS[inv.Order?.status] || inv.Order?.status || '-'}</Badge></td>
                     <td className="py-3 pr-4">
                       <Badge variant={getStatusBadge(inv.status)}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</Badge>
                       {inv.is_blocked && <Badge variant="error" className="ml-1">Block</Badge>}
@@ -691,6 +852,9 @@ const OrdersInvoicesPage: React.FC = () => {
         </Card>
       )}
 
+        </>
+      )}
+
       {/* Modal Detail Invoice - Layout baru dengan tab */}
       {viewInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closeModal}>
@@ -703,7 +867,7 @@ const OrdersInvoicesPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Detail Invoice</h2>
-                  <p className="text-sm text-slate-600 font-mono">{viewInvoice.invoice_number} · {viewInvoice.Order?.order_number}</p>
+                  <p className="text-sm text-slate-600 font-mono">{formatInvoiceDisplay(viewInvoice.status, viewInvoice.invoice_number, INVOICE_STATUS_LABELS)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -757,10 +921,8 @@ const OrdersInvoicesPage: React.FC = () => {
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                       <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Data Order</h4>
                       <dl className="space-y-1.5 text-sm">
-                        <div className="flex justify-between"><dt className="text-slate-600">No. Order</dt><dd className="font-semibold">{viewInvoice.Order?.order_number}</dd></div>
                         <div className="flex justify-between"><dt className="text-slate-600">Owner</dt><dd className="font-semibold">{viewInvoice.User?.name || viewInvoice.User?.company_name}</dd></div>
                         <div className="flex justify-between"><dt className="text-slate-600">Cabang</dt><dd className="font-semibold">{viewInvoice.Branch?.name || viewInvoice.Branch?.code}</dd></div>
-                        <div className="flex justify-between"><dt className="text-slate-600">Status</dt><dd><Badge variant={getStatusBadge(viewInvoice.Order?.status)}>{ORDER_STATUS_LABELS[viewInvoice.Order?.status] || viewInvoice.Order?.status}</Badge></dd></div>
                         <div className="flex justify-between"><dt className="text-slate-600">Mata Uang</dt><dd className="font-semibold">{viewInvoice.Order?.currency || 'IDR'}</dd></div>
                       </dl>
                     </div>

@@ -121,8 +121,9 @@ const ORDER_ITEM_TYPE = {
   PACKAGE: 'package'
 };
 
-// Room types for hotel (single, double, triple, quad, quint)
+// Room types for hotel (single, double, triple, quad, quint) → kapasitas jamaah per kamar
 const ROOM_TYPES = ['single', 'double', 'triple', 'quad', 'quint'];
+const ROOM_CAPACITY = { single: 1, double: 2, triple: 3, quad: 4, quint: 5 };
 
 // Order status (add blocked)
 const ORDER_STATUS = {
@@ -257,6 +258,7 @@ module.exports = {
   ORDER_ITEM_TYPE,
   ORDER_STATUS,
   ROOM_TYPES,
+  ROOM_CAPACITY,
   BUSINESS_RULE_KEYS,
   NOTIFICATION_TRIGGER,
   BUSINESS_RULES,

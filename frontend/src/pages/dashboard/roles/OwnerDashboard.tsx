@@ -271,7 +271,7 @@ const OwnerDashboard: React.FC = () => {
       <Card>
         <h3 className="text-xl font-bold text-slate-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button variant="primary" className="flex-col h-24 gap-2" onClick={() => navigate('/dashboard/orders')}>
+          <Button variant="primary" className="flex-col h-24 gap-2" onClick={() => navigate('/dashboard/orders-invoices')}>
             <Plus className="w-6 h-6" />
             <span className="text-sm">Create Order</span>
           </Button>
@@ -333,7 +333,7 @@ const OwnerDashboard: React.FC = () => {
                       )}
                       <p className="text-xs text-slate-500">{pkg.priceType} • {pkg.duration}</p>
                     </div>
-                    <Button variant="primary" size="sm" onClick={() => navigate('/dashboard/orders')}>Order Now</Button>
+                    <Button variant="primary" size="sm" onClick={() => navigate('/dashboard/orders-invoices')}>Order Now</Button>
                   </div>
                   
                   <div className="mt-3 pt-3 border-t border-slate-200">
@@ -372,7 +372,7 @@ const OwnerDashboard: React.FC = () => {
       <Card>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-slate-900">Recent Orders & Status</h3>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/orders')}>View All</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/orders-invoices')}>View All</Button>
         </div>
         <div className="space-y-4">
           {recentOrders.map((order, i) => (
@@ -520,7 +520,7 @@ const OwnerDashboard: React.FC = () => {
         <Card>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-slate-900">Upcoming Departures</h3>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/orders')}>View All</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/orders-invoices')}>View All</Button>
           </div>
           <div className="space-y-4">
             {upcomingDepartures.map((departure, i) => (

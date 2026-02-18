@@ -22,12 +22,12 @@ export const formatIDR = (amount: number, showPrefix: boolean = true): string =>
   };
   
   /**
-   * Format number to Saudi Riyal
+   * Format number to Saudi Riyal (angka Latin, bukan Arab)
    * @param amount - Number to format
-   * @param showPrefix - Show 'SAR' prefix (default: true)
+   * @param showPrefix - Show 'SAR' suffix (default: true)
    */
   export const formatSAR = (amount: number, showPrefix: boolean = true): string => {
-    const formatted = new Intl.NumberFormat('ar-SA', {
+    const formatted = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
@@ -248,3 +248,18 @@ export const formatIDR = (amount: number, showPrefix: boolean = true): string =>
   
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
+
+/**
+ * Format nomor invoice untuk tampilan: StatusInvoice_INV-2026-67611
+ * @param status - Status invoice (draft, tentative, paid, dll)
+ * @param invoiceNumber - Nomor invoice (INV-2026-67611)
+ * @param statusLabels - Peta status -> label (opsional)
+ */
+export const formatInvoiceDisplay = (
+  status: string,
+  invoiceNumber: string,
+  statusLabels?: Record<string, string>
+): string => {
+  const label = statusLabels?.[status] || status;
+  return `${label}_${invoiceNumber}`;
+};

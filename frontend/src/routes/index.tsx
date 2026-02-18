@@ -15,16 +15,19 @@ import TicketsPage from '../pages/dashboard/components/TicketsPage';
 import BusPage from '../pages/dashboard/components/BusPage';
 import PackagesPage from '../pages/dashboard/components/PackagesPage';
 import ProductsPage from '../pages/dashboard/components/ProductsPage';
-import OrdersPage from '../pages/dashboard/components/OrdersPage';
+import OrderFormPage from '../pages/dashboard/components/OrderFormPage';
 import UsersPage from '../pages/dashboard/components/UsersPage';
 import BranchesPage from '../pages/dashboard/components/BranchesPage';
 import ReportsPage from '../pages/dashboard/components/ReportsPage';
 import SettingsPage from '../pages/dashboard/components/SettingsPage';
 import AdminCabangOwnersPage from '../pages/dashboard/components/AdminCabangOwnersPage';
 import AdminCabangPersonilPage from '../pages/dashboard/components/AdminCabangPersonilPage';
+import KoordinatorOwnersPage from '../pages/dashboard/components/KoordinatorOwnersPage';
+import KoordinatorDashboard from '../pages/dashboard/roles/KoordinatorDashboard';
 import AdminPusatCombinedRecapPage from '../pages/dashboard/adminpusat/AdminPusatCombinedRecapPage';
 import AdminPusatCreateUserPage from '../pages/dashboard/adminpusat/AdminPusatCreateUserPage';
 import OrdersInvoicesPage from '../pages/dashboard/adminpusat/OrdersInvoicesPage';
+import InvoicesPage from '../pages/dashboard/components/InvoicesPage';
 import AccountingFinancialReportPage from '../pages/dashboard/accounting/AccountingFinancialReportPage';
 import AccountingAgingPage from '../pages/dashboard/accounting/AccountingAgingPage';
 import AccountingChartOfAccountsPage from '../pages/dashboard/accounting/AccountingChartOfAccountsPage';
@@ -110,8 +113,16 @@ const router = createBrowserRouter([
             element: <Navigate to="/dashboard/products?tab=packages" replace />
           },
           {
+            path: 'orders/new',
+            element: <OrderFormPage />
+          },
+          {
+            path: 'orders/:id/edit',
+            element: <OrderFormPage />
+          },
+          {
             path: 'orders',
-            element: <OrdersPage />
+            element: <Navigate to="/dashboard/orders-invoices" replace />
           },
           {
             path: 'orders-invoices',
@@ -119,7 +130,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'invoices',
-            element: <Navigate to="/dashboard" replace />
+            element: <InvoicesPage />
           },
           {
             path: 'users',
@@ -136,6 +147,14 @@ const router = createBrowserRouter([
           {
             path: 'settings',
             element: <SettingsPage />
+          },
+          {
+            path: 'koordinator',
+            element: <KoordinatorDashboard />
+          },
+          {
+            path: 'koordinator/owners',
+            element: <KoordinatorOwnersPage />
           },
           {
             path: 'admin-cabang/owners',

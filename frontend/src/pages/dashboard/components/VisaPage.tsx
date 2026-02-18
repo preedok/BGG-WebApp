@@ -5,6 +5,7 @@ import Button from '../../../components/common/Button';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { businessRulesApi, branchesApi } from '../../../services/api';
+import { fillFromSource } from '../../../utils/currencyConversion';
 import type { Branch } from '../../../services/api';
 import VisaWorkPage from './VisaWorkPage';
 
@@ -25,6 +26,9 @@ const VisaPage: React.FC = () => {
   const [visaList, setVisaList] = useState<VisaConfigItem[]>([]);
   const [form, setForm] = useState({ visa_default_idr: 0, require_hotel_with_visa: true });
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [currencyRates, setCurrencyRates] = useState<{ SAR_TO_IDR?: number; USD_TO_IDR?: number }>({});
+  /** Mata uang untuk input harga; hanya field ini yang bisa diisi */
+  const [visaPriceCurrency, setVisaPriceCurrency] = useState<'IDR' | 'SAR' | 'USD'>('IDR');
   /** '' = Global, atau id cabang */
   const [editTarget, setEditTarget] = useState<string>('');
 
@@ -131,6 +135,18 @@ const VisaPage: React.FC = () => {
     }
   }, [editTarget, visaList]);
 
+  useEffect(() => {
+    businessRulesApi.get().then((res) => {
+      const data = (res.data as { data?: { currency_rates?: unknown } })?.data;
+      let cr = data?.currency_rates;
+      if (typeof cr === 'string') {
+        try { cr = JSON.parse(cr) as { SAR_TO_IDR?: number; USD_TO_IDR?: number }; } catch { cr = null; }
+      }
+      const rates = cr as { SAR_TO_IDR?: number; USD_TO_IDR?: number } | null;
+      if (rates && typeof rates === 'object') setCurrencyRates({ SAR_TO_IDR: rates.SAR_TO_IDR ?? 4200, USD_TO_IDR: rates.USD_TO_IDR ?? 15500 });
+    }).catch(() => {});
+  }, []);
+
   const handleSaveConfig = async () => {
     if (!canConfig) return;
     setSaving(true);
@@ -199,15 +215,45 @@ const VisaPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex flex-wrap items-end gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Harga visa (IDR)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.visa_default_idr || ''}
-                      onChange={(e) => setForm((f) => ({ ...f, visa_default_idr: Number(e.target.value) || 0 }))}
-                      className="w-full max-w-[200px] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 bg-white"
-                      placeholder="0"
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Harga visa</label>
+                    <p className="text-xs text-slate-500 mb-1">Pilih mata uang, lalu isi harga. Lainnya konversi otomatis (read-only).</p>
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <select
+                        value={visaPriceCurrency}
+                        onChange={(e) => setVisaPriceCurrency(e.target.value as 'IDR' | 'SAR' | 'USD')}
+                        className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 bg-white"
+                      >
+                        <option value="IDR">IDR (input)</option>
+                        <option value="SAR">SAR (input)</option>
+                        <option value="USD">USD (input)</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-1">
+                      {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                        const triple = fillFromSource('IDR', form.visa_default_idr || 0, currencyRates);
+                        const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                        const isEditable = visaPriceCurrency === curKey;
+                        return (
+                          <div key={curKey}>
+                            <span className="text-xs text-slate-500 block mb-0.5">{curKey}{!isEditable && ' (konversi)'}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={curKey === 'IDR' ? 1 : 0.01}
+                              value={val || ''}
+                              readOnly={!isEditable}
+                              onChange={isEditable ? (e) => {
+                                const v = parseFloat(e.target.value) || 0;
+                                const next = fillFromSource(curKey, v, currencyRates);
+                                setForm((f) => ({ ...f, visa_default_idr: Math.round(next.idr) }));
+                              } : undefined}
+                              className={`w-full max-w-[140px] border rounded-xl px-3 py-2 text-slate-900 text-sm focus:ring-2 focus:ring-violet-500 ${isEditable ? 'bg-white' : 'bg-slate-100 text-slate-600 cursor-not-allowed'}`}
+                              placeholder="0"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   <Button variant="primary" onClick={handleSaveConfig} disabled={saving} className="flex items-center gap-2 shrink-0">
                     <Save className="w-4 h-4" />

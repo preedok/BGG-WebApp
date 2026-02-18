@@ -7,8 +7,9 @@ const { ROLES } = require('../../constants');
 router.use(auth);
 
 router.get('/', orderController.list);
-router.post('/', requireRole(ROLES.OWNER, ROLES.ROLE_INVOICE, ROLES.SUPER_ADMIN), orderController.create);
+router.post('/', requireRole(ROLES.OWNER, ROLES.INVOICE_KOORDINATOR), orderController.create);
 router.get('/:id', orderController.getById);
 router.patch('/:id', orderController.update);
+router.delete('/:id', requireRole(ROLES.OWNER, ROLES.INVOICE_KOORDINATOR), orderController.destroy);
 
 module.exports = router;

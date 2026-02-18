@@ -1,9 +1,11 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
-const { Order, OrderItem, User, Branch, Provinsi } = require('../models');
+const { Order, OrderItem, User, Branch, Provinsi, OwnerProfile, Invoice } = require('../models');
 const { getRulesForBranch } = require('./businessRuleController');
 const { getEffectivePrice } = require('./productController');
-const { ORDER_ITEM_TYPE } = require('../constants');
+const { ORDER_ITEM_TYPE, ROOM_CAPACITY } = require('../constants');
+const { syncInvoiceFromOrder } = require('./invoiceController');
+const { getBranchIdsForWilayah } = require('../utils/wilayahScope');
 
 const generateOrderNumber = () => {
   const y = new Date().getFullYear();
@@ -35,9 +37,33 @@ const list = asyncHandler(async (req, res) => {
     }
   }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
-  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
+
+  // Invoice koordinator & admin koordinator: lihat order semua cabang di wilayah mereka
+  const isKoordinatorOrInvoiceKoordinator = ['admin_koordinator', 'invoice_koordinator'].includes(req.user.role);
+  let branchIdsWilayah = [];
+  let effectiveWilayahId = req.user.wilayah_id;
+  if (isKoordinatorOrInvoiceKoordinator) {
+    if (!effectiveWilayahId && req.user.branch_id) {
+      const branch = await Branch.findByPk(req.user.branch_id, {
+        attributes: ['id'],
+        include: [{ model: Provinsi, as: 'Provinsi', attributes: ['wilayah_id'], required: false }]
+      });
+      if (branch?.Provinsi?.wilayah_id) effectiveWilayahId = branch.Provinsi.wilayah_id;
+    }
+    if (effectiveWilayahId) {
+      branchIdsWilayah = await getBranchIdsForWilayah(effectiveWilayahId);
+      if (branchIdsWilayah.length > 0) {
+        where.branch_id = branch_id ? (branchIdsWilayah.includes(branch_id) ? branch_id : 'none') : { [Op.in]: branchIdsWilayah };
+      } else if (req.user.branch_id) {
+        where.branch_id = req.user.branch_id;
+      }
+    } else if (req.user.branch_id) {
+      where.branch_id = req.user.branch_id;
+    }
+  } else if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
     where.branch_id = req.user.branch_id;
   }
+
   if (provinsi_id || wilayah_id) {
     const branchWhere = { is_active: true };
     if (provinsi_id) branchWhere.provinsi_id = provinsi_id;
@@ -45,7 +71,10 @@ const list = asyncHandler(async (req, res) => {
     if (wilayah_id) {
       branchOpts.include = [{ model: Provinsi, as: 'Provinsi', attributes: [], required: true, where: { wilayah_id } }];
     }
-    const branchIds = (await Branch.findAll(branchOpts)).map(r => r.id);
+    let branchIds = (await Branch.findAll(branchOpts)).map(r => r.id);
+    if (isKoordinatorOrInvoiceKoordinator && branchIdsWilayah.length > 0 && branchIds.length > 0) {
+      branchIds = branchIds.filter(id => branchIdsWilayah.includes(id));
+    }
     if (branchIds.length > 0) {
       where.branch_id = branch_id ? (branchIds.includes(branch_id) ? branch_id : 'none') : { [Op.in]: branchIds };
     } else {
@@ -88,13 +117,65 @@ const list = asyncHandler(async (req, res) => {
 const create = asyncHandler(async (req, res) => {
   const { items, branch_id, owner_id, notes } = req.body;
   const effectiveOwnerId = owner_id || req.user.id;
-  const effectiveBranchId = branch_id || req.user.branch_id;
+  // Gunakan branch_id dari body hanya jika benar-benar string non-kosong (body tanpa branch_id = undefined)
+  const bodyBranchOk = typeof branch_id === 'string' && branch_id.trim() !== '';
+  let effectiveBranchId = bodyBranchOk ? branch_id.trim() : (req.user.branch_id || null);
+  
+  // Untuk owner: ambil assigned_branch_id dari OwnerProfile jika belum ada branch_id
+  if (req.user.role === 'owner' && !effectiveBranchId) {
+    try {
+      const profile = await OwnerProfile.findOne({ 
+        where: { user_id: req.user.id },
+        attributes: ['assigned_branch_id'],
+        raw: true 
+      });
+      if (profile && profile.assigned_branch_id) {
+        const assigned = profile.assigned_branch_id;
+        // Pastikan assigned_branch_id adalah UUID string yang valid
+        const assignedStr = typeof assigned === 'string' ? assigned.trim() : String(assigned).trim();
+        if (assignedStr && assignedStr !== 'null' && assignedStr !== 'undefined' && assignedStr.length >= 10) {
+          effectiveBranchId = assignedStr;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching owner profile:', err);
+      // Jika error saat ambil profile, tetap lanjut dengan effectiveBranchId yang ada (null)
+    }
+  }
+  
+  // Validasi final: pastikan branchId adalah UUID string yang valid sebelum digunakan
+  const branchIdStr = effectiveBranchId != null && effectiveBranchId !== undefined 
+    ? String(effectiveBranchId).trim() 
+    : '';
+  
+  // Validasi: harus ada, bukan string kosong, bukan 'undefined'/'null', dan minimal panjang UUID
+  const finalBranchId = branchIdStr && branchIdStr !== 'undefined' && branchIdStr !== 'null' && branchIdStr.length >= 10 
+    ? branchIdStr 
+    : null;
+  
+  if (!finalBranchId) {
+    console.log('Order create failed - no branch_id:', {
+      role: req.user.role,
+      bodyBranchId: branch_id,
+      userBranchId: req.user.branch_id,
+      effectiveBranchId,
+      branchIdStr
+    });
+    return res.status(400).json({
+      success: false,
+      message: req.user.role === 'owner'
+        ? 'Owner belum di-assign cabang. Hubungi admin/koordinator untuk assign cabang.'
+        : 'Branch/cabang wajib. Pilih cabang atau pastikan akun owner sudah di-assign cabang.'
+    });
+  }
+  
+  console.log('Order create - using branch_id:', finalBranchId, 'for user:', req.user.id, 'role:', req.user.role);
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Items order wajib' });
   }
 
-  const rules = await getRulesForBranch(effectiveBranchId);
+  const rules = await getRulesForBranch(finalBranchId);
   const hasVisa = items.some(i => i.type === ORDER_ITEM_TYPE.VISA);
   const hasHotel = items.some(i => i.type === ORDER_ITEM_TYPE.HOTEL);
   if (rules.require_hotel_with_visa && hasVisa && !hasHotel) {
@@ -114,11 +195,14 @@ const create = asyncHandler(async (req, res) => {
     if (unitPrice == null || isNaN(unitPrice)) {
       const productId = it.product_id;
       if (!productId) return res.status(400).json({ success: false, message: 'product_id atau unit_price wajib per item' });
-      unitPrice = await getEffectivePrice(productId, effectiveBranchId, effectiveOwnerId, it.meta || {}, it.currency || 'IDR');
+      unitPrice = await getEffectivePrice(productId, finalBranchId, effectiveOwnerId, it.meta || {}, it.currency || 'IDR');
       if (unitPrice == null) return res.status(400).json({ success: false, message: `Harga tidak ditemukan untuk product ${productId}` });
     }
     const st = qty * unitPrice;
     subtotal += st;
+    if (it.type === ORDER_ITEM_TYPE.HOTEL && it.room_type && ROOM_CAPACITY[it.room_type] != null) {
+      totalJamaah += qty * ROOM_CAPACITY[it.room_type];
+    }
     if (it.type === ORDER_ITEM_TYPE.BUS) {
       totalJamaah += qty;
       const seatDiff = Math.abs(qty - busMinPack);
@@ -140,18 +224,48 @@ const create = asyncHandler(async (req, res) => {
     });
   }
 
-  const order = await Order.create({
-    order_number: generateOrderNumber(),
-    owner_id: effectiveOwnerId,
-    branch_id: effectiveBranchId,
-    total_jamaah: totalJamaah,
-    subtotal,
-    penalty_amount: penaltyAmount,
-    total_amount: subtotal + penaltyAmount,
-    status: 'draft',
-    created_by: req.user.id,
-    notes
-  });
+  // Final safety check sebelum create
+  if (!finalBranchId || typeof finalBranchId !== 'string' || finalBranchId.length < 10) {
+    return res.status(400).json({
+      success: false,
+      message: req.user.role === 'owner'
+        ? 'Owner belum di-assign cabang. Hubungi admin/koordinator untuk assign cabang.'
+        : 'Branch/cabang wajib. Pilih cabang atau pastikan akun owner sudah di-assign cabang.'
+    });
+  }
+
+  let order;
+  try {
+    order = await Order.create({
+      order_number: generateOrderNumber(),
+      owner_id: effectiveOwnerId,
+      branch_id: finalBranchId,
+      total_jamaah: totalJamaah,
+      subtotal,
+      penalty_amount: penaltyAmount,
+      total_amount: subtotal + penaltyAmount,
+      status: 'draft',
+      created_by: req.user.id,
+      notes
+    });
+  } catch (createErr) {
+    console.error('Error creating order:', createErr);
+    if (createErr.name === 'SequelizeValidationError' || createErr.name === 'SequelizeDatabaseError') {
+      const field = createErr.errors?.[0]?.path || createErr.original?.constraint;
+      if (field === 'branch_id' || (createErr.message && createErr.message.includes('branch_id'))) {
+        return res.status(400).json({
+          success: false,
+          message: req.user.role === 'owner'
+            ? 'Owner belum di-assign cabang. Hubungi admin/koordinator untuk assign cabang.'
+            : 'Branch/cabang wajib. Pilih cabang atau pastikan akun owner sudah di-assign cabang.'
+        });
+      }
+    }
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal membuat order: ' + (createErr.message || 'Unknown error')
+    });
+  }
 
   for (const it of orderItems) {
     await OrderItem.create({ ...it, order_id: order.id });
@@ -183,17 +297,18 @@ const getById = asyncHandler(async (req, res) => {
 
 /**
  * PATCH /api/v1/orders/:id
- * Update order (e.g. add/remove items, change qty) - recalc totals. Role invoice / admin.
+ * Update order (tambah/kurang/ubah item) - recalc totals. Invoice otomatis di-update bila ada.
+ * Owner boleh ubah order sebelum dan setelah DP/lunas; sistem update invoice terbaru.
  */
 const update = asyncHandler(async (req, res) => {
   const order = await Order.findByPk(req.params.id, { include: [{ model: OrderItem, as: 'OrderItems' }] });
   if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
-  const allowed = ['super_admin', 'role_invoice'];
-  if (!allowed.includes(req.user.role) && order.owner_id !== req.user.id) {
-    return res.status(403).json({ success: false, message: 'Akses ditolak' });
+  const canUpdate = req.user.role === 'invoice_koordinator' || (req.user.role === 'owner' && order.owner_id === req.user.id);
+  if (!canUpdate) {
+    return res.status(403).json({ success: false, message: 'Hanya owner (order sendiri) atau invoice koordinator yang dapat mengubah order' });
   }
-  if (!['draft', 'tentative'].includes(order.status)) {
-    return res.status(400).json({ success: false, message: 'Order hanya bisa diubah saat draft/tentative' });
+  if (!['draft', 'tentative', 'confirmed', 'processing'].includes(order.status)) {
+    return res.status(400).json({ success: false, message: 'Order hanya bisa diubah saat draft/tentative/confirmed/processing' });
   }
   const { items, notes } = req.body;
   if (items && Array.isArray(items)) {
@@ -206,10 +321,13 @@ const update = asyncHandler(async (req, res) => {
       const qty = parseInt(it.quantity, 10) || 1;
       let unitPrice = parseFloat(it.unit_price);
       if (unitPrice == null || isNaN(unitPrice) && it.product_id) {
-        unitPrice = await getEffectivePrice(it.product_id, order.branch_id, order.owner_id, {}, it.currency || 'IDR') || 0;
+        unitPrice = await getEffectivePrice(it.product_id, order.branch_id, order.owner_id, it.meta || {}, it.currency || 'IDR') || 0;
       }
       const st = qty * (unitPrice || 0);
       subtotal += st;
+      if (it.type === ORDER_ITEM_TYPE.HOTEL && it.room_type && ROOM_CAPACITY[it.room_type] != null) {
+        totalJamaah += qty * ROOM_CAPACITY[it.room_type];
+      }
       if (it.type === ORDER_ITEM_TYPE.BUS) {
         totalJamaah += qty;
         const seatDiff = Math.abs(qty - busMinPack);
@@ -219,11 +337,12 @@ const update = asyncHandler(async (req, res) => {
         order_id: order.id,
         type: it.type,
         product_ref_id: it.product_id,
-        product_ref_type: 'product',
+        product_ref_type: it.product_ref_type || 'product',
         quantity: qty,
         unit_price: unitPrice || 0,
         subtotal: st,
-        meta: it.meta || {}
+        manifest_file_url: it.manifest_file_url || null,
+        meta: { room_type: it.room_type, meal: it.meal, ...(it.meta || {}) }
       });
     }
     await order.update({
@@ -232,10 +351,31 @@ const update = asyncHandler(async (req, res) => {
       penalty_amount: penaltyAmount,
       total_amount: subtotal + penaltyAmount
     });
+    await syncInvoiceFromOrder(order);
   }
   if (notes !== undefined) await order.update({ notes });
   const full = await Order.findByPk(order.id, { include: [{ model: OrderItem, as: 'OrderItems' }] });
   res.json({ success: true, data: full });
 });
 
-module.exports = { list, create, getById, update };
+/**
+ * DELETE /api/v1/orders/:id
+ * Batalkan order (soft: status = cancelled). Hanya owner (order sendiri) dan invoice_koordinator.
+ */
+const destroy = asyncHandler(async (req, res) => {
+  const order = await Order.findByPk(req.params.id);
+  if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
+  const canDelete = req.user.role === 'invoice_koordinator' || (req.user.role === 'owner' && order.owner_id === req.user.id);
+  if (!canDelete) {
+    return res.status(403).json({ success: false, message: 'Hanya owner (order sendiri) atau invoice koordinator yang dapat membatalkan order' });
+  }
+  if (!['draft', 'tentative', 'confirmed', 'processing'].includes(order.status)) {
+    return res.status(400).json({ success: false, message: 'Order hanya bisa dibatalkan saat draft/tentative/confirmed/processing' });
+  }
+  await order.update({ status: 'cancelled' });
+  const inv = await Invoice.findOne({ where: { order_id: order.id } });
+  if (inv) await inv.update({ status: 'canceled' });
+  res.json({ success: true, message: 'Order dibatalkan', data: order });
+});
+
+module.exports = { list, create, getById, update, destroy };

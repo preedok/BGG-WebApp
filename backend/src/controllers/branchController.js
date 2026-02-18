@@ -71,11 +71,17 @@ const listPublic = asyncHandler(async (req, res) => {
   res.json({ success: true, data: rows });
 });
 
+const KOORDINATOR_ROLES = [ROLES.ADMIN_KOORDINATOR, ROLES.INVOICE_KOORDINATOR, ROLES.TIKET_KOORDINATOR, ROLES.VISA_KOORDINATOR];
 const list = asyncHandler(async (req, res) => {
-  const { limit = 25, page = 1, include_inactive, search, region, provinsi_id, wilayah_id, city, is_active, sort_by, sort_order } = req.query;
+  const { limit = 25, page = 1, include_inactive, search, region, provinsi_id, wilayah_id: qWilayahId, city, is_active, sort_by, sort_order } = req.query;
   const lim = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 500);
   const pg = Math.max(parseInt(page, 10) || 1, 1);
   const offset = (pg - 1) * lim;
+
+  let wilayah_id = qWilayahId;
+  if (KOORDINATOR_ROLES.includes(req.user?.role) && req.user?.wilayah_id) {
+    wilayah_id = req.user.wilayah_id;
+  }
 
   const where = {};
   if (is_active === 'true' || is_active === '1') where.is_active = true;

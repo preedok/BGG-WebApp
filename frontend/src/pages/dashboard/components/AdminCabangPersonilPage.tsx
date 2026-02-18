@@ -7,7 +7,6 @@ import { adminCabangApi } from '../../../services/api';
 import { useToast } from '../../../contexts/ToastContext';
 
 const ROLE_OPTIONS = [
-  { value: 'role_invoice', label: 'Role Invoice' },
   { value: 'role_hotel', label: 'Role Hotel' },
   { value: 'role_visa', label: 'Role Visa' },
   { value: 'role_ticket', label: 'Role Tiket' },
@@ -22,7 +21,7 @@ const AdminCabangPersonilPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('role_invoice');
+  const [role, setRole] = useState('role_hotel');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

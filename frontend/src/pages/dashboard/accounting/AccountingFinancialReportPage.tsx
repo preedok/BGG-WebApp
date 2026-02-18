@@ -6,7 +6,8 @@ import Button from '../../../components/common/Button';
 import TablePagination from '../../../components/common/TablePagination';
 import { accountingApi, branchesApi, type AccountingFinancialReportData } from '../../../services/api';
 import { formatIDR } from '../../../utils';
-import { INVOICE_STATUS_LABELS, ORDER_STATUS_LABELS } from '../../../utils/constants';
+import { formatInvoiceDisplay } from '../../../utils';
+import { INVOICE_STATUS_LABELS } from '../../../utils/constants';
 
 type ReportTab = 'ringkasan' | 'wilayah' | 'provinsi' | 'cabang' | 'owner' | 'produk' | 'periode' | 'detail';
 
@@ -93,7 +94,6 @@ const AccountingFinancialReportPage: React.FC = () => {
   const [branchId, setBranchId] = useState('');
   const [ownerId, setOwnerId] = useState('');
   const [status, setStatus] = useState('');
-  const [orderStatus, setOrderStatus] = useState('');
   const [productType, setProductType] = useState('');
   const [search, setSearch] = useState('');
   const [minAmount, setMinAmount] = useState('');
@@ -130,7 +130,6 @@ const AccountingFinancialReportPage: React.FC = () => {
     else if (wilayahId) params.wilayah_id = wilayahId;
     if (ownerId) params.owner_id = ownerId;
     if (status) params.status = status;
-    if (orderStatus) params.order_status = orderStatus;
     if (productType) params.product_type = productType;
     if (search.trim()) params.search = search.trim();
     if (minAmount) params.min_amount = parseFloat(minAmount) || 0;
@@ -140,7 +139,7 @@ const AccountingFinancialReportPage: React.FC = () => {
     params.sort_by = sortBy;
     params.sort_order = sortOrder;
     return params;
-  }, [period, year, month, dateFrom, dateTo, branchId, provinsiId, wilayahId, ownerId, status, orderStatus, productType, search, minAmount, maxAmount, page, limit, sortBy, sortOrder]);
+  }, [period, year, month, dateFrom, dateTo, branchId, provinsiId, wilayahId, ownerId, status, productType, search, minAmount, maxAmount, page, limit, sortBy, sortOrder]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -264,7 +263,6 @@ const AccountingFinancialReportPage: React.FC = () => {
     setBranchId('');
     setOwnerId('');
     setStatus('');
-    setOrderStatus('');
     setProductType('');
     setSearch('');
     setMinAmount('');
@@ -274,7 +272,7 @@ const AccountingFinancialReportPage: React.FC = () => {
 
   const isCustomRange = period === 'custom';
   const hasActiveFilters =
-    !!branchId || !!provinsiId || !!wilayahId || !!ownerId || !!status || !!orderStatus || !!productType ||
+    !!branchId || !!provinsiId || !!wilayahId || !!ownerId || !!status || !!productType ||
     !!search.trim() || !!minAmount || !!maxAmount ||
     period !== 'month' ||
     (period === 'month' && month !== new Date().getMonth() + 1) ||
@@ -368,13 +366,6 @@ const AccountingFinancialReportPage: React.FC = () => {
               <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
                 <option value="">Semua status</option>
                 {Object.entries(INVOICE_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Status Order</label>
-              <select value={orderStatus} onChange={(e) => setOrderStatus(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
-                <option value="">Semua status</option>
-                {Object.entries(ORDER_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
@@ -707,15 +698,13 @@ const AccountingFinancialReportPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-600">
-                      <th className="pb-2 pr-4">No. Invoice</th>
-                      <th className="pb-2 pr-4">No. Order</th>
+                      <th className="pb-2 pr-4">Invoice</th>
                       <th className="pb-2 pr-4">Owner</th>
                       <th className="pb-2 pr-4">Cabang</th>
                       <th className="pb-2 pr-4 text-right">Total</th>
                       <th className="pb-2 pr-4 text-right">Dibayar</th>
                       <th className="pb-2 pr-4 text-right">Sisa</th>
-                      <th className="pb-2 pr-4">Status Inv</th>
-                      <th className="pb-2 pr-4">Status Order</th>
+                      <th className="pb-2 pr-4">Status Invoice</th>
                       <th className="pb-2 pr-4">Tanggal</th>
                       <th className="pb-2 pr-4"></th>
                     </tr>
@@ -723,18 +712,16 @@ const AccountingFinancialReportPage: React.FC = () => {
                   <tbody>
                     {(data.invoices || []).map((inv) => (
                       <tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-3 pr-4 font-medium">{inv.invoice_number}</td>
-                        <td className="py-3 pr-4">{inv.order_number || '-'}</td>
+                        <td className="py-3 pr-4 font-medium">{formatInvoiceDisplay(inv.status, inv.invoice_number, INVOICE_STATUS_LABELS)}</td>
                         <td className="py-3 pr-4">{inv.owner_name || '-'}</td>
                         <td className="py-3 pr-4">{inv.branch_name || '-'}</td>
                         <td className="py-3 pr-4 text-right">{formatIDR(inv.total_amount)}</td>
                         <td className="py-3 pr-4 text-right text-emerald-600">{formatIDR(inv.paid_amount)}</td>
                         <td className="py-3 pr-4 text-right">{formatIDR(inv.remaining_amount)}</td>
                         <td className="py-3 pr-4"><span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span></td>
-                        <td className="py-3 pr-4"><span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">{ORDER_STATUS_LABELS[inv.order_status || ''] || inv.order_status || '-'}</span></td>
                         <td className="py-3 pr-4">{formatDate(inv.issued_at ?? null)}</td>
                         <td className="py-3 pr-4">
-                          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/orders-invoices' + (inv.order_number ? '?order_number=' + encodeURIComponent(inv.order_number) : ''))}>
+                          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/orders-invoices' + (inv.invoice_number ? '?invoice_number=' + encodeURIComponent(inv.invoice_number) : ''))}>
                             <ExternalLink className="w-4 h-4" />
                           </Button>
                         </td>

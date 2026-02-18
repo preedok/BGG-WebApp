@@ -9,17 +9,17 @@ import type { UserRole } from '../types';
 
 /** Role Invoice tidak boleh download dokumen penerbitan visa, tiket, hotel */
 export function canDownloadVisaTicketHotel(role: UserRole): boolean {
-  return role !== 'role_invoice';
+  return role !== 'invoice_koordinator' && role !== 'role_invoice_saudi';
 }
 
 /** Bisa buat order: Owner, Invoice, Admin Cabang, Admin Pusat, Super Admin */
 export function canCreateOrder(role: UserRole): boolean {
-  return ['owner', 'role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(role);
+  return ['owner', 'invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin'].includes(role);
 }
 
 /** Bisa verifikasi pembayaran & aktifkan invoice overdue: Role Invoice + Admin */
 export function canManageInvoicePayment(role: UserRole): boolean {
-  return ['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(role);
+  return ['invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(role);
 }
 
 /** Owner hanya bisa akses penuh transaksi jika status ACTIVE */

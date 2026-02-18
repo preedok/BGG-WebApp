@@ -30,6 +30,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     role: raw.role,
     branch_id: raw.branch_id,
     branch_name: raw.branch_name ?? raw.Branch?.name,
+    wilayah_id: raw.wilayah_id,
     company_name: raw.company_name,
     is_active: raw.is_active !== false,
     owner_status: raw.owner_status,

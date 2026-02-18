@@ -280,7 +280,7 @@ export const ROUTES = {
   TICKETS: '/dashboard/tickets',
   BUS: '/dashboard/bus',
   PACKAGES: '/dashboard/packages',
-  ORDERS: '/dashboard/orders',
+  ORDERS: '/dashboard/orders-invoices',
   INVOICES: '/dashboard/invoices',
   USERS: '/dashboard/users',
   BRANCHES: '/dashboard/branches',

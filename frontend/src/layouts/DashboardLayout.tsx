@@ -40,25 +40,31 @@ const menuItems: MenuItem[] = [
     title: 'Dashboard',
     icon: <LayoutDashboard className="w-5 h-5" />,
     path: '/dashboard',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting', 'owner']
+  },
+  {
+    title: 'Dashboard Koordinator',
+    icon: <LayoutDashboard className="w-5 h-5" />,
+    path: '/dashboard/koordinator',
+    roles: ['admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator']
+  },
+  {
+    title: 'Owners Wilayah',
+    icon: <Users className="w-5 h-5" />,
+    path: '/dashboard/koordinator/owners',
+    roles: ['admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator']
   },
   {
     title: 'Products',
     icon: <Package className="w-5 h-5" />,
     path: '/dashboard/products',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'owner']
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'owner']
   },
   {
     title: 'Order & Invoice',
     icon: <Receipt className="w-5 h-5" />,
     path: '/dashboard/orders-invoices',
-    roles: ['admin_pusat', 'admin_cabang', 'role_accounting']
-  },
-  {
-    title: 'Orders',
-    icon: <Receipt className="w-5 h-5" />,
-    path: '/dashboard/orders',
-    roles: ['super_admin', 'role_invoice', 'owner']
+    roles: ['admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_accounting', 'owner', 'super_admin', 'role_invoice_saudi']
   },
   {
     title: 'Users',
@@ -130,7 +136,7 @@ const menuItems: MenuItem[] = [
     title: 'Slip Gaji Saya',
     icon: <FileText className="w-5 h-5" />,
     path: '/dashboard/my-slip-gaji',
-    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'role_invoice', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting']
+    roles: ['super_admin', 'admin_pusat', 'admin_cabang', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_visa', 'role_bus', 'role_ticket', 'role_accounting']
   },
   {
     title: 'Settings',
@@ -195,7 +201,7 @@ const DashboardLayout: React.FC = () => {
       if (user?.role === 'super_admin') {
         navigate('/dashboard');
       } else {
-        navigate(`/dashboard/orders?q=${encodeURIComponent(searchQuery.trim())}`);
+        navigate(`/dashboard/orders-invoices?tab=orders&q=${encodeURIComponent(searchQuery.trim())}`);
       }
       setSearchQuery('');
     }

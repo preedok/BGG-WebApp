@@ -124,14 +124,14 @@ async function getRoleRecap(branchId, itemType, ProgressModel, statusField) {
 
 /**
  * POST /api/v1/admin-cabang/users
- * Buat akun baru untuk role di cabang (personil: role_invoice, role_hotel, role_visa, role_ticket, role_bus, role_accounting).
+ * Buat akun baru untuk role di cabang (personil: role_hotel, role_visa, role_ticket, role_bus, role_accounting).
  */
 const createUser = asyncHandler(async (req, res) => {
   const branchId = req.user.branch_id;
   if (!branchId) return res.status(403).json({ success: false, message: 'Admin cabang harus terikat cabang' });
 
   const { name, email, password, role } = req.body;
-  const allowedRoles = [ROLES.ROLE_INVOICE, ROLES.ROLE_HOTEL, ROLES.ROLE_VISA, ROLES.ROLE_TICKET, ROLES.ROLE_BUS, ROLES.ROLE_ACCOUNTING];
+  const allowedRoles = [ROLES.ROLE_HOTEL, ROLES.ROLE_VISA, ROLES.ROLE_TICKET, ROLES.ROLE_BUS, ROLES.ROLE_ACCOUNTING];
   if (!name || !email || !password || !role) {
     return res.status(400).json({ success: false, message: 'name, email, password, role wajib' });
   }

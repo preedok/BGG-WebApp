@@ -6,6 +6,12 @@ const sequelize = require('../config/sequelize');
 const { Invoice, InvoiceFile, Order, User, Branch, PaymentProof, Notification, Provinsi, Wilayah } = require('../models');
 const { INVOICE_STATUS, NOTIFICATION_TRIGGER } = require('../constants');
 const { getRulesForBranch } = require('./businessRuleController');
+const { getBranchIdsForWilayah } = require('../utils/wilayahScope');
+
+const KOORDINATOR_ROLES = ['admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator'];
+function isKoordinatorRole(role) {
+  return KOORDINATOR_ROLES.includes(role);
+}
 const { buildInvoicePdfBuffer } = require('../utils/invoicePdf');
 const { SUBDIRS, getDir, invoiceFilename, toUrlPath } = require('../config/uploads');
 
@@ -32,7 +38,31 @@ async function ensureBlockedStatus(invoice) {
 const ALLOWED_SORT = ['invoice_number', 'created_at', 'total_amount', 'status'];
 
 async function resolveBranchFilterList(branch_id, provinsi_id, wilayah_id, user) {
-  if (user?.branch_id && !['super_admin', 'admin_pusat', 'role_accounting'].includes(user?.role)) return { branch_id: user.branch_id };
+  if (!user) return branch_id ? { branch_id } : {};
+  // Koordinator / invoice koordinator: scope ke semua cabang di wilayah mereka
+  if (isKoordinatorRole(user.role)) {
+    let effectiveWilayahId = user.wilayah_id;
+    if (!effectiveWilayahId && user.branch_id) {
+      try {
+        const branch = await Branch.findByPk(user.branch_id, {
+          attributes: ['id'],
+          include: [{ model: Provinsi, as: 'Provinsi', attributes: ['wilayah_id'], required: false }]
+        });
+        if (branch?.Provinsi?.wilayah_id) effectiveWilayahId = branch.Provinsi.wilayah_id;
+      } catch (_) {
+        // ignore
+      }
+    }
+    if (effectiveWilayahId) {
+      const ids = await getBranchIdsForWilayah(effectiveWilayahId);
+      if (ids.length > 0) return { branch_id: { [Op.in]: ids } };
+      if (user.branch_id) return { branch_id: user.branch_id };
+      return { branch_id: { [Op.in]: [] } };
+    }
+    if (user.branch_id) return { branch_id: user.branch_id };
+    return {};
+  }
+  if (user.branch_id && !['super_admin', 'admin_pusat', 'role_accounting'].includes(user.role)) return { branch_id: user.branch_id };
   if (branch_id) return { branch_id };
   if (provinsi_id) {
     const branches = await Branch.findAll({ where: { provinsi_id, is_active: true }, attributes: ['id'] });
@@ -82,7 +112,8 @@ const list = asyncHandler(async (req, res) => {
     }
   }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
-  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
+  // Jangan timpa branch_id dari resolveBranchFilterList (wilayah koordinator)
+  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role) && !isKoordinatorRole(req.user.role)) {
     where.branch_id = req.user.branch_id;
   }
 
@@ -100,6 +131,8 @@ const list = asyncHandler(async (req, res) => {
 
   const sortCol = ALLOWED_SORT.includes(sort_by) ? sort_by : 'created_at';
   const sortDir = (sort_order || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+  // Order by kolom Invoice saja (alias Sequelize = nama model)
+  const orderBy = [[sequelize.literal('"Invoice"."' + sortCol + '"'), sortDir]];
 
   const { count, rows } = await Invoice.findAndCountAll({
     where,
@@ -109,7 +142,7 @@ const list = asyncHandler(async (req, res) => {
       { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false },
       { model: PaymentProof, as: 'PaymentProofs', required: false }
     ],
-    order: [[sortCol, sortDir]],
+    order: orderBy,
     limit: lim,
     offset,
     distinct: true
@@ -119,9 +152,9 @@ const list = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(count / lim) || 1;
 
   const [totalAmount, totalPaid, totalRemaining, invoiceRows, orderRows] = await Promise.all([
-    Invoice.sum('total_amount', { where, include: [orderInclude] }),
-    Invoice.sum('paid_amount', { where, include: [orderInclude] }),
-    Invoice.sum('remaining_amount', { where, include: [orderInclude] }),
+    Invoice.sum('total_amount', { where }),
+    Invoice.sum('paid_amount', { where }),
+    Invoice.sum('remaining_amount', { where }),
     Invoice.findAll({ where, include: [orderInclude], attributes: ['status', 'order_id'], raw: true }),
     Invoice.findAll({
       where,
@@ -193,8 +226,13 @@ const getSummary = asyncHandler(async (req, res) => {
     }
   }
   if (req.user.role === 'owner') where.owner_id = req.user.id;
-  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role)) {
+  if (req.user.branch_id && !['super_admin', 'admin_pusat'].includes(req.user.role) && !isKoordinatorRole(req.user.role)) {
     where.branch_id = req.user.branch_id;
+  }
+  if (req.user.wilayah_id && isKoordinatorRole(req.user.role)) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    if (branchIds.length) where.branch_id = { [Op.in]: branchIds };
+    else where.branch_id = { [Op.in]: [] };
   }
 
   const orderInclude = { model: Order, as: 'Order', attributes: ['id', 'status'] };
@@ -207,9 +245,9 @@ const getSummary = asyncHandler(async (req, res) => {
 
   const [totalInvoices, totalAmount, totalPaid, totalRemaining, invoiceRows, orderRows] = await Promise.all([
     Invoice.count({ where, include: [orderInclude], distinct: true }),
-    Invoice.sum('total_amount', { where, include: [orderInclude] }),
-    Invoice.sum('paid_amount', { where, include: [orderInclude] }),
-    Invoice.sum('remaining_amount', { where, include: [orderInclude] }),
+    Invoice.sum('total_amount', { where }),
+    Invoice.sum('paid_amount', { where }),
+    Invoice.sum('remaining_amount', { where }),
     Invoice.findAll({
       where,
       include: [orderInclude],
@@ -265,7 +303,7 @@ const create = asyncHandler(async (req, res) => {
   const { order_id, is_super_promo } = req.body;
   const order = await Order.findByPk(order_id, { include: ['OrderItems'] });
   if (!order) return res.status(404).json({ success: false, message: 'Order tidak ditemukan' });
-  if (order.owner_id !== req.user.id && !['role_invoice', 'super_admin'].includes(req.user.role)) {
+  if (order.owner_id !== req.user.id && !['invoice_koordinator', 'role_invoice_saudi', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Akses ditolak' });
   }
 
@@ -333,6 +371,10 @@ const getById = asyncHandler(async (req, res) => {
   if (req.user.role === 'owner' && invoice.owner_id !== req.user.id) {
     return res.status(403).json({ success: false, message: 'Akses ditolak' });
   }
+  if (isKoordinatorRole(req.user.role)) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    if (!branchIds.includes(invoice.branch_id)) return res.status(403).json({ success: false, message: 'Invoice bukan di wilayah Anda' });
+  }
   await ensureBlockedStatus(invoice);
   const rules = await getRulesForBranch(invoice.branch_id);
   const data = invoice.toJSON();
@@ -349,6 +391,10 @@ const unblock = asyncHandler(async (req, res) => {
   if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
   if (!['invoice_koordinator', 'admin_koordinator', 'admin_pusat', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ success: false, message: 'Tidak berwenang mengaktifkan invoice' });
+  }
+  if (isKoordinatorRole(req.user.role)) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    if (!branchIds.includes(invoice.branch_id)) return res.status(403).json({ success: false, message: 'Invoice bukan di wilayah Anda' });
   }
   const rules = await getRulesForBranch(invoice.branch_id);
   const dpGraceHours = Math.max(1, parseInt(rules.dp_grace_hours, 10) || 24);
@@ -388,6 +434,10 @@ const verifyPayment = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Tidak berwenang verifikasi' });
   }
   const invoice = await Invoice.findByPk(proof.invoice_id);
+  if (isKoordinatorRole(req.user.role) && invoice) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    if (!branchIds.includes(invoice.branch_id)) return res.status(403).json({ success: false, message: 'Invoice bukan di wilayah Anda' });
+  }
   if (isApproved) {
     await proof.update({ verified_by: req.user.id, verified_at: new Date(), verified_status: 'verified', notes: notes || proof.notes });
     const newPaid = parseFloat(invoice.paid_amount) + parseFloat(proof.amount);
@@ -436,6 +486,10 @@ const verifyPayment = asyncHandler(async (req, res) => {
 const handleOverpaid = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findByPk(req.params.id);
   if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });
+  if (isKoordinatorRole(req.user.role)) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    if (!branchIds.includes(invoice.branch_id)) return res.status(403).json({ success: false, message: 'Invoice bukan di wilayah Anda' });
+  }
   const overpaid = parseFloat(invoice.overpaid_amount || 0);
   if (overpaid <= 0) return res.status(400).json({ success: false, message: 'Tidak ada overpaid' });
   const { handling, target_invoice_id, target_order_id } = req.body;
@@ -503,6 +557,41 @@ const getPdf = asyncHandler(async (req, res) => {
   res.send(buf);
 });
 
+/**
+ * Sinkronkan invoice dengan order setelah order (items/total) berubah.
+ * Update total_amount, dp_amount, remaining_amount, status. paid_amount tidak berubah.
+ */
+async function syncInvoiceFromOrder(order) {
+  const invoice = await Invoice.findOne({ where: { order_id: order.id } });
+  if (!invoice) return null;
+  const newTotal = parseFloat(order.total_amount) || 0;
+  const dpPct = parseInt(invoice.dp_percentage, 10) || 30;
+  const dpAmount = Math.round(newTotal * dpPct / 100);
+  const paidAmount = parseFloat(invoice.paid_amount) || 0;
+  let remainingAmount = newTotal - paidAmount;
+  let overpaidAmount = 0;
+  if (remainingAmount < 0) {
+    overpaidAmount = Math.abs(remainingAmount);
+    remainingAmount = 0;
+  }
+  let newStatus = invoice.status;
+  if (remainingAmount <= 0) {
+    newStatus = INVOICE_STATUS.PAID;
+  } else if (paidAmount >= dpAmount) {
+    newStatus = INVOICE_STATUS.PARTIAL_PAID;
+  } else {
+    newStatus = INVOICE_STATUS.TENTATIVE;
+  }
+  await invoice.update({
+    total_amount: newTotal,
+    dp_amount: dpAmount,
+    remaining_amount: remainingAmount,
+    overpaid_amount: overpaidAmount,
+    status: newStatus
+  });
+  return invoice;
+}
+
 module.exports = {
   list,
   getSummary,
@@ -512,5 +601,6 @@ module.exports = {
   unblock,
   verifyPayment,
   handleOverpaid,
-  ensureBlockedStatus
+  ensureBlockedStatus,
+  syncInvoiceFromOrder
 };

@@ -261,7 +261,11 @@ const uploadTicket = [
       });
 
       const invoiceUsers = await User.findAll({
-        where: { role: ROLES.ROLE_INVOICE, branch_id: order.branch_id, is_active: true },
+        where: {
+          role: { [Op.in]: [ROLES.INVOICE_KOORDINATOR, ROLES.ROLE_INVOICE_SAUDI] },
+          is_active: true,
+          [Op.or]: [{ branch_id: order.branch_id }, { branch_id: null }]
+        },
         attributes: ['id']
       });
       for (const u of invoiceUsers) {

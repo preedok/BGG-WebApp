@@ -5,6 +5,7 @@ import Button from '../../../components/common/Button';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { businessRulesApi } from '../../../services/api';
+import { fillFromSource } from '../../../utils/currencyConversion';
 import BusWorkPage from './BusWorkPage';
 
 const BusPage: React.FC = () => {
@@ -13,8 +14,22 @@ const BusPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ bus_min_pack: 35, bus_penalty_idr: 500000 });
+  const [currencyRates, setCurrencyRates] = useState<{ SAR_TO_IDR?: number; USD_TO_IDR?: number }>({});
+  const [penaltyCurrency, setPenaltyCurrency] = useState<'IDR' | 'SAR' | 'USD'>('IDR');
 
   const canConfig = user?.role === 'super_admin' || user?.role === 'admin_pusat';
+
+  useEffect(() => {
+    businessRulesApi.get().then((res) => {
+      const data = (res.data as { data?: { currency_rates?: unknown } })?.data;
+      let cr = data?.currency_rates;
+      if (typeof cr === 'string') {
+        try { cr = JSON.parse(cr) as { SAR_TO_IDR?: number; USD_TO_IDR?: number }; } catch { cr = null; }
+      }
+      const rates = cr as { SAR_TO_IDR?: number; USD_TO_IDR?: number } | null;
+      if (rates && typeof rates === 'object') setCurrencyRates({ SAR_TO_IDR: rates.SAR_TO_IDR ?? 4200, USD_TO_IDR: rates.USD_TO_IDR ?? 15500 });
+    }).catch(() => {});
+  }, []);
 
   const fetchBusConfig = () => {
     if (!canConfig) return;
@@ -114,14 +129,45 @@ const BusPage: React.FC = () => {
                   />
                 </div>
                 <div className="min-w-0">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Penalti bus (IDR)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.bus_penalty_idr || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, bus_penalty_idr: Number(e.target.value) || 0 }))}
-                    className="w-full max-w-[200px] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
-                  />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Penalti bus</label>
+                  <p className="text-xs text-slate-500 mb-1">Pilih mata uang, lalu isi harga. Lainnya konversi otomatis (read-only).</p>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <select
+                      value={penaltyCurrency}
+                      onChange={(e) => setPenaltyCurrency(e.target.value as 'IDR' | 'SAR' | 'USD')}
+                      className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 bg-white"
+                    >
+                      <option value="IDR">IDR (input)</option>
+                      <option value="SAR">SAR (input)</option>
+                      <option value="USD">USD (input)</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                      const triple = fillFromSource('IDR', form.bus_penalty_idr || 0, currencyRates);
+                      const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                      const isEditable = penaltyCurrency === curKey;
+                      return (
+                        <div key={curKey}>
+                          <span className="text-xs text-slate-500 block mb-0.5">{curKey}{!isEditable && ' (konversi)'}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={curKey === 'IDR' ? 1 : 0.01}
+                            value={val || ''}
+                            readOnly={!isEditable}
+                            onChange={isEditable ? (e) => {
+                              const v = parseFloat(e.target.value) || 0;
+                              const next = fillFromSource(curKey, v, currencyRates);
+                              setForm((f) => ({ ...f, bus_penalty_idr: Math.round(next.idr) }));
+                            } : undefined}
+                            className={`w-full max-w-[120px] border rounded-xl px-3 py-2 text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 ${isEditable ? 'bg-white' : 'bg-slate-100 text-slate-600 cursor-not-allowed'}`}
+                            placeholder="0"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 <Button variant="primary" onClick={handleSaveConfig} disabled={saving} className="flex items-center gap-2 shrink-0">
                   {saving ? 'Menyimpan...' : 'Simpan'}

@@ -9,7 +9,7 @@ router.use(auth);
 
 router.get('/', invoiceController.list);
 router.get('/summary', invoiceController.getSummary);
-router.post('/', requireRole(ROLES.OWNER, ROLES.ROLE_INVOICE, ROLES.SUPER_ADMIN), invoiceController.create);
+router.post('/', requireRole(ROLES.OWNER, ROLES.INVOICE_KOORDINATOR, ROLES.ROLE_INVOICE_SAUDI, ROLES.SUPER_ADMIN), invoiceController.create);
 router.get('/:id/pdf', invoiceController.getPdf);
 router.get('/:id', invoiceController.getById);
 router.patch('/:id/unblock', requireRole(ROLES.INVOICE_KOORDINATOR, ROLES.ADMIN_KOORDINATOR, ROLES.ADMIN_PUSAT, ROLES.SUPER_ADMIN), invoiceController.unblock);

@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
+const sequelize = require('../config/sequelize');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const { Invoice, Order, OrderItem, User, Branch, PaymentProof, ChartOfAccount, AccountingFiscalYear, AccountingPeriod, AccountMapping, JournalEntryLine, Wilayah, Provinsi } = require('../models');
@@ -738,6 +739,7 @@ const getFinancialReport = asyncHandler(async (req, res) => {
 
   const sortCol = ['issued_at', 'total_amount', 'paid_amount', 'invoice_number'].includes(String(sort_by || '')) ? sort_by : 'issued_at';
   const sortDir = String(sort_order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+  const orderCol = ['total_amount', 'paid_amount', 'issued_at', 'invoice_number'].includes(sortCol) ? sequelize.col(`invoices.${sortCol}`) : sortCol;
 
   const branchInclude = {
     model: Branch,
@@ -755,7 +757,7 @@ const getFinancialReport = asyncHandler(async (req, res) => {
       { model: PaymentProof, as: 'PaymentProofs', required: false },
       orderInclude
     ],
-    order: [[sortCol, sortDir], ['invoice_number', 'ASC']]
+    order: [[orderCol, sortDir], [sequelize.col('invoices.invoice_number'), 'ASC']]
   });
 
   let totalRevenue = 0;

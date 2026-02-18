@@ -1,6 +1,12 @@
 const asyncHandler = require('express-async-handler');
 const { User, OwnerProfile, Branch } = require('../models');
 const { ROLES, OWNER_STATUS } = require('../constants');
+const { getBranchIdsForWilayah } = require('../utils/wilayahScope');
+
+const KOORDINATOR_ROLES = [ROLES.ADMIN_KOORDINATOR, ROLES.INVOICE_KOORDINATOR, ROLES.TIKET_KOORDINATOR, ROLES.VISA_KOORDINATOR];
+function isKoordinatorRole(role) {
+  return KOORDINATOR_ROLES.includes(role);
+}
 const uploadConfig = require('../config/uploads');
 /**
  * POST /api/v1/owners/register
@@ -100,9 +106,9 @@ const list = asyncHandler(async (req, res) => {
   const where = {};
   if (status) where.status = status;
 
-  const isKoordinator = req.user.role === ROLES.ADMIN_KOORDINATOR;
+  const isKoordinator = isKoordinatorRole(req.user.role);
   const wilayahId = req.user.wilayah_id;
-  const branchIdsWilayah = isKoordinator && wilayahId ? await require('../utils/wilayahScope').getBranchIdsForWilayah(wilayahId) : null;
+  const branchIdsWilayah = isKoordinator && wilayahId ? await getBranchIdsForWilayah(wilayahId) : null;
   const filterBranchId = branch_id || (isKoordinator ? null : null);
 
   const profiles = await OwnerProfile.findAll({
@@ -184,8 +190,8 @@ const assignBranch = asyncHandler(async (req, res) => {
 
   const branch = await Branch.findByPk(branch_id);
   if (!branch) return res.status(404).json({ success: false, message: 'Cabang tidak ditemukan' });
-  if (req.user.role === ROLES.ADMIN_KOORDINATOR) {
-    const branchIds = await require('../utils/wilayahScope').getBranchIdsForWilayah(req.user.wilayah_id);
+  if (isKoordinatorRole(req.user.role)) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
     if (!branchIds.includes(branch_id)) return res.status(403).json({ success: false, message: 'Hanya dapat menetapkan ke cabang di wilayah Anda' });
   }
 
@@ -199,7 +205,8 @@ const assignBranch = asyncHandler(async (req, res) => {
 });
 
 /**
- * PATCH /api/v1/owners/:id/activate (Admin Cabang)
+ * PATCH /api/v1/owners/:id/activate (Admin Pusat / Admin Koordinator wilayah)
+ * Koordinator hanya bisa aktivasi owner yang assigned_branch ada di wilayah mereka.
  */
 const activate = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -208,8 +215,15 @@ const activate = asyncHandler(async (req, res) => {
   if (profile.status !== OWNER_STATUS.ASSIGNED_TO_BRANCH) {
     return res.status(400).json({ success: false, message: 'Owner harus sudah ditetapkan ke cabang' });
   }
-  if (profile.assigned_branch_id !== req.user.branch_id && req.user.role !== ROLES.SUPER_ADMIN && req.user.role !== ROLES.ADMIN_PUSAT) {
-    return res.status(403).json({ success: false, message: 'Bukan cabang Anda' });
+  if (req.user.role !== ROLES.SUPER_ADMIN && req.user.role !== ROLES.ADMIN_PUSAT) {
+    if (isKoordinatorRole(req.user.role)) {
+      const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+      if (!profile.assigned_branch_id || !branchIds.includes(profile.assigned_branch_id)) {
+        return res.status(403).json({ success: false, message: 'Owner ini bukan di wilayah Anda. Hanya koordinator wilayah yang sesuai yang dapat mengaktifkan.' });
+      }
+    } else if (profile.assigned_branch_id !== req.user.branch_id) {
+      return res.status(403).json({ success: false, message: 'Bukan cabang Anda' });
+    }
   }
 
   await profile.update({

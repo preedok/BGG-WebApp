@@ -21,6 +21,7 @@ import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import HotelWorkPage from './HotelWorkPage';
 import { productsApi, adminPusatApi, businessRulesApi } from '../../../services/api';
+import { fillFromSource } from '../../../utils/currencyConversion';
 
 const ROOM_TYPES = ['single', 'double', 'triple', 'quad', 'quint'] as const;
 const DEFAULT_ROOM = { quantity: 0, price: 0 };
@@ -85,10 +86,26 @@ const HotelsPage: React.FC = () => {
   });
   const [handlingConfigOpen, setHandlingConfigOpen] = useState(false);
   const [handlingPrice, setHandlingPrice] = useState(100);
+  const [handlingCurrency, setHandlingCurrency] = useState<'IDR' | 'SAR' | 'USD'>('SAR');
   const [handlingConfigLoading, setHandlingConfigLoading] = useState(false);
   const [handlingConfigSaving, setHandlingConfigSaving] = useState(false);
+  const [currencyRates, setCurrencyRates] = useState<{ SAR_TO_IDR?: number; USD_TO_IDR?: number }>({});
 
   const canAddHotel = user?.role === 'super_admin' || user?.role === 'admin_pusat';
+  /** Owner tidak boleh edit/hapus product; hanya role yang diizinkan backend */
+  const canEditProduct = ['super_admin', 'admin_pusat', 'admin_koordinator'].includes(user?.role ?? '');
+
+  useEffect(() => {
+    businessRulesApi.get().then((res) => {
+      const data = (res.data as { data?: { currency_rates?: unknown } })?.data;
+      let cr = data?.currency_rates;
+      if (typeof cr === 'string') {
+        try { cr = JSON.parse(cr) as { SAR_TO_IDR?: number; USD_TO_IDR?: number }; } catch { cr = null; }
+      }
+      const rates = cr as { SAR_TO_IDR?: number; USD_TO_IDR?: number } | null;
+      if (rates && typeof rates === 'object') setCurrencyRates({ SAR_TO_IDR: rates.SAR_TO_IDR ?? 4200, USD_TO_IDR: rates.USD_TO_IDR ?? 15500 });
+    }).catch(() => {});
+  }, []);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -134,7 +151,8 @@ const HotelsPage: React.FC = () => {
     if (!canAddHotel) return;
     setHandlingConfigSaving(true);
     try {
-      await businessRulesApi.set({ rules: { handling_default_sar: handlingPrice } });
+      const triple = fillFromSource(handlingCurrency, handlingPrice || 0, currencyRates);
+      await businessRulesApi.set({ rules: { handling_default_sar: triple.sar } });
       showToast('Harga handling disimpan', 'success');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
@@ -214,6 +232,7 @@ const HotelsPage: React.FC = () => {
   };
 
   const handleOpenEdit = async (hotel: HotelProduct) => {
+    if (!canEditProduct) return;
     setEditingHotel(hotel);
     setEditFormLoading(true);
     setShowAddModal(true);
@@ -507,15 +526,47 @@ const HotelsPage: React.FC = () => {
               ) : (
                 <>
                   <div className="min-w-0">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Harga default handling (SAR)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={handlingPrice}
-                      onChange={(e) => setHandlingPrice(Number(e.target.value) || 0)}
-                      className="w-full max-w-[180px] border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Harga default handling</label>
+                    <p className="text-xs text-slate-500 mb-1">Pilih mata uang, lalu isi harga. Lainnya konversi otomatis (read-only).</p>
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <select
+                        value={handlingCurrency}
+                        onChange={(e) => {
+                          const newCur = e.target.value as 'IDR' | 'SAR' | 'USD';
+                          const triple = fillFromSource(handlingCurrency, handlingPrice || 0, currencyRates);
+                          setHandlingCurrency(newCur);
+                          setHandlingPrice(newCur === 'IDR' ? triple.idr : newCur === 'SAR' ? triple.sar : triple.usd);
+                        }}
+                        className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                      >
+                        <option value="IDR">IDR</option>
+                        <option value="SAR">SAR</option>
+                        <option value="USD">USD</option>
+                      </select>
+                      <span className="text-xs text-slate-500">= input</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                        const triple = fillFromSource(handlingCurrency, handlingPrice || 0, currencyRates);
+                        const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                        const isEditable = handlingCurrency === curKey;
+                        return (
+                          <div key={curKey}>
+                            <span className="text-slate-500 text-xs block mb-0.5">{curKey}{!isEditable && ' (konversi)'}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={curKey === 'IDR' ? 1 : 0.01}
+                              value={val || ''}
+                              readOnly={!isEditable}
+                              onChange={isEditable ? (e) => setHandlingPrice(parseFloat(e.target.value) || 0) : undefined}
+                              className={`w-full max-w-[120px] border rounded-lg px-2 py-1.5 text-sm ${isEditable ? 'border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500' : 'border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed'}`}
+                              placeholder="0"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   <Button variant="primary" size="sm" onClick={handleSaveHandling} disabled={handlingConfigSaving}>
                     {handlingConfigSaving ? 'Menyimpan...' : 'Simpan'}
@@ -629,13 +680,15 @@ const HotelsPage: React.FC = () => {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => handleOpenEdit(hotel)}
-                      className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
+                    {canEditProduct && (
+                      <button
+                        onClick={() => handleOpenEdit(hotel)}
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    )}
                     {canAddHotel && (
                       <button
                         onClick={() => handleDeleteHotel(hotel)}
@@ -704,16 +757,24 @@ const HotelsPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Mata uang</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Mata uang input</label>
                     <select
                       value={addForm.currency}
-                      onChange={(e) => setAddForm((f) => ({ ...f, currency: e.target.value as 'IDR' | 'SAR' | 'USD' }))}
+                      onChange={(e) => {
+                        const newCur = e.target.value as 'IDR' | 'SAR' | 'USD';
+                        const tripleMeal = fillFromSource(addForm.currency, addForm.meal_price || 0, currencyRates);
+                        const tripleSingle = fillFromSource(addForm.currency, addForm.single_price || 0, currencyRates);
+                        const newMeal = newCur === 'IDR' ? tripleMeal.idr : newCur === 'SAR' ? tripleMeal.sar : tripleMeal.usd;
+                        const newSingle = newCur === 'IDR' ? tripleSingle.idr : newCur === 'SAR' ? tripleSingle.sar : tripleSingle.usd;
+                        setAddForm((f) => ({ ...f, currency: newCur, meal_price: newMeal, single_price: newSingle }));
+                      }}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
                     >
                       {CURRENCIES.map((c) => (
                         <option key={c.id} value={c.id}>{c.label}</option>
                       ))}
                     </select>
+                    <p className="text-xs text-slate-500 mt-0.5">Harga makan & kamar hanya bisa diisi dalam mata uang ini; lainnya konversi otomatis.</p>
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
@@ -724,12 +785,22 @@ const HotelsPage: React.FC = () => {
                     <button type="button" onClick={() => setAddForm((f) => ({ ...f, meal_price_type: 'per_trip' }))}
                       className={`px-2 py-1 rounded text-xs font-medium ${addForm.meal_price_type === 'per_trip' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600'}`}>Per trip</button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-600 text-sm shrink-0">{curr.symbol}</span>
-                    <input type="number" min={0} value={addForm.meal_price || ''}
-                      onChange={(e) => setAddForm((f) => ({ ...f, meal_price: Number(e.target.value) || 0 }))}
-                      className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                      const triple = fillFromSource(addForm.currency, addForm.meal_price || 0, currencyRates);
+                      const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                      const isEditable = addForm.currency === curKey;
+                      return (
+                        <div key={curKey}>
+                          <span className="text-slate-500 text-xs block mb-0.5">{curKey}{!isEditable && ' (konversi)'}</span>
+                          <input type="number" min={0} step={curKey === 'IDR' ? 1 : 0.01} value={val || ''}
+                            readOnly={!isEditable}
+                            onChange={isEditable ? (e) => setAddForm((f) => ({ ...f, meal_price: parseFloat(e.target.value) || 0 })) : undefined}
+                            className={`w-full border rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 ${isEditable ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed'}`}
+                            placeholder="0" />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -751,11 +822,25 @@ const HotelsPage: React.FC = () => {
                       className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${addForm.pricing_mode === 'per_type' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600'}`}>Per tipe</button>
                   </div>
                   {addForm.pricing_mode === 'single' && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-slate-600 text-sm shrink-0">{curr.symbol}</span>
-                      <input type="number" min={0} value={addForm.single_price || ''}
-                        onChange={(e) => setAddForm((f) => ({ ...f, single_price: Number(e.target.value) || 0 }))}
-                        className="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="0" />
+                    <div className="mb-2">
+                      <p className="text-xs text-slate-500 mb-1">Satu harga untuk semua tipe (mata uang mengikuti pilihan di atas; hanya field {addForm.currency} yang bisa diisi):</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                          const triple = fillFromSource(addForm.currency, addForm.single_price || 0, currencyRates);
+                          const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                          const isEditable = addForm.currency === curKey;
+                          return (
+                            <div key={curKey} className="flex items-center gap-1">
+                              <span className="text-slate-500 text-xs">{curKey}{!isEditable && ' (konversi)'}</span>
+                              <input type="number" min={0} step={curKey === 'IDR' ? 1 : 0.01} value={val || ''}
+                                readOnly={!isEditable}
+                                onChange={isEditable ? (e) => setAddForm((f) => ({ ...f, single_price: parseFloat(e.target.value) || 0 })) : undefined}
+                                className={`w-24 border rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 ${isEditable ? 'border-slate-200 bg-white' : 'bg-slate-100 text-slate-600 cursor-not-allowed'}`}
+                                placeholder="0" />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

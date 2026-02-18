@@ -185,17 +185,6 @@ const DashboardFilterBar: React.FC<DashboardFilterBarProps> = ({
           </select>
         </div>
       )}
-      {showOrderStatus && (
-        <div>
-          <label className={labelClass}>Status Order</label>
-          <select value={orderStatus} onChange={(e) => onOrderStatusChange?.(e.target.value)} className={selectClass}>
-            <option value="">Semua</option>
-            {Object.entries(orderStatusOptions).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </div>
-      )}
       {showOwner && (
         <div>
           <label className={labelClass}>Owner</label>

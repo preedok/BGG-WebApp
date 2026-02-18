@@ -5,6 +5,7 @@ import Button from '../../../components/common/Button';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { businessRulesApi, branchesApi } from '../../../services/api';
+import { fillFromSource } from '../../../utils/currencyConversion';
 import type { Branch } from '../../../services/api';
 import TicketWorkPage from './TicketWorkPage';
 
@@ -57,8 +58,22 @@ const TicketsPage: React.FC = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [currencyRates, setCurrencyRates] = useState<{ SAR_TO_IDR?: number; USD_TO_IDR?: number }>({});
+  const [ticketGeneralCurrency, setTicketGeneralCurrency] = useState<'IDR' | 'SAR' | 'USD'>('IDR');
 
   const isPusat = user?.role === 'super_admin' || user?.role === 'admin_pusat';
+
+  useEffect(() => {
+    businessRulesApi.get().then((res) => {
+      const data = (res.data as { data?: { currency_rates?: unknown } })?.data;
+      let cr = data?.currency_rates;
+      if (typeof cr === 'string') {
+        try { cr = JSON.parse(cr) as { SAR_TO_IDR?: number; USD_TO_IDR?: number }; } catch { cr = null; }
+      }
+      const rates = cr as { SAR_TO_IDR?: number; USD_TO_IDR?: number } | null;
+      if (rates && typeof rates === 'object') setCurrencyRates({ SAR_TO_IDR: rates.SAR_TO_IDR ?? 4200, USD_TO_IDR: rates.USD_TO_IDR ?? 15500 });
+    }).catch(() => {});
+  }, []);
   const isBranch = user?.role === 'admin_cabang';
   const canConfig = isPusat || isBranch;
 
@@ -245,15 +260,45 @@ const TicketsPage: React.FC = () => {
                         <div className="space-y-4">
                           <div className="flex flex-wrap gap-4 items-end">
                             <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Harga general (IDR)</label>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={formatInputValue(form.ticket_general_idr)}
-                                onChange={(e) => updateForm('ticket_general_idr', parseInputValue(e.target.value))}
-                                className="w-full max-w-[180px] border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white"
-                                placeholder="0"
-                              />
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Harga general</label>
+                              <p className="text-xs text-slate-500 mb-1">Pilih mata uang, lalu isi harga. Lainnya konversi otomatis (read-only).</p>
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <select
+                                  value={ticketGeneralCurrency}
+                                  onChange={(e) => setTicketGeneralCurrency(e.target.value as 'IDR' | 'SAR' | 'USD')}
+                                  className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 bg-white"
+                                >
+                                  <option value="IDR">IDR (input)</option>
+                                  <option value="SAR">SAR (input)</option>
+                                  <option value="USD">USD (input)</option>
+                                </select>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {(['IDR', 'SAR', 'USD'] as const).map((curKey) => {
+                                  const triple = fillFromSource('IDR', form.ticket_general_idr || 0, currencyRates);
+                                  const val = curKey === 'IDR' ? triple.idr : curKey === 'SAR' ? triple.sar : triple.usd;
+                                  const isEditable = ticketGeneralCurrency === curKey;
+                                  return (
+                                    <div key={curKey}>
+                                      <span className="text-xs text-slate-500 block mb-0.5">{curKey}{!isEditable && ' (konversi)'}</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step={curKey === 'IDR' ? 1 : 0.01}
+                                        value={val || ''}
+                                        readOnly={!isEditable}
+                                        onChange={isEditable ? (e) => {
+                                          const v = parseFloat(e.target.value) || 0;
+                                          const next = fillFromSource(curKey, v, currencyRates);
+                                          updateForm('ticket_general_idr', Math.round(next.idr));
+                                        } : undefined}
+                                        className={`w-full max-w-[120px] border rounded-xl px-3 py-2 text-slate-900 text-sm focus:ring-2 focus:ring-sky-500 ${isEditable ? 'bg-white' : 'bg-slate-100 text-slate-600 cursor-not-allowed'}`}
+                                        placeholder="0"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                             {MASKAPAI.map((m) => (
                               <div key={m.key}>

@@ -7,8 +7,8 @@ import Button from '../../../components/common/Button';
 import Badge from '../../../components/common/Badge';
 import { accountingApi, branchesApi, invoicesApi, businessRulesApi, type AccountingAgingData } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
-import { formatIDR } from '../../../utils';
-import { INVOICE_STATUS_LABELS, ORDER_STATUS_LABELS } from '../../../utils/constants';
+import { formatIDR, formatInvoiceDisplay } from '../../../utils';
+import { INVOICE_STATUS_LABELS } from '../../../utils/constants';
 import { useToast } from '../../../contexts/ToastContext';
 
 const API_BASE = process.env.REACT_APP_API_URL?.replace(/\/api\/v1\/?$/, '') || '';
@@ -20,7 +20,6 @@ const getFileUrl = (path: string) => {
 };
 
 const INVOICE_STATUS_OPTIONS = Object.keys(INVOICE_STATUS_LABELS).sort();
-const ORDER_STATUS_OPTIONS = Object.keys(ORDER_STATUS_LABELS).sort();
 
 type BucketTab = 'all' | 'current' | 'days_1_30' | 'days_31_60' | 'days_61_plus';
 
@@ -45,7 +44,6 @@ const AccountingAgingPage: React.FC = () => {
   const [branchId, setBranchId] = useState('');
   const [ownerId, setOwnerId] = useState('');
   const [status, setStatus] = useState('');
-  const [orderStatus, setOrderStatus] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [dueFrom, setDueFrom] = useState('');
@@ -76,7 +74,6 @@ const AccountingAgingPage: React.FC = () => {
     else if (wilayahId) params.wilayah_id = wilayahId;
     if (ownerId) params.owner_id = ownerId;
     if (status) params.status = status;
-    if (orderStatus) params.order_status = orderStatus;
     if (dateFrom) params.date_from = dateFrom;
     if (dateTo) params.date_to = dateTo;
     if (dueFrom) params.due_from = dueFrom;
@@ -86,7 +83,7 @@ const AccountingAgingPage: React.FC = () => {
     params.limit = limit;
     params.bucket = selectedBucketTab;
     return params;
-  }, [branchId, provinsiId, wilayahId, ownerId, status, orderStatus, dateFrom, dateTo, dueFrom, dueTo, search, page, limit, selectedBucketTab]);
+  }, [branchId, provinsiId, wilayahId, ownerId, status, dateFrom, dateTo, dueFrom, dueTo, search, page, limit, selectedBucketTab]);
 
   const fetchAging = useCallback(async () => {
     setLoading(true);
@@ -149,7 +146,6 @@ const AccountingAgingPage: React.FC = () => {
     setBranchId('');
     setOwnerId('');
     setStatus('');
-    setOrderStatus('');
     setDateFrom('');
     setDateTo('');
     setDueFrom('');
@@ -158,7 +154,7 @@ const AccountingAgingPage: React.FC = () => {
     setPage(1);
   };
 
-  const hasActiveFilters = wilayahId || provinsiId || branchId || ownerId || status || orderStatus || dateFrom || dateTo || dueFrom || dueTo || search.trim();
+  const hasActiveFilters = wilayahId || provinsiId || branchId || ownerId || status || dateFrom || dateTo || dueFrom || dueTo || search.trim();
 
   const filteredProvinsi = wilayahId ? provinsiList.filter((p) => p.wilayah_id === wilayahId) : provinsiList;
 
@@ -327,7 +323,7 @@ const AccountingAgingPage: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [branchId, provinsiId, wilayahId, ownerId, status, orderStatus, dateFrom, dateTo, dueFrom, dueTo, search]);
+  }, [branchId, provinsiId, wilayahId, ownerId, status, dateFrom, dateTo, dueFrom, dueTo, search]);
 
   const getStatusBadgeVariant = (s: string) => {
     if (['paid', 'completed', 'confirmed'].includes(s)) return 'success';
@@ -347,7 +343,7 @@ const AccountingAgingPage: React.FC = () => {
   };
 
   const canUnblock = (inv: any) =>
-    inv?.is_blocked && ['role_invoice', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '');
+    inv?.is_blocked && ['invoice_koordinator', 'role_invoice_saudi', 'admin_cabang', 'admin_pusat', 'super_admin', 'role_accounting'].includes(user?.role || '');
 
   const canVerify = ['admin_pusat', 'admin_cabang', 'role_accounting', 'super_admin'].includes(user?.role || '');
 
@@ -454,15 +450,6 @@ const AccountingAgingPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Status Order</label>
-              <select value={orderStatus} onChange={(e) => setOrderStatus(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
-                <option value="">Semua status</option>
-                {ORDER_STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{ORDER_STATUS_LABELS[s] || s}</option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tanggal Buat (dari)</label>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
             </div>
@@ -543,14 +530,12 @@ const AccountingAgingPage: React.FC = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-600">
-                    <th className="pb-2 pr-4">Invoice #</th>
-                    <th className="pb-2 pr-4">Order #</th>
+                    <th className="pb-2 pr-4">Invoice</th>
                     <th className="pb-2 pr-4">Owner</th>
                     <th className="pb-2 pr-4">Cabang</th>
                     <th className="pb-2 pr-4 text-right">Total</th>
                     <th className="pb-2 pr-4 text-right">Dibayar</th>
                     <th className="pb-2 pr-4 text-right">Sisa</th>
-                    <th className="pb-2 pr-4">Status Order</th>
                     <th className="pb-2 pr-4">Status Invoice</th>
                     <th className="pb-2 pr-4">Jatuh Tempo</th>
                     <th className="pb-2 pr-4 text-center">Terlambat</th>
@@ -562,16 +547,12 @@ const AccountingAgingPage: React.FC = () => {
                 <tbody>
                   {items.map((inv: any) => (
                     <tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-3 pr-4 font-mono font-semibold">{inv.invoice_number || '-'}</td>
-                      <td className="py-3 pr-4 font-mono">{inv.Order?.order_number || '-'}</td>
+                      <td className="py-3 pr-4 font-mono font-semibold">{formatInvoiceDisplay(inv.status, inv.invoice_number || '-', INVOICE_STATUS_LABELS)}</td>
                       <td className="py-3 pr-4">{inv.User?.name || inv.User?.company_name || '-'}</td>
                       <td className="py-3 pr-4">{inv.Branch?.name || inv.Branch?.code || '-'}</td>
                       <td className="py-3 pr-4 text-right font-medium">{formatIDR(parseFloat(inv.total_amount || 0))}</td>
                       <td className="py-3 pr-4 text-right text-emerald-600 font-medium">{formatIDR(parseFloat(inv.paid_amount || 0))}</td>
                       <td className="py-3 pr-4 text-right text-red-600 font-medium">{formatIDR(parseFloat(inv.remaining_amount || 0))}</td>
-                      <td className="py-3 pr-4">
-                        <Badge variant={getStatusBadgeVariant(inv.Order?.status)}>{ORDER_STATUS_LABELS[inv.Order?.status] || inv.Order?.status || '-'}</Badge>
-                      </td>
                       <td className="py-3 pr-4">
                         <Badge variant={getStatusBadgeVariant(inv.status)}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</Badge>
                       </td>
@@ -700,7 +681,7 @@ const AccountingAgingPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Detail Invoice</h2>
-                  <p className="text-sm text-slate-600 font-mono">{viewInvoice.invoice_number} · {viewInvoice.Order?.order_number}</p>
+                  <p className="text-sm text-slate-600 font-mono">{formatInvoiceDisplay(viewInvoice.status, viewInvoice.invoice_number, INVOICE_STATUS_LABELS)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -741,10 +722,8 @@ const AccountingAgingPage: React.FC = () => {
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                       <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Data Order</h4>
                       <dl className="space-y-1.5 text-sm">
-                        <div className="flex justify-between"><dt className="text-slate-600">No. Order</dt><dd className="font-semibold">{viewInvoice.Order?.order_number}</dd></div>
                         <div className="flex justify-between"><dt className="text-slate-600">Owner</dt><dd className="font-semibold">{viewInvoice.User?.name || viewInvoice.User?.company_name}</dd></div>
                         <div className="flex justify-between"><dt className="text-slate-600">Cabang</dt><dd className="font-semibold">{viewInvoice.Branch?.name || viewInvoice.Branch?.code}</dd></div>
-                        <div className="flex justify-between"><dt className="text-slate-600">Status</dt><dd><Badge variant={getStatusBadge(viewInvoice.Order?.status)}>{ORDER_STATUS_LABELS[viewInvoice.Order?.status] || viewInvoice.Order?.status}</Badge></dd></div>
                         <div className="flex justify-between"><dt className="text-slate-600">Mata Uang</dt><dd className="font-semibold">{viewInvoice.Order?.currency || 'IDR'}</dd></div>
                       </dl>
                     </div>
