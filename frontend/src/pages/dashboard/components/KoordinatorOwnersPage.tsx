@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, CheckCircle, Building2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { RefreshCw, CheckCircle, Building2, Eye, FileCheck, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
+import Badge from '../../../components/common/Badge';
 import { PageFilter } from '../../../components/common';
 import ActionsMenu from '../../../components/common/ActionsMenu';
 import type { ActionsMenuItem } from '../../../components/common/ActionsMenu';
@@ -41,29 +42,49 @@ const KoordinatorOwnersPage: React.FC = () => {
   const [filterWilayahId, setFilterWilayahId] = useState<string>('');
   const [filterBranchId, setFilterBranchId] = useState<string>('');
   const [filterSearch, setFilterSearch] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 25;
+  const [detailOwner, setDetailOwner] = useState<any | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showVerifyMouModal, setShowVerifyMouModal] = useState(false);
+  const [verifyMouProfile, setVerifyMouProfile] = useState<any | null>(null);
+  const [verifyMouRejectReason, setVerifyMouRejectReason] = useState('');
+  const [verifyingMou, setVerifyingMou] = useState(false);
 
   const isAdminKoordinator = user?.role === 'admin_koordinator';
   const isInvoiceKoordinator = user?.role === 'invoice_koordinator';
   const canAssignOrActivate = isAdminKoordinator || isInvoiceKoordinator;
   const canVerifyDeposit = isAdminKoordinator;
   const isAdminPusatOrSuperAdmin = user?.role === 'admin_pusat' || user?.role === 'super_admin';
+  const canVerifyMou = isAdminPusatOrSuperAdmin;
 
   const fetchOwners = useCallback(async () => {
     setLoading(true);
     try {
-      const params: { status?: string; wilayah_id?: string; branch_id?: string } = {};
+      const params: { status?: string; wilayah_id?: string; branch_id?: string; q?: string; page?: number; limit?: number } = {
+        page,
+        limit
+      };
       if (filterStatus) params.status = filterStatus;
       if (filterWilayahId) params.wilayah_id = filterWilayahId;
       if (filterBranchId) params.branch_id = filterBranchId;
+      if (filterSearch.trim()) params.q = filterSearch.trim();
       const res = await ownersApi.list(params);
-      if (res.data.success) setList(res.data.data || []);
-      else setList([]);
+      if (res.data.success) {
+        setList(res.data.data || []);
+        setTotal(res.data.total ?? 0);
+      } else {
+        setList([]);
+        setTotal(0);
+      }
     } catch {
       setList([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterWilayahId, filterBranchId]);
+  }, [filterStatus, filterWilayahId, filterBranchId, filterSearch, page, limit]);
 
   const fetchBranches = useCallback(async () => {
     if (!canAssignOrActivate) return;
@@ -118,16 +139,42 @@ const KoordinatorOwnersPage: React.FC = () => {
     fetchBranchesForFilter();
   }, [fetchBranchesForFilter]);
 
-  const filteredList = useMemo(() => {
-    if (!filterSearch.trim()) return list;
-    const q = filterSearch.trim().toLowerCase();
-    return list.filter(
-      (o) =>
-        (o.User?.name || '').toLowerCase().includes(q) ||
-        (o.User?.company_name || '').toLowerCase().includes(q) ||
-        (o.User?.email || '').toLowerCase().includes(q)
-    );
-  }, [list, filterSearch]);
+  const openDetail = useCallback(async (owner: any) => {
+    setDetailOwner(owner);
+    setShowDetailModal(true);
+    try {
+      const res = await ownersApi.getById(owner.id);
+      if (res.data?.success && res.data?.data) setDetailOwner(res.data.data);
+    } catch {
+      setShowDetailModal(false);
+    }
+  }, []);
+
+  const openVerifyMou = (owner: any) => {
+    setVerifyMouProfile(owner);
+    setVerifyMouRejectReason('');
+    setShowVerifyMouModal(true);
+  };
+
+  const handleVerifyMou = async (approved: boolean) => {
+    if (!verifyMouProfile) return;
+    if (!approved && !verifyMouRejectReason.trim()) {
+      showToast('Isi alasan penolakan.', 'warning');
+      return;
+    }
+    setVerifyingMou(true);
+    try {
+      await ownersApi.verifyMou(verifyMouProfile.id, { approved, rejection_reason: verifyMouRejectReason.trim() || undefined });
+      showToast(approved ? 'MoU disetujui.' : 'MoU ditolak.', 'success');
+      setShowVerifyMouModal(false);
+      setVerifyMouProfile(null);
+      fetchOwners();
+    } catch (e: any) {
+      showToast(e.response?.data?.message || 'Gagal', 'error');
+    } finally {
+      setVerifyingMou(false);
+    }
+  };
 
   const handleVerifyDeposit = async (profileId: string) => {
     if (!canVerifyDeposit) return;
@@ -181,9 +228,18 @@ const KoordinatorOwnersPage: React.FC = () => {
     setFilterWilayahId('');
     setFilterBranchId('');
     setFilterSearch('');
+    setPage(1);
+  };
+
+  const applyFilters = () => {
+    setPage(1);
+    fetchOwners();
   };
 
   const hasActiveFilters = !!(filterStatus || filterWilayahId || filterBranchId || filterSearch.trim());
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const from = total === 0 ? 0 : (page - 1) * limit + 1;
+  const to = Math.min(page * limit, total);
 
   return (
     <div className="space-y-6">
@@ -201,10 +257,15 @@ const KoordinatorOwnersPage: React.FC = () => {
         onToggle={() => setShowFilters((v) => !v)}
         onReset={resetFilters}
         hasActiveFilters={hasActiveFilters}
-        onApply={() => fetchOwners()}
+        onApply={applyFilters}
         loading={loading}
         applyLabel="Terapkan"
         resetLabel="Reset"
+        toolbar={
+          <Button variant="outline" size="sm" onClick={() => fetchOwners()} disabled={loading} aria-label="Segarkan">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        }
         className="w-full"
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -217,6 +278,7 @@ const KoordinatorOwnersPage: React.FC = () => {
                   onChange={(e) => {
                     setFilterWilayahId(e.target.value);
                     setFilterBranchId('');
+                    setPage(1);
                   }}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
                 >
@@ -230,7 +292,7 @@ const KoordinatorOwnersPage: React.FC = () => {
                 <label className="block text-xs font-medium text-slate-500 mb-1">Cabang</label>
                 <select
                   value={filterBranchId}
-                  onChange={(e) => setFilterBranchId(e.target.value)}
+                  onChange={(e) => { setFilterBranchId(e.target.value); setPage(1); }}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">Semua cabang</option>
@@ -245,7 +307,7 @@ const KoordinatorOwnersPage: React.FC = () => {
             <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
             >
               {STATUS_OPTIONS.map((opt) => (
@@ -258,7 +320,8 @@ const KoordinatorOwnersPage: React.FC = () => {
             <input
               type="text"
               value={filterSearch}
-              onChange={(e) => setFilterSearch(e.target.value)}
+              onChange={(e) => { setFilterSearch(e.target.value); setPage(1); }}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
               placeholder="Nama, perusahaan, email..."
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"
             />
@@ -271,11 +334,12 @@ const KoordinatorOwnersPage: React.FC = () => {
           <div className="py-12 text-center text-slate-500 flex items-center justify-center gap-2">
             <RefreshCw className="w-5 h-5 animate-spin" /> Memuat...
           </div>
-        ) : filteredList.length === 0 ? (
+        ) : list.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             {hasActiveFilters ? 'Tidak ada owner sesuai filter.' : 'Belum ada owner di wilayah Anda.'}
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -284,11 +348,11 @@ const KoordinatorOwnersPage: React.FC = () => {
                   <th className="text-left py-3 px-4">Email</th>
                   <th className="text-left py-3 px-4">Status</th>
                   <th className="text-left py-3 px-4">Cabang</th>
-                  <th className="text-left py-3 px-4 w-20">Aksi</th>
+                  <th className="text-left py-3 px-4 w-32">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredList.map((o) => (
+                {list.map((o) => (
                   <tr key={o.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="py-3 px-4">
                       <p className="font-medium">{o.User?.name}</p>
@@ -320,6 +384,20 @@ const KoordinatorOwnersPage: React.FC = () => {
                       ) : (
                         (() => {
                           const items: ActionsMenuItem[] = [];
+                          items.push({
+                            id: 'detail',
+                            label: 'Lihat Detail',
+                            icon: <Eye className="w-4 h-4" />,
+                            onClick: () => openDetail(o)
+                          });
+                          if (o.status === 'pending_mou_approval' && canVerifyMou) {
+                            items.push({
+                              id: 'verify-mou',
+                              label: 'Verifikasi MoU',
+                              icon: <FileCheck className="w-4 h-4" />,
+                              onClick: () => openVerifyMou(o)
+                            });
+                          }
                           if (o.status === 'pending_deposit_verification' && canVerifyDeposit) {
                             items.push({
                               id: 'verify-deposit',
@@ -347,8 +425,7 @@ const KoordinatorOwnersPage: React.FC = () => {
                               disabled: actingId !== null
                             });
                           }
-                          if (items.length === 0) return <span className="text-slate-400">-</span>;
-                          return <ActionsMenu items={items} />;
+                          return <ActionsMenu align="right" items={items} />;
                         })()
                       )}
                     </td>
@@ -357,8 +434,88 @@ const KoordinatorOwnersPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {total > limit && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+              <span className="text-sm text-slate-600">
+                Menampilkan {from}–{to} dari {total}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || loading}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-slate-600 px-1">
+                  Halaman {page} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || loading}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </Card>
+
+      {/* Modal Detail Owner */}
+      {showDetailModal && detailOwner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowDetailModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-900">Detail Owner</h2>
+              <button type="button" className="p-1 rounded hover:bg-slate-100" onClick={() => setShowDetailModal(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-3 text-sm">
+              <div><span className="text-slate-500">Nama</span><p className="font-medium">{detailOwner.User?.name || '-'}</p></div>
+              <div><span className="text-slate-500">Perusahaan</span><p className="font-medium">{detailOwner.User?.company_name || '-'}</p></div>
+              <div><span className="text-slate-500">Email</span><p>{detailOwner.User?.email || '-'}</p></div>
+              <div><span className="text-slate-500">Telepon</span><p>{detailOwner.User?.phone || detailOwner.phone || '-'}</p></div>
+              <div><span className="text-slate-500">Status</span><p><Badge variant={detailOwner.status === 'active' ? 'success' : detailOwner.status === 'rejected' ? 'error' : 'warning'}>{OWNER_STATUS_LABELS[detailOwner.status] || detailOwner.status}</Badge></p></div>
+              <div><span className="text-slate-500">Cabang</span><p>{detailOwner.AssignedBranch ? `${detailOwner.AssignedBranch.code} – ${detailOwner.AssignedBranch.name}` : '-'}</p></div>
+              {detailOwner.User?.address && <div><span className="text-slate-500">Alamat</span><p>{detailOwner.User.address}</p></div>}
+              {detailOwner.User?.whatsapp && <div><span className="text-slate-500">WhatsApp</span><p>{detailOwner.User.whatsapp}</p></div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Verifikasi MoU */}
+      {showVerifyMouModal && verifyMouProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowVerifyMouModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-900">Verifikasi MoU</h2>
+              <p className="text-sm text-slate-600 mt-1">{verifyMouProfile.User?.name || verifyMouProfile.User?.company_name} – {verifyMouProfile.User?.email}</p>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Alasan penolakan (jika tolak)</label>
+                <textarea
+                  value={verifyMouRejectReason}
+                  onChange={(e) => setVerifyMouRejectReason(e.target.value)}
+                  placeholder="Opsional jika setujui"
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-slate-200">
+              <Button variant="outline" onClick={() => setShowVerifyMouModal(false)}>Batal</Button>
+              <Button variant="outline" onClick={() => handleVerifyMou(false)} disabled={verifyingMou || !verifyMouRejectReason.trim()}>Tolak</Button>
+              <Button variant="primary" onClick={() => handleVerifyMou(true)} disabled={verifyingMou}>{verifyingMou ? 'Memproses...' : 'Setujui MoU'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

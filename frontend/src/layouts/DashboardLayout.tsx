@@ -43,12 +43,6 @@ const menuItems: MenuItem[] = [
     roles: ['super_admin', 'admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'tiket_koordinator', 'visa_koordinator', 'role_invoice_saudi', 'role_hotel', 'role_bus', 'role_accounting', 'owner']
   },
   {
-    title: 'Dashboard Koordinator',
-    icon: <LayoutDashboard className="w-5 h-5" />,
-    path: '/dashboard/koordinator',
-    roles: ['admin_koordinator', 'tiket_koordinator', 'visa_koordinator']
-  },
-  {
     title: 'Owners Wilayah',
     icon: <Users className="w-5 h-5" />,
     path: '/dashboard/koordinator/owners',

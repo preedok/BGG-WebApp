@@ -667,7 +667,10 @@ export const koordinatorApi = {
 export const ownersApi = {
   register: (body: { email: string; password: string; name: string; phone?: string; company_name?: string; address?: string; operational_region?: string; preferred_branch_id?: string; whatsapp?: string; npwp?: string }) =>
     api.post<{ success: boolean; message?: string; data?: { user: any; owner_status: string } }>('/owners/register', body),
-  list: (params?: { status?: string; branch_id?: string; wilayah_id?: string }) => api.get<{ success: boolean; data: OwnerProfile[] }>('/owners', { params }),
+  list: (params?: { status?: string; branch_id?: string; wilayah_id?: string; q?: string; page?: number; limit?: number }) =>
+    api.get<{ success: boolean; data: OwnerProfile[]; total?: number; page?: number; limit?: number }>('/owners', { params }),
+  getById: (id: string) => api.get<{ success: boolean; data: OwnerProfile }>(`/owners/${id}`),
+  verifyMou: (id: string, body: { approved: boolean; rejection_reason?: string }) => api.patch<{ success: boolean; message?: string; data?: { owner_status: string } }>(`/owners/${id}/verify-mou`, body),
   assignBranch: (ownerId: string, branchId: string) => api.patch(`/owners/${ownerId}/assign-branch`, { branch_id: branchId }),
   verifyDeposit: (ownerId: string) => api.patch(`/owners/${ownerId}/verify-deposit`),
   activate: (ownerId: string) => api.patch(`/owners/${ownerId}/activate`)

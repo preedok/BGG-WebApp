@@ -6,6 +6,9 @@ const PDFDocument = require('pdfkit');
 
 const formatIDR = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+const formatDateTime = (d) => d ? new Date(d).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+const paymentTypeLabel = (t) => (t === 'dp' ? 'DP' : t === 'partial' ? 'Cicilan' : t === 'full' ? 'Lunas' : t || '-');
+const verifiedStatusLabel = (s) => (s === 'verified' ? 'Diverifikasi' : s === 'rejected' ? 'Ditolak' : 'Menunggu');
 
 const STATUS_LABELS = {
   draft: 'Draft',
@@ -114,9 +117,64 @@ function renderInvoicePdf(doc, data) {
 
   y = boxTop + 110;
 
+  // Riwayat Pembayaran & Bukti Bayar
+  const proofs = (data.PaymentProofs || []).slice().sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  if (proofs.length > 0) {
+    if (y > doc.page.height - 180) { doc.addPage(); y = margin; }
+    doc.fontSize(10).fillColor('#0f172a').text('Riwayat Pembayaran & Bukti Bayar', margin, y);
+    y += 16;
+
+    const payTableTop = y;
+    const cw = [0.035, 0.12, 0.12, 0.07, 0.13, 0.15, 0.10, 0.13, 0.145]; // No, TglTransfer, TglUpload, Tipe, Jumlah, Bank, Status, TglVerif, File
+    const x0 = margin + 6;
+    const x = (i) => margin + pageWidth * cw.slice(0, i).reduce((s, w) => s + w, 0) + 4;
+    const w = (i) => pageWidth * cw[i] - 8;
+    doc.rect(margin, payTableTop, pageWidth, 20).fillAndStroke('#f1f5f9', '#e2e8f0');
+    doc.fontSize(8).fillColor('#475569');
+    doc.text('No', x0, payTableTop + 6, { width: w(0) });
+    doc.text('Tgl Transfer', x(1), payTableTop + 6, { width: w(1) });
+    doc.text('Tgl Upload', x(2), payTableTop + 6, { width: w(2) });
+    doc.text('Tipe', x(3), payTableTop + 6, { width: w(3) });
+    doc.text('Jumlah', x(4), payTableTop + 6, { width: w(4) });
+    doc.text('Bank / Rekening', x(5), payTableTop + 6, { width: w(5) });
+    doc.text('Status', x(6), payTableTop + 6, { width: w(6) });
+    doc.text('Tgl Verifikasi', x(7), payTableTop + 6, { width: w(7) });
+    doc.text('File Bukti', x(8), payTableTop + 6, { width: w(8) });
+    y = payTableTop + 22;
+
+    proofs.forEach((p, idx) => {
+      if (y > doc.page.height - 50) { doc.addPage(); y = margin; }
+      const tglTransfer = formatDate(p.transfer_date);
+      const tglUpload = p.created_at ? formatDateTime(p.created_at) : '-';
+      const tipe = paymentTypeLabel(p.payment_type);
+      const jumlah = formatIDR(parseFloat(p.amount || 0));
+      const bank = [p.bank_name, p.account_number].filter(Boolean).join(' ') || '-';
+      const status = verifiedStatusLabel(p.verified_status);
+      const tglVerif = p.verified_at ? formatDateTime(p.verified_at) : '-';
+      let fileInfo = '-';
+      if (p.proof_file_url && p.proof_file_url !== 'issued-saudi') {
+        const match = p.proof_file_url.match(/\/([^/]+)$/);
+        fileInfo = match ? match[1] : 'Lampiran';
+      } else if (p.proof_file_url === 'issued-saudi') fileInfo = 'Pembayaran Saudi';
+      doc.fontSize(8).fillColor('#334155');
+      doc.text(String(idx + 1), x0, y, { width: w(0) });
+      doc.text(tglTransfer, x(1), y, { width: w(1) });
+      doc.text(tglUpload, x(2), y, { width: w(2) });
+      doc.text(tipe, x(3), y, { width: w(3) });
+      doc.text(jumlah, x(4), y, { width: w(4) });
+      doc.text(String(bank).slice(0, 22), x(5), y, { width: w(5) });
+      doc.text(status, x(6), y, { width: w(6) });
+      doc.text(tglVerif, x(7), y, { width: w(7) });
+      doc.text(String(fileInfo).slice(0, 26), x(8), y, { width: w(8) });
+      y += 18;
+    });
+    y += 14;
+  }
+
   // Terms
   const terms = data.terms || [];
   if (terms.length > 0) {
+    if (y > doc.page.height - 120) { doc.addPage(); y = margin; }
     doc.fontSize(9).fillColor('#64748b').text('Ketentuan:', margin, y);
     y += 14;
     terms.forEach((t) => {

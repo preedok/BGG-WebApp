@@ -1,4 +1,5 @@
 const asyncHandler = require('express-async-handler');
+const { Op } = require('sequelize');
 const { User, OwnerProfile, Branch } = require('../models');
 const { ROLES, OWNER_STATUS } = require('../constants');
 const { getBranchIdsForWilayah } = require('../utils/wilayahScope');
@@ -98,12 +99,33 @@ const getMyProfile = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/v1/owners/:id (detail owner untuk Admin/Koordinator)
+ */
+const getById = asyncHandler(async (req, res) => {
+  const profile = await OwnerProfile.findByPk(req.params.id, {
+    include: [
+      { model: User, as: 'User', attributes: ['id', 'email', 'name', 'phone', 'company_name'] },
+      { model: Branch, as: 'PreferredBranch', attributes: ['id', 'code', 'name', 'region'], required: false },
+      { model: Branch, as: 'AssignedBranch', attributes: ['id', 'code', 'name'], required: false }
+    ]
+  });
+  if (!profile) return res.status(404).json({ success: false, message: 'Owner tidak ditemukan' });
+  const isKoordinator = isKoordinatorRole(req.user.role);
+  if (isKoordinator && req.user.wilayah_id) {
+    const branchIds = await getBranchIdsForWilayah(req.user.wilayah_id);
+    const allowed = (profile.assigned_branch_id && branchIds.includes(profile.assigned_branch_id)) || profile.status === OWNER_STATUS.DEPOSIT_VERIFIED;
+    if (!allowed) return res.status(403).json({ success: false, message: 'Akses ditolak' });
+  }
+  res.json({ success: true, data: profile });
+});
+
+/**
  * GET /api/v1/owners (Admin Pusat / Super Admin / Koordinator / Accounting)
- * Query: status, branch_id, wilayah_id (untuk Admin Pusat/Super Admin filter per wilayah).
+ * Query: status, branch_id, wilayah_id, search (q), page, limit.
  * Koordinator: hanya owner yang assigned ke cabang di wilayah mereka, atau DEPOSIT_VERIFIED.
  */
 const list = asyncHandler(async (req, res) => {
-  const { status, branch_id, wilayah_id: queryWilayahId } = req.query;
+  const { status, branch_id, wilayah_id: queryWilayahId, q: search, page = 1, limit = 50 } = req.query;
   const where = {};
   if (status) where.status = status;
 
@@ -115,25 +137,54 @@ const list = asyncHandler(async (req, res) => {
   } else if (queryWilayahId) {
     branchIdsWilayah = await getBranchIdsForWilayah(queryWilayahId);
   }
-  const filterBranchId = branch_id || (isKoordinator ? null : null);
 
-  const profiles = await OwnerProfile.findAll({
-    where,
-    include: [
-      { model: User, as: 'User', attributes: ['id', 'email', 'name', 'phone', 'company_name'] },
-      { model: Branch, as: 'PreferredBranch', attributes: ['id', 'code', 'name', 'region', 'koordinator_provinsi', 'koordinator_wilayah'], required: false },
-      { model: Branch, as: 'AssignedBranch', attributes: ['id', 'code', 'name'] }
-    ]
-  });
-  let list_ = profiles;
-  if (isKoordinator && userWilayahId && branchIdsWilayah && branchIdsWilayah.length > 0) {
-    list_ = profiles.filter(p => (p.assigned_branch_id && branchIdsWilayah.includes(p.assigned_branch_id)) || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
-  } else if (queryWilayahId && branchIdsWilayah && branchIdsWilayah.length > 0) {
-    list_ = profiles.filter(p => (p.assigned_branch_id && branchIdsWilayah.includes(p.assigned_branch_id)) || p.status === OWNER_STATUS.DEPOSIT_VERIFIED);
-  } else if (filterBranchId) {
-    list_ = profiles.filter(p => p.assigned_branch_id === filterBranchId);
+  if (branch_id) where.assigned_branch_id = branch_id;
+  else if (queryWilayahId && branchIdsWilayah && branchIdsWilayah.length > 0) {
+    where[Op.or] = [
+      { assigned_branch_id: { [Op.in]: branchIdsWilayah } },
+      { status: OWNER_STATUS.DEPOSIT_VERIFIED }
+    ];
+  } else if (isKoordinator && userWilayahId && branchIdsWilayah && branchIdsWilayah.length > 0) {
+    where[Op.or] = [
+      { assigned_branch_id: { [Op.in]: branchIdsWilayah } },
+      { status: OWNER_STATUS.DEPOSIT_VERIFIED }
+    ];
   }
-  res.json({ success: true, data: list_ });
+
+  const userWhere = {};
+  if (search && String(search).trim()) {
+    const term = `%${String(search).trim()}%`;
+    userWhere[Op.or] = [
+      { name: { [Op.iLike]: term } },
+      { company_name: { [Op.iLike]: term } },
+      { email: { [Op.iLike]: term } }
+    ];
+  }
+
+  const includeUser = {
+    model: User,
+    as: 'User',
+    attributes: ['id', 'email', 'name', 'phone', 'company_name'],
+    required: Object.keys(userWhere).length > 0,
+    where: Object.keys(userWhere).length > 0 ? userWhere : undefined
+  };
+  const includePreferred = { model: Branch, as: 'PreferredBranch', attributes: ['id', 'code', 'name', 'region'], required: false };
+  const includeAssigned = { model: Branch, as: 'AssignedBranch', attributes: ['id', 'code', 'name'], required: false };
+
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+  const pg = Math.max(parseInt(page, 10) || 1, 1);
+  const offset = (pg - 1) * lim;
+
+  const { count, rows } = await OwnerProfile.findAndCountAll({
+    where,
+    include: [includeUser, includePreferred, includeAssigned],
+    limit: lim,
+    offset,
+    order: [['created_at', 'DESC']],
+    distinct: true
+  });
+
+  res.json({ success: true, data: rows, total: count, page: pg, limit: lim });
 });
 
 /**
@@ -247,6 +298,7 @@ module.exports = {
   uploadMou,
   getMyProfile,
   list,
+  getById,
   verifyMou,
   verifyDeposit,
   assignBranch,

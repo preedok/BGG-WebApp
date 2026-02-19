@@ -599,7 +599,8 @@ const getPdf = asyncHandler(async (req, res) => {
     include: [
       { model: Order, as: 'Order', include: [{ model: OrderItem, as: 'OrderItems', include: [{ model: Product, as: 'Product', attributes: ['id', 'code', 'name', 'type'], required: false }] }] },
       { model: User, as: 'User', attributes: ['id', 'name', 'email', 'company_name'] },
-      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false }
+      { model: Branch, as: 'Branch', attributes: ['id', 'code', 'name'], required: false },
+      { model: PaymentProof, as: 'PaymentProofs', required: false, order: [['created_at', 'ASC']] }
     ]
   });
   if (!invoice) return res.status(404).json({ success: false, message: 'Invoice tidak ditemukan' });

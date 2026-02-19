@@ -15,7 +15,6 @@ import BranchesPage from '../pages/dashboard/components/BranchesPage';
 import ReportsPage from '../pages/dashboard/components/ReportsPage';
 import SettingsPage from '../pages/dashboard/components/SettingsPage';
 import KoordinatorOwnersPage from '../pages/dashboard/components/KoordinatorOwnersPage';
-import KoordinatorDashboard from '../pages/dashboard/roles/KoordinatorDashboard';
 import AdminPusatCreateUserPage from '../pages/dashboard/adminpusat/AdminPusatCreateUserPage';
 import OrdersInvoicesPage from '../pages/dashboard/adminpusat/OrdersInvoicesPage';
 import AccountingFinancialReportPage from '../pages/dashboard/accounting/AccountingFinancialReportPage';
@@ -133,7 +132,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'koordinator',
-            element: <KoordinatorDashboard />
+            element: <Navigate to="/dashboard" replace />
           },
           {
             path: 'koordinator/owners',
