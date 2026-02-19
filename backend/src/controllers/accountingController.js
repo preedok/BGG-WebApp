@@ -769,9 +769,14 @@ const getFinancialReport = asyncHandler(async (req, res) => {
     include: [orderItemInclude]
   };
 
-  const sortCol = ['issued_at', 'total_amount', 'paid_amount', 'invoice_number'].includes(String(sort_by || '')) ? sort_by : 'issued_at';
+  const allowedSort = ['issued_at', 'total_amount', 'paid_amount', 'invoice_number'];
+  const sortCol = allowedSort.includes(String(sort_by || '')) ? String(sort_by) : 'issued_at';
   const sortDir = String(sort_order || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC';
-  const orderCol = ['total_amount', 'paid_amount', 'issued_at', 'invoice_number'].includes(sortCol) ? sequelize.col(`invoices.${sortCol}`) : sortCol;
+  // ORDER BY must use alias "Invoice" (Sequelize model name) to avoid "invalid reference to FROM-clause" in PostgreSQL
+  const orderBy = [
+    [sequelize.literal(`"Invoice"."${sortCol}"`), sortDir],
+    [sequelize.literal('"Invoice"."invoice_number"'), 'ASC']
+  ];
 
   const branchInclude = {
     model: Branch,
@@ -791,7 +796,7 @@ const getFinancialReport = asyncHandler(async (req, res) => {
       { model: PaymentProof, as: 'PaymentProofs', required: false },
       orderInclude
     ],
-    order: [[orderCol, sortDir], [sequelize.col('invoices.invoice_number'), 'ASC']]
+    order: orderBy
   });
 
   let totalRevenue = 0;
