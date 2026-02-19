@@ -113,6 +113,7 @@ const AccountingFinancialReportPage: React.FC = () => {
   const [tableLimit, setTableLimit] = useState(25);
   const [tableSortKey, setTableSortKey] = useState<SortKey>('revenue');
   const [tableSortOrder, setTableSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const buildParams = useCallback(() => {
     const params: Record<string, string | number> = {};
@@ -143,12 +144,19 @@ const AccountingFinancialReportPage: React.FC = () => {
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await accountingApi.getFinancialReport(buildParams());
-      if (res.data.success && res.data.data) setData(res.data.data);
-      else setData(null);
-    } catch {
+      if (res.data.success && res.data.data) {
+        setData(res.data.data);
+      } else {
+        setData(null);
+        setFetchError('Format respons tidak valid.');
+      }
+    } catch (e: any) {
       setData(null);
+      const msg = e.response?.data?.message || e.message || 'Gagal memuat laporan. Periksa koneksi dan coba lagi.';
+      setFetchError(msg);
     } finally {
       setLoading(false);
     }
@@ -268,6 +276,7 @@ const AccountingFinancialReportPage: React.FC = () => {
     setMinAmount('');
     setMaxAmount('');
     setPage(1);
+    setFetchError(null);
   };
 
   const isCustomRange = period === 'custom';
@@ -445,6 +454,24 @@ const AccountingFinancialReportPage: React.FC = () => {
       )}
 
       {loading && !data && <div className="text-center py-12 text-slate-500">Memuat...</div>}
+
+      {!loading && !data && (
+        <Card className="bg-slate-50 border-slate-200">
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">
+              {fetchError ? 'Gagal memuat laporan' : 'Tidak ada data'}
+            </h3>
+            <p className="text-slate-500 max-w-md mx-auto mb-4">
+              {fetchError || 'Tidak ada data laporan keuangan untuk periode dan filter yang dipilih. Coba ubah periode (mis. Bulan ini / Tahun ini) atau reset filter.'}
+            </p>
+            <Button variant="primary" onClick={fetchReport}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Muat ulang
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {data && (
         <>

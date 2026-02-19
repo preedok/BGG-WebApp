@@ -662,8 +662,9 @@ function buildFinancialReportDateRange(period, year, month, date_from, date_to) 
       startDate = new Date(y, 0, 1);
       endDate = new Date(y, 11, 31, 23, 59, 59);
     } else if (period === 'quarter') {
-      const q = Math.min(3, Math.max(0, parseInt(month || '1', 10) - 1));
-      const qStart = q * 3;
+      const monthNum = parseInt(month || '1', 10);
+      const quarterNum = Math.min(4, Math.max(1, Math.ceil(monthNum / 3)));
+      const qStart = (quarterNum - 1) * 3;
       startDate = new Date(y, qStart, 1);
       endDate = new Date(y, qStart + 3, 0, 23, 59, 59);
     } else {
@@ -683,9 +684,40 @@ function buildFinancialReportDateRange(period, year, month, date_from, date_to) 
  * Pagination: page, limit (untuk invoices)
  * Sort: sort_by (issued_at|total_amount|paid_amount|invoice_number), sort_order (asc|desc)
  */
+function emptyFinancialReportPayload(startDate, endDate) {
+  const prevEnd = new Date(startDate);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - 30);
+  return {
+    period: { start: startDate, end: endDate },
+    total_revenue: 0,
+    by_branch: [],
+    by_wilayah: [],
+    by_provinsi: [],
+    by_owner: [],
+    by_product_type: [{ type: 'hotel', revenue: 0 }, { type: 'visa', revenue: 0 }, { type: 'ticket', revenue: 0 }, { type: 'bus', revenue: 0 }, { type: 'handling', revenue: 0 }],
+    by_period: [],
+    invoice_count: 0,
+    invoices: [],
+    pagination: { total: 0, page: 1, limit: 25, totalPages: 1 },
+    previous_period: { start: prevStart, end: prevEnd, revenue: 0, invoice_count: 0, growth_percent: null }
+  };
+}
+
 const getFinancialReport = asyncHandler(async (req, res) => {
   const { period, year, month, date_from, date_to, branch_id, provinsi_id, wilayah_id, owner_id, status, order_status, product_type, search, min_amount, max_amount, page, limit, sort_by, sort_order } = req.query;
-  const { startDate, endDate } = buildFinancialReportDateRange(period, year, month, date_from, date_to);
+  let startDate;
+  let endDate;
+  try {
+    const range = buildFinancialReportDateRange(period, year, month, date_from, date_to);
+    startDate = range.startDate;
+    endDate = range.endDate;
+  } catch (err) {
+    endDate = new Date();
+    startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    return res.json({ success: true, data: emptyFinancialReportPayload(startDate, endDate) });
+  }
   const invWhere = {};
 
   const branchFilter = await resolveBranchFilter(branch_id, provinsi_id, wilayah_id, req.user);
@@ -749,7 +781,9 @@ const getFinancialReport = asyncHandler(async (req, res) => {
     include: [{ model: Provinsi, as: 'Provinsi', attributes: ['id', 'name', 'wilayah_id'], required: false, include: [{ model: Wilayah, as: 'Wilayah', attributes: ['id', 'name'] }] }]
   };
 
-  const invoices = await Invoice.findAll({
+  let invoices;
+  try {
+    invoices = await Invoice.findAll({
     where: invWhere,
     include: [
       branchInclude,
@@ -915,6 +949,10 @@ const getFinancialReport = asyncHandler(async (req, res) => {
       }
     }
   });
+  } catch (err) {
+    req.log?.error?.(err);
+    return res.status(200).json({ success: true, data: emptyFinancialReportPayload(startDate, endDate) });
+  }
 });
 
 /**
