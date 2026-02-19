@@ -99,9 +99,12 @@ const getFile = asyncHandler(async (req, res) => {
     ['super_admin', 'admin_pusat', 'admin_koordinator', 'invoice_koordinator', 'role_invoice_saudi', 'role_invoice', 'invoice', 'role_accounting'].includes(req.user.role)
   );
   if (!canAccess) return res.status(403).json({ success: false, message: 'Akses ditolak' });
-  const match = proof.proof_file_url.match(/\/uploads\/payment-proofs\/(.+)$/);
-  if (!match) return res.status(404).json({ success: false, message: 'Path tidak valid' });
-  const filePath = path.join(proofDir, match[1]);
+  // Ekstrak nama file: terima /uploads/payment-proofs/xxx, uploads/payment-proofs/xxx, atau URL penuh
+  const urlNorm = (proof.proof_file_url || '').replace(/\\/g, '/').trim();
+  const match = urlNorm.match(/payment-proofs\/?(.+)$/i);
+  const filename = match ? match[1].replace(/^\/+/, '').split('/').pop() : null;
+  if (!filename) return res.status(404).json({ success: false, message: 'Path tidak valid' });
+  const filePath = path.join(proofDir, filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, message: 'File tidak ada di server' });
   const ext = path.extname(filePath).toLowerCase();
   const mime = MIME_BY_EXT[ext] || 'application/octet-stream';

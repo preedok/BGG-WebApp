@@ -381,12 +381,15 @@ const OrdersInvoicesPage: React.FC = () => {
 
   const getProofTypeLabel = (type: string) => (type === 'dp' ? 'DP' : type === 'partial' ? 'Cicilan' : 'Lunas');
 
-  /** Preview bukti bayar via API (auth terkirim) supaya gambar tampil di popup */
+  /** Preview bukti bayar: coba via API (auth), fallback ke URL langsung (sama seperti Unduh) */
   const ProofPreview = ({ invoiceId, proof }: { invoiceId: string; proof: any }) => {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [err, setErr] = useState(false);
+    const [apiFailed, setApiFailed] = useState(false);
+    const [directFailed, setDirectFailed] = useState(false);
     const blobUrlRef = React.useRef<string | null>(null);
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(proof?.proof_file_url || '');
+    const directUrl = getFileUrl(proof?.proof_file_url);
+
     useEffect(() => {
       if (!proof?.proof_file_url || proof.proof_file_url === 'issued-saudi') return;
       let cancelled = false;
@@ -398,7 +401,7 @@ const OrdersInvoicesPage: React.FC = () => {
           blobUrlRef.current = url;
           setBlobUrl(url);
         })
-        .catch(() => { if (!cancelled) setErr(true); });
+        .catch(() => { if (!cancelled) setApiFailed(true); });
       return () => {
         cancelled = true;
         if (blobUrlRef.current) {
@@ -415,26 +418,40 @@ const OrdersInvoicesPage: React.FC = () => {
         </div>
       );
     }
-    if (err) {
+    if (blobUrl) {
+      return isImage ? (
+        <a href={blobUrl} target="_blank" rel="noopener noreferrer" className="block">
+          <img src={blobUrl} alt="Bukti bayar" className="max-w-full max-h-72 object-contain rounded-lg border border-slate-200" />
+        </a>
+      ) : (
+        <iframe src={blobUrl} title={`Bukti bayar ${proof.payment_type}`} className="w-full h-72 border border-slate-200 rounded-lg bg-white" />
+      );
+    }
+    if (apiFailed && directUrl && !directFailed) {
+      return isImage ? (
+        <a href={directUrl} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={directUrl}
+            alt="Bukti bayar"
+            className="max-w-full max-h-72 object-contain rounded-lg border border-slate-200"
+            onError={() => setDirectFailed(true)}
+          />
+        </a>
+      ) : (
+        <iframe src={directUrl} title={`Bukti bayar ${proof.payment_type}`} className="w-full h-72 border border-slate-200 rounded-lg bg-white" />
+      );
+    }
+    if (apiFailed && (!directUrl || directFailed)) {
       return (
         <div className="flex items-center justify-center h-48 text-slate-500 text-sm">
           Gagal memuat preview. Gunakan tombol Unduh.
         </div>
       );
     }
-    if (!blobUrl) {
-      return (
-        <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-          Memuat...
-        </div>
-      );
-    }
-    return isImage ? (
-      <a href={blobUrl} target="_blank" rel="noopener noreferrer" className="block">
-        <img src={blobUrl} alt="Bukti bayar" className="max-w-full max-h-72 object-contain rounded-lg border border-slate-200" />
-      </a>
-    ) : (
-      <iframe src={blobUrl} title={`Bukti bayar ${proof.payment_type}`} className="w-full h-72 border border-slate-200 rounded-lg bg-white" />
+    return (
+      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
+        Memuat...
+      </div>
     );
   };
 
